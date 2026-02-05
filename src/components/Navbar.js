@@ -1,14 +1,32 @@
+// Navbar.js - Updated with proper design
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
-  FiHome, FiSend, FiSearch, FiPlusSquare, FiUser,
-  FiSettings, FiUsers, FiLogOut, FiBell, FiMessageCircle
+  FiHome, FiSend, FiSearch, FiUser, FiPlusSquare,
+  FiBell, FiMessageSquare, FiUsers
 } from 'react-icons/fi';
-import { IoIosRocket } from 'react-icons/io';
+import API from '../utils/api';
 
-const Navbar = ({ user, unreadCounts = {} }) => {
-  const [showDropdown, setShowDropdown] = useState(false);
+const Navbar = ({ user, unreadCounts = { messages: 0, notifications: 0 } }) => {
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleSearch = async (query) => {
+    setSearchQuery(query);
+    if (query.trim()) {
+      try {
+        const data = await API.searchUsers(query);
+        setSearchResults(data.users || []);
+      } catch (error) {
+        console.error('Error searching users:', error);
+      }
+    } else {
+      setSearchResults([]);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -16,103 +34,160 @@ const Navbar = ({ user, unreadCounts = {} }) => {
     navigate('/login');
   };
 
+  const isActive = (path) => location.pathname === path;
+
   return (
-    <nav className="navbar">
-      <div className="nav-content">
-        <Link to="/" className="logo">
-          <IoIosRocket size={28} />
-          <span>Vesselx</span>
-        </Link>
-
-        <div className="nav-search">
-          <FiSearch className="search-icon" />
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Search"
-            onFocus={() => navigate('/search')}
-          />
-        </div>
-
-        <div className="nav-icons">
-          <Link to="/" className="nav-icon active" title="Home">
-            <FiHome size={24} />
-          </Link>
-          
-          <Link to="/messages" className="nav-icon" title="Messages">
-            <FiSend size={24} />
-            {unreadCounts.messages > 0 && (
-              <span className="badge">{unreadCounts.messages}</span>
-            )}
-          </Link>
-          
-          <Link to="/ai" className="nav-icon" title="AI Assistant">
-            <FiMessageCircle size={24} />
-          </Link>
-          
-          <Link to="/notifications" className="nav-icon" title="Notifications">
-            <FiBell size={24} />
-            {unreadCounts.notifications > 0 && (
-              <span className="badge">{unreadCounts.notifications}</span>
-            )}
+    <>
+      <nav className="navbar">
+        <div className="nav-content">
+          <Link to="/" className="logo">
+            <span className="logo-text">VesselX</span>
+            <div className="logo-dot"></div>
           </Link>
 
-          <div className="dropdown">
-            <button 
-              className="nav-icon"
-              onClick={() => setShowDropdown(!showDropdown)}
-            >
-              {user?.profilePicture ? (
-                <img 
-                  src={user.profilePicture} 
-                  alt={user.username}
-                  className="user-avatar"
-                />
-              ) : (
-                <FiUser size={24} />
+          {user && (
+            <div className="nav-search">
+              <FiSearch size={16} />
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                onFocus={() => setShowSearch(true)}
+                onBlur={() => setTimeout(() => setShowSearch(false), 200)}
+              />
+              
+              {showSearch && searchQuery.trim() && searchResults.length > 0 && (
+                <div className="search-dropdown">
+                  {searchResults.map((result) => (
+                    <Link
+                      key={result._id}
+                      to={`/profile/${result.username}`}
+                      className="search-result-item"
+                      onClick={() => setSearchQuery('')}
+                    >
+                      <img
+                        src={result.profilePicture || '/default-avatar.png'}
+                        alt={result.username}
+                        className="search-result-avatar"
+                      />
+                      <div className="search-result-info">
+                        <div className="search-result-username">{result.username}</div>
+                        <div className="search-result-name">{result.name}</div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               )}
-            </button>
+            </div>
+          )}
 
-            {showDropdown && (
-              <div className="dropdown-menu">
-                <Link 
-                  to={`/profile/${user?.username}`}
-                  className="dropdown-item"
-                  onClick={() => setShowDropdown(false)}
-                >
-                  <FiUser size={18} />
-                  Profile
-                </Link>
-                <Link 
-                  to="/settings"
-                  className="dropdown-item"
-                  onClick={() => setShowDropdown(false)}
-                >
-                  <FiSettings size={18} />
-                  Settings
-                </Link>
-                <Link 
-                  to="/groups"
-                  className="dropdown-item"
-                  onClick={() => setShowDropdown(false)}
-                >
-                  <FiUsers size={18} />
-                  Groups
-                </Link>
-                <div className="dropdown-divider" />
+          <div className="nav-actions">
+            {user ? (
+              <>
                 <button 
-                  className="dropdown-item"
-                  onClick={handleLogout}
+                  className="nav-action-btn"
+                  onClick={() => navigate('/')}
+                  title="Home"
                 >
-                  <FiLogOut size={18} />
-                  Log Out
+                  <FiHome size={24} />
                 </button>
-              </div>
+                
+                <button 
+                  className="nav-action-btn"
+                  onClick={() => navigate('/messages')}
+                  title="Messages"
+                >
+                  <FiSend size={24} />
+                  {unreadCounts.messages > 0 && (
+                    <span className="notification-badge">{unreadCounts.messages}</span>
+                  )}
+                </button>
+                
+                <button 
+                  className="nav-action-btn"
+                  onClick={() => navigate('/ai')}
+                  title="AI Assistant"
+                >
+                  <FiMessageSquare size={24} />
+                </button>
+                
+                <button 
+                  className="nav-action-btn"
+                  onClick={() => navigate('/groups')}
+                  title="Groups"
+                >
+                  <FiUsers size={24} />
+                </button>
+                
+                <button 
+                  className="nav-action-btn"
+                  onClick={() => navigate('/profile/' + user.username)}
+                  title="Profile"
+                >
+                  <img
+                    src={user.profilePicture || '/default-avatar.png'}
+                    alt={user.username}
+                    className="user-nav-avatar"
+                  />
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="btn btn-text">Log in</Link>
+                <Link to="/register" className="btn btn-primary">Sign up</Link>
+              </>
             )}
           </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+
+      {user && (
+        <div className="bottom-nav">
+          <Link 
+            to="/" 
+            className="nav-item"
+          >
+            <FiHome size={24} />
+            <span>Home</span>
+          </Link>
+          
+          <Link 
+            to="/search" 
+            className="nav-item"
+          >
+            <FiSearch size={24} />
+            <span>Search</span>
+          </Link>
+          
+          <div 
+            className="center-nav-btn"
+            onClick={() => {/* Handle create post */}}
+          >
+            <FiPlusSquare size={24} color="#0095f6" />
+          </div>
+          
+          <Link 
+            to="/messages" 
+            className="nav-item"
+          >
+            <FiSend size={24} />
+            <span>Messages</span>
+          </Link>
+          
+          <Link 
+            to={`/profile/${user.username}`}
+            className="nav-item"
+          >
+            <img
+              src={user.profilePicture || '/default-avatar.png'}
+              alt={user.username}
+              className="user-nav-avatar-small"
+            />
+          </Link>
+        </div>
+      )}
+    </>
   );
 };
 
