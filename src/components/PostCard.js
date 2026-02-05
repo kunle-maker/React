@@ -15,18 +15,20 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete }
 
   const handleLike = async () => {
     try {
-      await onLike(post._id);
       setIsLiked(!isLiked);
+      await onLike(post._id);
     } catch (error) {
+      setIsLiked(isLiked); // Rollback
       console.error('Error liking post:', error);
     }
   };
 
   const handleBookmark = async () => {
     try {
-      await onBookmark(post._id);
       setIsBookmarked(!isBookmarked);
+      await onBookmark(post._id);
     } catch (error) {
+      setIsBookmarked(isBookmarked); // Rollback
       console.error('Error bookmarking post:', error);
     }
   };
@@ -44,12 +46,6 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete }
     }
   };
 
-  const handleVideoDoubleClick = () => {
-    if (!isLiked) {
-      handleLike();
-    }
-  };
-
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -58,149 +54,59 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete }
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 60) {
-      return `${diffMins}m`;
-    } else if (diffHours < 24) {
-      return `${diffHours}h`;
-    } else if (diffDays < 7) {
-      return `${diffDays}d`;
-    } else {
-      return date.toLocaleDateString();
-    }
-  };
-
-  const renderMedia = () => {
-    if (!post.media || post.media.length === 0) return null;
-
-    const media = post.media[0];
-    
-    if (media.type === 'video') {
-      return (
-        <VideoPlayer
-          src={media.url}
-          postId={post._id}
-          onDoubleClick={handleVideoDoubleClick}
-        />
-      );
-    } else {
-      return (
-        <img
-          src={media.url}
-          alt="Post"
-          className="post-image"
-          onDoubleClick={handleVideoDoubleClick}
-        />
-      );
-    }
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 7) return `${diffDays}d`;
+    return date.toLocaleDateString();
   };
 
   return (
     <article className="post-card">
-      <header className="post-header">
-        <Link to={`/profile/${post.user?.username}`}>
+      <header style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img
-            src={post.user?.profilePicture || '/default-avatar.png'}
+            src={post.user?.profilePicture || 'https://via.placeholder.com/40'}
             alt={post.user?.username}
-            className="user-avatar"
+            style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
           />
-        </Link>
-        
-        <div className="post-header-info">
-          <Link to={`/profile/${post.user?.username}`} className="post-username">
-            {post.user?.username}
-          </Link>
-          <span className="post-time">{formatTime(post.createdAt)}</span>
+          <div>
+            <div style={{ fontWeight: '600', fontSize: '14px' }}>{post.user?.name || post.user?.username}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Demo user</div>
+          </div>
         </div>
-        
-        {post.user?.id === currentUser?.id && (
-          <button className="post-more" onClick={() => onDelete(post._id)}>
-            <FiTrash2 size={18} />
-          </button>
-        )}
+        <button style={{ background: 'none', border: 'none', color: 'var(--text-dim)' }}>
+          <FiMoreVertical size={20} />
+        </button>
       </header>
 
-      <div className="post-media">
-        {renderMedia()}
+      <div style={{ padding: '0 12px 12px' }}>
+        <p style={{ fontSize: '15px', lineHeight: '1.5', color: 'var(--text-primary)' }}>{post.caption}</p>
       </div>
 
-      <div className="post-actions">
-        <button 
-          className={`post-action ${isLiked ? 'liked' : ''}`}
-          onClick={handleLike}
-        >
-          {isLiked ? <FaHeart size={24} /> : <FiHeart size={24} />}
-        </button>
-        
-        <button 
-          className="post-action"
-          onClick={() => setShowComments(!showComments)}
-        >
-          <FiMessageCircle size={24} />
-        </button>
-        
-        <button className="post-action">
-          <FiSend size={24} />
-        </button>
-        
-        <button 
-          className={`post-action post-action-right ${isBookmarked ? 'bookmarked' : ''}`}
-          onClick={handleBookmark}
-        >
+      {post.media && post.media.length > 0 && (
+        <div style={{ width: '100%', maxHeight: '500px', overflow: 'hidden' }}>
+          {post.media[0].type === 'video' ? (
+            <VideoPlayer src={post.media[0].url} />
+          ) : (
+            <img src={post.media[0].url} alt="Post" style={{ width: '100%', display: 'block' }} />
+          )}
+        </div>
+      )}
+
+      <div style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <button onClick={handleLike} style={{ background: 'none', border: 'none', color: isLiked ? '#ed4956' : 'white', cursor: 'pointer' }}>
+            {isLiked ? <FaHeart size={24} /> : <FiHeart size={24} />}
+            <span style={{ marginLeft: '4px', fontSize: '14px' }}>{post.likes?.length || 0}</span>
+          </button>
+          <button onClick={() => setShowComments(!showComments)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
+            <FiMessageCircle size={24} />
+          </button>
+        </div>
+        <button onClick={handleBookmark} style={{ background: 'none', border: 'none', color: isBookmarked ? '#0095f6' : 'white', cursor: 'pointer' }}>
           {isBookmarked ? <FaBookmark size={24} /> : <FiBookmark size={24} />}
         </button>
       </div>
-
-      <div className="post-likes">
-        {post.likes?.length || 0} likes
-      </div>
-
-      {post.caption && (
-        <div className="post-caption">
-          <Link to={`/profile/${post.user?.username}`} className="post-caption-username">
-            {post.user?.username}
-          </Link>
-          <span className="post-caption-text">{post.caption}</span>
-        </div>
-      )}
-
-      {post.comments?.length > 0 && (
-        <button 
-          className="post-comments-link"
-          onClick={() => setShowComments(!showComments)}
-        >
-          View all {post.comments.length} comments
-        </button>
-      )}
-
-      {showComments && post.comments && (
-        <div className="post-comments">
-          {post.comments.slice(0, 3).map((comment, index) => (
-            <div key={index} className="comment">
-              <Link to={`/profile/${comment.user?.username}`} className="comment-username">
-                {comment.user?.username}
-              </Link>
-              <span className="comment-text">{comment.text}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <form className="post-comment-form" onSubmit={handleCommentSubmit}>
-        <input
-          type="text"
-          className="post-comment-input"
-          placeholder="Add a comment..."
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-        />
-        <button 
-          type="submit" 
-          className="post-comment-submit"
-          disabled={!commentText.trim()}
-        >
-          Post
-        </button>
-      </form>
     </article>
   );
 };

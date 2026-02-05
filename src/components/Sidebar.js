@@ -1,21 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import API from '../utils/api';
 
 const Sidebar = ({ currentUser }) => {
   const [suggestions, setSuggestions] = useState([]);
 
   useEffect(() => {
-    // Fetch suggestions from API
     const fetchSuggestions = async () => {
       try {
-        // Replace with actual API call
-        const response = await fetch('https://vesselx.onrender.com/api/users/search?q=&limit=5', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        const data = await response.json();
-        setSuggestions(data.users || []);
+        const data = await API.searchUsers('');
+        setSuggestions(data.users?.slice(0, 5) || []);
       } catch (error) {
         console.error('Error fetching suggestions:', error);
       }
