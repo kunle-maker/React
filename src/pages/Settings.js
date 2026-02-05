@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
+import API from '../utils/api';
 import { FiUser, FiLock, FiBell, FiShield, FiHelpCircle } from 'react-icons/fi';
 
 const Settings = () => {
@@ -14,20 +15,9 @@ const Settings = () => {
 
   const handleSave = async () => {
     try {
-      const response = await fetch('https://vesselx.onrender.com/api/profile', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('user', JSON.stringify(data.user));
-        alert('Profile updated successfully!');
-      }
+      const data = await API.updateProfile(formData);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      alert('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
     }

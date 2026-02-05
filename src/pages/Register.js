@@ -1,13 +1,15 @@
-// Login.js - Updated with exact screenshot design
+// Register.js - Updated with exact screenshot design
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import API from '../utils/api';
-import { FiEye, FiEyeOff, FiUser, FiLock } from 'react-icons/fi';
+import { FiEye, FiEyeOff, FiUser, FiMail, FiLock, FiAtSign } from 'react-icons/fi';
 
-const Login = () => {
+const Register = () => {
   const [formData, setFormData] = useState({
     username: '',
-    password: ''
+    password: '',
+    name: '',
+    email: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -21,12 +23,12 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const data = await API.login(formData.username, formData.password);
+      const data = await API.register(formData);
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       navigate('/');
     } catch (err) {
-      setError(err.message || 'Invalid username or password');
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -40,23 +42,55 @@ const Login = () => {
             <span className="logo-text">VesselX</span>
             <div className="logo-dot"></div>
           </div>
-          <h1 className="login-title">Welcome back to VesselX</h1>
-          <p className="login-subtitle">Sign in to continue to your account</p>
+          <h1 className="login-title">Create your VesselX account</h1>
+          <p className="login-subtitle">Join our community of authentic voices</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
           {error && <div className="error-message">{error}</div>}
 
           <div className="form-group">
-            <label>Username</label>
+            <label>Full Name</label>
             <div className="input-with-icon">
               <FiUser size={20} />
               <input
                 type="text"
                 className="form-input"
-                placeholder="yourusername"
+                placeholder="John Doe"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                required
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Username</label>
+            <div className="input-with-icon">
+              <FiAtSign size={20} />
+              <input
+                type="text"
+                className="form-input"
+                placeholder="johndoe"
                 value={formData.username}
                 onChange={(e) => setFormData({...formData, username: e.target.value})}
+                required
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Email Address</label>
+            <div className="input-with-icon">
+              <FiMail size={20} />
+              <input
+                type="email"
+                className="form-input"
+                placeholder="john@email.com"
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
                 required
                 disabled={isLoading}
               />
@@ -70,7 +104,7 @@ const Login = () => {
               <input
                 type={showPassword ? 'text' : 'password'}
                 className="form-input"
-                placeholder="Enter your password"
+                placeholder="Create a password"
                 value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
                 required
@@ -85,35 +119,31 @@ const Login = () => {
                 {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
               </button>
             </div>
+            <p className="password-hint">Use 8+ characters with letters and numbers</p>
           </div>
 
           <div className="form-options">
             <label className="checkbox-label">
-              <input type="checkbox" />
-              <span>Keep me signed in</span>
+              <input type="checkbox" required />
+              <span>I agree to the Terms of Service and Privacy Policy</span>
             </label>
-            <Link to="/forgot-password" className="forgot-link">Forgot password?</Link>
           </div>
 
           <button 
             type="submit" 
             className="login-btn" 
-            disabled={isLoading || !formData.username || !formData.password}
+            disabled={isLoading || !formData.name || !formData.username || !formData.email || !formData.password}
           >
-            {isLoading ? 'Signing in...' : 'Sign in'}
+            {isLoading ? 'Creating Account...' : 'Create Account'}
           </button>
 
           <div className="demo-notice">
             <div className="demo-icon">ℹ️</div>
-            <span>This is a demo environment. Use any credentials to continue.</span>
-          </div>
-
-          <div className="divider">
-            <span>or</span>
+            <span>This is a demo. Email verification is simulated for testing.</span>
           </div>
 
           <p className="signup-link">
-            Don't have an account? <Link to="/register">Create one</Link>
+            Already have an account? <Link to="/login">Sign in</Link>
           </p>
         </form>
       </div>
@@ -121,4 +151,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Register;

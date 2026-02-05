@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import PostCard from '../components/PostCard';
-import { FiGrid, FiBookmark, FiUserPlus, FiSettings, FiEdit3 } from 'react-icons/fi';
+import API from '../utils/api';
+import { FiSettings, FiGrid, FiBookmark, FiUserCheck, FiUserPlus, FiMoreHorizontal } from 'react-icons/fi';
 
 const Profile = () => {
   const { username } = useParams();
-  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
-  const [activeTab, setActiveTab] = useState('posts');
-  const [isFollowing, setIsFollowing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
+  const [activeTab, setActiveTab] = useState('posts');
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('user'));
@@ -22,13 +21,8 @@ const Profile = () => {
 
   const fetchProfile = async () => {
     try {
-      const response = await fetch(`https://vesselx.onrender.com/api/users/${username}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
-      setUser(data.user);
+      const data = await API.getUser(username);
+      setProfile(data.user);
     } catch (error) {
       console.error('Error fetching profile:', error);
     }
@@ -37,12 +31,7 @@ const Profile = () => {
   const fetchPosts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`https://vesselx.onrender.com/api/users/${username}/posts`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
+      const data = await API.request(`/api/users/${username}/posts`);
       setPosts(data.posts || []);
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -53,130 +42,110 @@ const Profile = () => {
 
   const handleFollow = async () => {
     try {
-      const response = await fetch(`https://vesselx.onrender.com/api/users/${username}/follow`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      if (response.ok) {
-        setIsFollowing(!isFollowing);
-        fetchProfile();
-      }
+      await API.followUser(username);
+      fetchProfile();
     } catch (error) {
       console.error('Error following user:', error);
     }
   };
 
-  if (isLoading) {
+  if (!profile && isLoading) {
     return (
-      <>
-        <Navbar user={currentUser} />
-        <div className="loading-page">
-          <span className="loading-spinner"></span>
-        </div>
-      </>
+      <div className="loading-page">
+        <span className="loading-spinner"></span>
+      </div>
     );
   }
 
+  const isOwnProfile = currentUser?.username === username || currentUser?._id === profile?._id;
+
   return (
-    <>
+    <div className="profile-page">
       <Navbar user={currentUser} />
       
       <main className="main-content">
-        <div className="profile-header">
+        <header className="profile-header">
           <div className="profile-avatar">
             <img 
-              src={user?.profilePicture || '/default-avatar.png'} 
-              alt={user?.username}
+              src={profile?.profilePicture || '/default-avatar.png'} 
+              alt={profile?.username} 
               className="profile-avatar-img"
             />
           </div>
           
           <div className="profile-info">
             <div className="profile-header-row">
-              <h1 className="profile-username">{user?.username}</h1>
-              
-              {user?._id === currentUser?._id ? (
+              <h2 className="profile-username">{profile?.username}</h2>
+              {isOwnProfile ? (
                 <>
-                  <button className="btn btn-secondary profile-edit-btn">
-                    <FiEdit3 size={16} />
-                    Edit Profile
-                  </button>
-                  <button className="btn btn-secondary">
-                    <FiSettings size={16} />
-                  </button>
+                  <Link to="/settings" className="btn btn-secondary">Edit Profile</Link>
+                  <FiSettings size={24} className="cursor-pointer" />
                 </>
               ) : (
-                <>
+                <div className="profile-actions">
                   <button 
-                    className={`btn ${isFollowing ? 'btn-secondary' : 'btn-primary'}`}
+                    className={`btn ${profile?.isFollowing ? 'btn-secondary' : 'btn-primary'}`}
                     onClick={handleFollow}
                   >
-                    {isFollowing ? 'Following' : 'Follow'}
+                    {profile?.isFollowing ? (
+                      <><FiUserCheck className="mr-2" /> Following</>
+                    ) : (
+                      <><FiUserPlus className="mr-2" /> Follow</>
+                    )}
                   </button>
                   <button className="btn btn-secondary">Message</button>
-                </>
+                  <FiMoreHorizontal size={24} className="cursor-pointer" />
+                </div>
               )}
             </div>
             
             <div className="profile-stats">
-              <div className="profile-stat">
-                <strong>{posts.length}</strong>
-                <span>posts</span>
-              </div>
-              <div className="profile-stat">
-                <strong>{user?.followers?.length || 0}</strong>
-                <span>followers</span>
-              </div>
-              <div className="profile-stat">
-                <strong>{user?.following?.length || 0}</strong>
-                <span>following</span>
-              </div>
+              <div className="stat-item"><strong>{posts.length}</strong> posts</div>
+              <div className="stat-item"><strong>{profile?.followers?.length || profile?.followersCount || 0}</strong> followers</div>
+              <div className="stat-item"><strong>{profile?.following?.length || profile?.followingCount || 0}</strong> following</div>
             </div>
             
-            <div className="profile-bio">
-              <h2>{user?.name}</h2>
-              <p>{user?.bio || 'No bio yet.'}</p>
+            <div className="profile-bio-container">
+              <h1 className="profile-full-name">{profile?.name}</h1>
+              <p className="profile-bio">{profile?.bio}</p>
             </div>
           </div>
-        </div>
-
+        </header>
+        
         <div className="profile-tabs">
           <button 
             className={`profile-tab ${activeTab === 'posts' ? 'active' : ''}`}
             onClick={() => setActiveTab('posts')}
           >
-            <FiGrid size={20} />
-            <span>Posts</span>
+            <FiGrid size={12} className="mr-2" /> POSTS
           </button>
-          
-          <button 
-            className={`profile-tab ${activeTab === 'saved' ? 'active' : ''}`}
-            onClick={() => setActiveTab('saved')}
-          >
-            <FiBookmark size={20} />
-            <span>Saved</span>
-          </button>
-        </div>
-
-        <div className="profile-content">
-          {activeTab === 'posts' && (
-            <div className="posts-grid">
-              {posts.map((post) => (
-                <div key={post._id} className="post-grid-item">
-                  <img src={post.media?.[0]?.url} alt="Post" />
-                  <div className="post-grid-overlay">
-                    <span>❤️ {post.likes?.length || 0}</span>
-                    <span>💬 {post.comments?.length || 0}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+          {isOwnProfile && (
+            <button 
+              className={`profile-tab ${activeTab === 'saved' ? 'active' : ''}`}
+              onClick={() => setActiveTab('saved')}
+            >
+              <FiBookmark size={12} className="mr-2" /> SAVED
+            </button>
           )}
         </div>
+        
+        <div className="profile-posts-grid">
+          {posts.map(post => (
+            <div key={post._id} className="grid-post-item">
+              {post.media && post.media[0]?.type === 'video' ? (
+                <video src={post.media[0].url} />
+              ) : (
+                <img src={post.media?.[0]?.url} alt="post" />
+              )}
+              <div className="grid-post-overlay">
+                <div className="overlay-stat">❤️ {post.likes?.length || post.likesCount || 0}</div>
+                <div className="overlay-stat">💬 {post.comments?.length || post.commentsCount || 0}</div>
+              </div>
+            </div>
+          ))}
+        </div>
       </main>
-    </>
+    </div>
   );
 };
 
