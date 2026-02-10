@@ -77,9 +77,24 @@ class API {
   }
 
   // Posts
-  static async getPosts() {
-    return this.request('/api/posts');
+static async getPosts() {
+  try {
+    const data = await this.request('/api/posts');
+    
+    if (data.posts) {
+      return { posts: data.posts, hasMore: data.hasMore || false };
+    }
+    
+    if (Array.isArray(data)) {
+      return { posts: data, hasMore: false };
+    }
+    
+    return { posts: [], hasMore: false };
+  } catch (error) {
+    console.error('Error in getPosts:', error);
+    throw error;
   }
+}
 
   static async createPost(formData) {
     return this.request('/api/posts', {
@@ -87,6 +102,20 @@ class API {
       body: formData
     });
   }
+  
+static async getPost(postId) {
+  try {
+    const data = await this.request('/api/posts');
+    if (data.posts) {
+      const post = data.posts.find(p => p._id === postId);
+      if (post) return { post };
+    }
+    return { post: null };
+  } catch (error) {
+    console.error('Error fetching post:', error);
+    return { post: null };
+  }
+}
 
   static async likePost(postId) {
     return this.request(`/api/posts/${postId}/like`, {
@@ -100,12 +129,12 @@ class API {
     });
   }
 
-  static async commentOnPost(postId, text) {
-    return this.request(`/api/posts/${postId}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ text })
-    });
-  }
+static async commentOnPost(postId, text) {
+  return this.request(`/api/posts/${postId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ text })
+  });
+}
 
   static async deletePost(postId) {
     return this.request(`/api/posts/${postId}`, {
@@ -114,9 +143,25 @@ class API {
   }
 
   // Users
-  static async getProfile() {
-    return this.request('/api/profile');
+  // Users
+static async getProfile() {
+  try {
+    const data = await this.request('/api/profile');
+    console.log('Profile API Response:', data);
+    
+    // Store user data in localStorage for persistence
+    if (data && data.user) {
+      localStorage.setItem('user', JSON.stringify(data.user));
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    // Return stored user if API fails
+    const storedUser = localStorage.getItem('user');
+    return storedUser ? { user: JSON.parse(storedUser) } : null;
   }
+}
 
   static async updateProfile(formData) {
     return this.request('/api/profile', {
@@ -126,8 +171,20 @@ class API {
   }
 
   static async getUser(username) {
-    return this.request(`/api/users/${username}`);
+  try {
+    const data = await this.request(`/api/users/${username}`);
+    console.log('User API Response for', username, ':', data);
+    return data.user || data;
+  } catch (error) {
+    console.error(`Error fetching user ${username}:`, error);
+    return {
+      username: username,
+      name: username,
+      profilePicture: `https://ui-avatars.com/api/?name=${username}&background=random`
+    };
   }
+}
+
 
   static async followUser(username) {
     return this.request(`/api/users/${username}/follow`, {
@@ -167,6 +224,36 @@ class API {
   static async getGroups() {
     return this.request('/api/groups');
   }
+
+  static async getGroup(groupId) {
+    return this.request(`/api/groups/${groupId}`);
+  }
+
+  static async leaveGroup(groupId) {
+    return this.request(`/api/groups/${groupId}/leave`, {
+      method: 'POST'
+    });
+  }
+  
+  static async getPostComments(postId) {
+  try {
+    const data = await this.request(`/api/posts/${postId}/comments`);
+    return data;
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    return { comments: [] };
+  }
+}
+
+static async getPostDetails(postId) {
+  try {
+    const data = await this.request(`/api/posts/${postId}`);
+    return data;
+  } catch (error) {
+    console.error('Error fetching post details:', error);
+    return null;
+  }
+}
 
   static async createGroup(formData) {
     return this.request('/api/groups', {

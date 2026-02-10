@@ -1,0 +1,270 @@
+VESSELX BACKEND API ENDPOINTS
+=============================
+
+BASE URL: https://vesselx.onrender.com
+All protected routes require Authorization: Bearer <token> in headers
+
+AUTHENTICATION ENDPOINTS
+------------------------
+POST   /api/register           - Register new user
+       Body: {username, password, name, email}
+       Returns: {token, user, message}
+
+POST   /api/login              - Login user
+       Body: {username, password}
+       Returns: {token, user, message}
+
+POST   /api/verify-email/code  - Verify email with code
+       Body: {email, code}
+       Returns: {token, user, message}
+
+POST   /api/verify-email/token - Verify email with token
+       Body: {token}
+       Returns: {token, user, message}
+
+POST   /api/resend-verification - Resend verification email
+       Body: {email}
+       Returns: {message}
+
+POST   /api/forgot-password    - Request password reset
+       Body: {email}
+       Returns: {message}
+
+POST   /api/reset-password     - Reset password with token
+       Body: {token, password}
+       Returns: {message}
+
+GET    /api/verify-email       - Verify email via link (webpage)
+       Query: ?token=<verification_token>
+
+GET    /reset-password         - Reset password page (webpage)
+       Query: ?token=<reset_token>
+
+USER PROFILE ENDPOINTS
+----------------------
+GET    /api/profile           - Get current user profile
+       Auth required
+
+PUT    /api/profile          - Update user profile
+       Auth required, multipart/form-data for profile picture
+       Body: {name, bio, profilePicture(file)}
+
+GET    /api/profile/picture  - Get profile picture URL
+       Auth required
+
+GET    /api/users/:username  - Get user by username
+       Auth required
+
+GET    /api/users/:username/followers - Get user's followers
+       Auth required
+
+GET    /api/users/:username/following - Get user's following
+       Auth required
+
+POST   /api/users/:username/follow - Follow/Unfollow user
+       Auth required
+
+DELETE /api/account          - Delete user account
+       Auth required
+
+POSTS ENDPOINTS
+---------------
+POST   /api/posts            - Create new post
+       Auth required, multipart/form-data
+       Body: {caption, media[] (files)}
+
+GET    /api/posts            - Get all posts (feed)
+       Auth required
+
+GET    /api/users/:username/posts - Get user's posts
+       Auth required
+
+DELETE /api/posts/:postId    - Delete post
+       Auth required
+
+POST   /api/posts/:postId/like - Like/Unlike post
+       Auth required
+
+POST   /api/posts/:postId/bookmark - Bookmark/Unbookmark post
+       Auth required
+
+POST   /api/posts/:postId/comments - Add comment to post
+       Auth required
+       Body: {text}
+
+MESSAGING ENDPOINTS
+-------------------
+GET    /api/conversations    - Get all conversations
+       Auth required
+
+GET    /api/conversations/:username - Get conversation with user
+       Auth required
+
+POST   /api/conversations/:username/read - Mark messages as read
+       Auth required
+
+GET    /api/conversations/:username/status - Get message status
+       Auth required
+
+POST   /api/messages         - Send message
+       Auth required
+       Body: {receiverUsername, text, formattedText, groupId(optional)}
+
+POST   /api/messages/:messageId/status - Update message status
+       Auth required
+       Body: {status: 'delivered' or 'read'}
+
+GROUP CHAT ENDPOINTS
+--------------------
+POST   /api/groups           - Create new group
+       Auth required, multipart/form-data for profile picture
+       Body: {name, description, privacy, profilePicture(file)}
+
+GET    /api/groups           - Get user's groups
+       Auth required
+
+GET    /api/groups/:groupId  - Get group details
+       Auth required
+
+PUT    /api/groups/:groupId  - Update group
+       Auth required, multipart/form-data
+       Body: {name, description, privacy, profilePicture(file)}
+
+DELETE /api/groups/:groupId  - Delete group
+       Auth required
+
+POST   /api/groups/:groupId/members - Add members to group
+       Auth required
+       Body: {memberIds: []}
+
+DELETE /api/groups/:groupId/members/:memberId - Remove member
+       Auth required
+
+POST   /api/groups/:groupId/leave - Leave group
+       Auth required
+
+POST   /api/groups/:groupId/transfer-admin - Transfer admin role
+       Auth required
+       Body: {newAdminId}
+
+POST   /api/groups/:inviteCode/join - Join group with invite code
+       Auth required
+
+POST   /api/groups/:groupId/invite-code - Generate new invite code
+       Auth required
+
+POST   /api/groups/:groupId/messages - Send group message
+       Auth required
+       Body: {text, formattedText}
+
+GET    /api/groups/:groupId/messages - Get group messages
+       Auth required
+       Query: ?limit=50&before=<messageId>
+
+GET    /api/groups/search    - Search groups
+       Auth required
+       Query: ?q=<search>&type=all/public/my
+
+GET    /api/groups/:groupId/members - Get group members
+       Auth required
+
+VESSELX AI ENDPOINTS
+--------------------
+POST   /api/ai/conversations/start - Start AI conversation
+       Auth required
+       Returns: {conversationId, title, messages, lastActive}
+
+POST   /api/ai/conversations/:conversationId/messages - Send AI message
+       Auth required
+       Body: {message}
+       Returns: {response, conversationId, timestamp}
+
+GET    /api/ai/conversations/:conversationId - Get AI conversation
+       Auth required
+
+GET    /api/ai/conversations - Get all AI conversations
+       Auth required
+
+DELETE /api/ai/conversations/:conversationId - Delete AI conversation
+       Auth required
+
+POST   /api/ai/quick-response - Get quick AI response
+       Auth required
+       Body: {message}
+       Returns: {response, timestamp}
+
+SEARCH ENDPOINTS
+----------------
+GET    /api/users/search     - Search users
+       Auth required
+       Query: ?q=<search_query>
+
+MISC ENDPOINTS
+--------------
+GET    /health              - Health check
+       Returns: {status, timestamp, ai, cloudinary, version}
+
+GET    /api/debug-email     - Test email service
+
+GET    /api/debug/cloudinary - Debug Cloudinary config
+       Auth required
+
+POST   /api/cleanup-old-posts - Cleanup old posts
+       Auth required
+
+FILE UPLOADS
+------------
+- Profile pictures: Use multipart/form-data with field name 'profilePicture'
+- Post media: Use multipart/form-data with field name 'media[]' (array)
+- Group profile pictures: Use multipart/form-data with field name 'profilePicture'
+
+MEDIA URLS
+----------
+- Media files are stored on Cloudinary
+- Profile pictures: Automatically optimized to 400x400 with face detection
+- Post media: Optimized to 1200x1200 with quality auto:good
+- Access via: /api/media/:filename or direct Cloudinary URL
+
+WEBSOCKET EVENTS
+----------------
+Socket.IO events for real-time updates:
+- 'newMessage' - New direct message received
+- 'newGroupMessage' - New group message received
+- 'messageRead' - Message was read
+- 'userTyping' - User is typing in DM
+- 'groupUserTyping' - User is typing in group
+- 'userStatusUpdate' - User online status changed
+- 'memberStatusUpdate' - Group member status changed
+- 'joinedGroup' - User joined a group
+- 'leftGroup' - User left a group
+- 'removedFromGroup' - User was removed from group
+
+To join rooms:
+- Emit 'join' with userId to join user room
+- Emit 'joinGroup' with groupId to join group room
+
+REQUIRED HEADERS
+----------------
+For protected routes:
+Authorization: Bearer <jwt_token>
+
+For file uploads:
+Content-Type: multipart/form-data
+
+RESPONSE FORMATS
+----------------
+Success: JSON object with data
+Error: {error: "Error message", [details: "Additional info"]}
+
+IMPORTANT NOTES FOR FRONTEND
+----------------------------
+1. Store JWT token in localStorage/sessionStorage after login
+2. Include token in Authorization header for protected routes
+3. Email verification is required for posting/messaging
+4. Users auto-follow OfficialDeveloper account
+5. File uploads use Cloudinary - no local storage
+6. Real-time features require Socket.IO connection
+7. Formatted text fields support HTML line breaks (<br>)
+8. Message status: 'sent' → 'delivered' → 'read'
+9. Group privacy: 'public' or 'private'
+10. Use /api/media/:filename for optimized media access

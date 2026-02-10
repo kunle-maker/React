@@ -1,109 +1,106 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import API from '../utils/api';
-import { FiUser, FiLock, FiBell, FiShield, FiHelpCircle } from 'react-icons/fi';
+import { FiEdit2, FiCamera, FiLock } from 'react-icons/fi';
 
 const Settings = () => {
-  const [activeSection, setActiveSection] = useState('account');
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || {});
-  const [formData, setFormData] = useState({
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({
     name: user.name || '',
-    email: user.email || '',
-    bio: user.bio || '',
-    username: user.username || ''
+    bio: user.bio || ''
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleSave = async () => {
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
     try {
-      const data = await API.updateProfile(formData);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      const updatedUser = await API.request('/api/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: editData.name.trim(),
+          bio: editData.bio.trim()
+        })
+      });
+      
+      const userData = updatedUser.user || updatedUser;
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setIsEditing(false);
       alert('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
+      alert(error.message || 'Failed to update profile.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const renderSection = () => {
-    switch (activeSection) {
-      case 'account':
-        return (
-          <div className="settings-section">
-            <h3>Account Information</h3>
-            <div className="form-group">
-              <label>Name</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="form-input"
-              />
-            </div>
-            <div className="form-group">
-              <label>Username</label>
-              <input
-                type="text"
-                value={formData.username}
-                onChange={(e) => setFormData({...formData, username: e.target.value})}
-                className="form-input"
-              />
-            </div>
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                className="form-input"
-              />
-            </div>
-            <div className="form-group">
-              <label>Bio</label>
-              <textarea
-                value={formData.bio}
-                onChange={(e) => setFormData({...formData, bio: e.target.value})}
-                className="form-input"
-                rows="4"
-              />
-            </div>
-            <button className="btn btn-primary" onClick={handleSave}>
-              Save Changes
-            </button>
-          </div>
-        );
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size should be less than 5MB');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('profilePicture', file); // Must be 'profilePicture' as per API
+    formData.append('name', user.name || '');
+    formData.append('bio', user.bio || '');
+
+    setIsLoading(true);
+    try {
+      const updatedUser = await API.request('/api/profile', {
+        method: 'PUT',
+        body: formData
+      });
       
-      case 'security':
-        return (
-          <div className="settings-section">
-            <h3>Security</h3>
-            <button className="btn btn-secondary">Change Password</button>
-            <button className="btn btn-secondary">Two-Factor Authentication</button>
-            <button className="btn btn-secondary">Login Activity</button>
-          </div>
-        );
+      const userData = updatedUser.user || updatedUser;
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      alert('Profile picture updated successfully!');
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      alert(error.message || 'Failed to update profile picture');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await API.request('/api/account', {
+        method: 'DELETE'
+      });
       
-      case 'privacy':
-        return (
-          <div className="settings-section">
-            <h3>Privacy</h3>
-            <div className="setting-toggle">
-              <span>Private Account</span>
-              <label className="switch">
-                <input type="checkbox" />
-                <span className="slider"></span>
-              </label>
-            </div>
-            <div className="setting-toggle">
-              <span>Show Activity Status</span>
-              <label className="switch">
-                <input type="checkbox" defaultChecked />
-                <span className="slider"></span>
-              </label>
-            </div>
-          </div>
-        );
-      
-      default:
-        return null;
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/login');
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      alert(error.message || 'Failed to delete account. Please try again.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -112,51 +109,200 @@ const Settings = () => {
       <Navbar user={user} />
       
       <main className="main-content">
-        <div className="settings-layout">
-          <div className="settings-sidebar">
-            <button 
-              className={`settings-nav ${activeSection === 'account' ? 'active' : ''}`}
-              onClick={() => setActiveSection('account')}
-            >
-              <FiUser size={20} />
-              <span>Account</span>
-            </button>
-            
-            <button 
-              className={`settings-nav ${activeSection === 'security' ? 'active' : ''}`}
-              onClick={() => setActiveSection('security')}
-            >
-              <FiLock size={20} />
-              <span>Security</span>
-            </button>
-            
-            <button 
-              className={`settings-nav ${activeSection === 'privacy' ? 'active' : ''}`}
-              onClick={() => setActiveSection('privacy')}
-            >
-              <FiShield size={20} />
-              <span>Privacy</span>
-            </button>
-            
-            <button 
-              className={`settings-nav ${activeSection === 'notifications' ? 'active' : ''}`}
-              onClick={() => setActiveSection('notifications')}
-            >
-              <FiBell size={20} />
-              <span>Notifications</span>
-            </button>
-            
-            <button 
-              className={`settings-nav ${activeSection === 'help' ? 'active' : ''}`}
-              onClick={() => setActiveSection('help')}
-            >
-              <FiHelpCircle size={20} />
-              <span>Help</span>
-            </button>
+        <div className="settings-page">
+          <h1>Settings</h1>
+          
+          <div className="settings-card">
+            {isEditing ? (
+              <form className="edit-profile-form" onSubmit={handleUpdateProfile}>
+                <div className="settings-profile">
+                  <div className="avatar-edit-wrapper">
+                    <img
+                      src={user.profilePicture || '/default-avatar.png'}
+                      alt={user.username}
+                      className="settings-avatar"
+                      onError={(e) => {
+                        e.target.src = 'https://ui-avatars.com/api/?name=' + (user.name || user.username) + '&background=random';
+                      }}
+                    />
+                    <label htmlFor="avatar-upload" className="avatar-edit-overlay">
+                      <FiCamera />
+                      <input 
+                        id="avatar-upload" 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleAvatarChange} 
+                        hidden 
+                        disabled={isLoading}
+                      />
+                    </label>
+                  </div>
+                  <div className="settings-profile-info">
+                    <input 
+                      className="form-input"
+                      value={editData.name}
+                      onChange={(e) => setEditData({...editData, name: e.target.value})}
+                      placeholder="Name"
+                      required
+                      minLength="2"
+                      maxLength="50"
+                      disabled={isLoading}
+                    />
+                    <div className="settings-username">@{user.username}</div>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Email</label>
+                  <input 
+                    className="form-input"
+                    type="email"
+                    value={user.email || ''}
+                    disabled
+                    title="Email cannot be changed"
+                    style={{ opacity: 0.7, cursor: 'not-allowed' }}
+                  />
+                  <div className="password-hint" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                    <FiLock size={12} />
+                    <span>Email cannot be changed</span>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Bio</label>
+                  <textarea 
+                    className="form-input"
+                    value={editData.bio}
+                    onChange={(e) => setEditData({...editData, bio: e.target.value})}
+                    placeholder="Tell us about yourself..."
+                    rows="4"
+                    maxLength="500"
+                    disabled={isLoading}
+                  />
+                  <div className="password-hint">
+                    {editData.bio.length}/500 characters
+                  </div>
+                </div>
+
+                <div className="settings-actions">
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary" 
+                    disabled={isLoading || !editData.name.trim()}
+                  >
+                    {isLoading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditData({
+                        name: user.name || '',
+                        bio: user.bio || ''
+                      });
+                    }}
+                    disabled={isLoading}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div className="settings-profile">
+                  <div className="avatar-edit-wrapper">
+                    <img
+                      src={user.profilePicture || '/default-avatar.png'}
+                      alt={user.username}
+                      className="settings-avatar"
+                      onError={(e) => {
+                        e.target.src = 'https://ui-avatars.com/api/?name=' + (user.name || user.username) + '&background=random';
+                      }}
+                    />
+                    <label htmlFor="avatar-upload-edit" className="avatar-edit-overlay">
+                      <FiCamera />
+                      <input 
+                        id="avatar-upload-edit" 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleAvatarChange} 
+                        hidden 
+                      />
+                    </label>
+                  </div>
+                  <div className="settings-profile-info">
+                    <div className="settings-name">{user.name || 'No name set'}</div>
+                    <div className="settings-username">@{user.username}</div>
+                    <div className="settings-email">
+                      {user.email}
+                      <span style={{ fontSize: '12px', color: 'var(--text-dim)', display: 'block', marginTop: '4px' }}>
+                        <FiLock size={10} /> Email cannot be changed
+                      </span>
+                    </div>
+                  </div>
+                  <button 
+                    className="btn-icon" 
+                    onClick={() => setIsEditing(true)}
+                    title="Edit Profile"
+                  >
+                    <FiEdit2 />
+                  </button>
+                </div>
+                
+                <div className="settings-section">
+                  <h3>ACCOUNT SETTINGS</h3>
+                  <div className="settings-list">
+                    <button 
+                      className="settings-item" 
+                      onClick={() => setIsEditing(true)}
+                      disabled={isLoading}
+                    >
+                      <span>Edit Profile</span>
+                      <span>→</span>
+                    </button>
+                    <button 
+                      className="settings-item"
+                      onClick={() => navigate('/forgot-password')}
+                    >
+                      <span>Change Password</span>
+                      <span>→</span>
+                    </button>
+                    <button 
+                      className="settings-item"
+                      onClick={() => window.open('mailto:baninginc@gmail.com', '_blank')}
+                    >
+                      <span>Support</span>
+                      <span>→</span>
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="settings-actions">
+                  <button 
+                    className="btn btn-secondary settings-action-btn"
+                    onClick={handleLogout}
+                    disabled={isLoading || isDeleting}
+                  >
+                    Logout
+                  </button>
+                  <button 
+                    className="btn btn-danger settings-action-btn"
+                    onClick={handleDeleteAccount}
+                    disabled={isLoading || isDeleting}
+                  >
+                    {isDeleting ? 'Deleting...' : 'Delete Account'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
           
-          <div className="settings-content">
-            {renderSection()}
+          <div className="settings-footer">
+            <div className="footer-nav">
+              <button onClick={() => navigate('/')}>Home</button>
+              <button onClick={() => navigate('/messages')}>Messages</button>
+            </div>
           </div>
         </div>
       </main>

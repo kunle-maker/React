@@ -115,12 +115,14 @@ const AIAssistant = () => {
                   {messages.map((msg, i) => (
                     <div key={i} className={`ai-message ${msg.role}`}>
                       <div className="ai-message-avatar">
-                        {msg.role === 'user' ? (
-                          user?.profilePicture ? <img src={user.profilePicture} alt="User" /> : <FiUser />
-                        ) : (
-                          <FiCpu className="text-primary" />
-                        )}
-                      </div>
+  {msg.role === 'user' ? (
+    user?.profilePicture ? 
+      <img src={user.profilePicture} alt="User" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : 
+      <FiUser />
+  ) : (
+    <FiCpu className="text-primary" />
+  )}
+</div>
                       <div className="ai-message-content">
                         <div className="ai-message-bubble">{msg.content}</div>
                         <div className="ai-message-time">
