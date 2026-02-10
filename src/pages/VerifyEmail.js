@@ -6,6 +6,7 @@ const VerifyEmail = () => {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
 
@@ -38,11 +39,44 @@ const VerifyEmail = () => {
 
     setIsLoading(true);
     setError('');
+    setSuccess('');
+    
     try {
-      await API.verifyEmailCode(user.email, verificationCode);
-      navigate('/', { replace: true });
+      // Call the verify email endpoint
+      const data = await API.verifyEmailCode(user.email, verificationCode);
+      
+      // Update user data with verified status
+      const updatedUser = {
+        ...user,
+        emailVerified: true
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      setSuccess('Email verified successfully! Redirecting...');
+      
+      // Redirect to feed after successful verification
+      setTimeout(() => {
+        navigate('/', { replace: true });
+      }, 1500);
+      
     } catch (err) {
       setError(err.message || 'Verification failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      await API.request('/api/resend-verification', {
+        method: 'POST',
+        body: JSON.stringify({ email: user.email })
+      });
+      setSuccess('Verification code has been resent to your email.');
+    } catch (err) {
+      setError(err.message || 'Failed to resend code. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +91,6 @@ const VerifyEmail = () => {
             <span className="text-4xl font-bold text-white tracking-tight">VesselX</span>
             <div className="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.7)] animate-pulse"></div>
           </div>
-          <p className="text-sm text-slate-400 font-medium">herokuapp.com/verify-email</p>
         </div>
 
         {/* Card */}
@@ -67,10 +100,6 @@ const VerifyEmail = () => {
             <h1 className="text-3xl font-bold text-white mb-4">
               Verify Your Email
             </h1>
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-6">
-              <p className="text-sm text-blue-400 font-medium">
-              </p>
-            </div>
             <p className="text-gray-400 text-sm">
               Enter the verification code sent to
               <span className="font-semibold text-white ml-1">{user?.email || 'your email'}</span>
@@ -78,6 +107,13 @@ const VerifyEmail = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Success Message */}
+            {success && (
+              <div className="bg-green-500/10 border border-green-500/20 text-green-400 p-4 rounded-xl text-sm">
+                {success}
+              </div>
+            )}
+
             {/* Error Message */}
             {error && (
               <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl text-sm">
@@ -129,10 +165,7 @@ const VerifyEmail = () => {
               <button
                 type="button"
                 className="text-blue-400 hover:text-blue-300 transition-colors text-sm font-medium hover:underline"
-                onClick={() => {
-                  setCode(['', '', '', '', '', '']);
-                  setError('');
-                }}
+                onClick={handleResendCode}
                 disabled={isLoading}
               >
                 Didn't receive a code? Resend

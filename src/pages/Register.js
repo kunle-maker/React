@@ -10,21 +10,18 @@ const Register = () => {
     email: ''
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  
+  const [error, setError] = useState('');  
   const navigate = useNavigate();
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-
     try {
       const data = await API.register(formData);
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       window.dispatchEvent(new Event('authChange'));
-      navigate('/', { replace: true });
+      navigate('/verify-email', { replace: true });      
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
