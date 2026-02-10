@@ -124,6 +124,17 @@ const VideoPlayer = ({ src, postId, onDoubleClick }) => {
       ref={containerRef}
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
+      style={{ 
+        position: 'relative',
+        background: '#000',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        width: '100%',
+        aspectRatio: 'auto',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
     >
       <video
         ref={videoRef}
@@ -134,6 +145,13 @@ const VideoPlayer = ({ src, postId, onDoubleClick }) => {
         muted={isMuted}
         onClick={handleVideoClick}
         onDoubleClick={handleDoubleClick}
+        style={{
+          width: '100%',
+          height: '100%',
+          maxHeight: '80vh',
+          objectFit: 'contain',
+          display: 'block'
+        }}
       />
 
       {showHeart && (

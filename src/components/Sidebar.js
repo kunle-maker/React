@@ -1,9 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { FiSun, FiMoon, FiUsers, FiUserPlus } from 'react-icons/fi';
 import API from '../utils/api';
 
 const Sidebar = ({ currentUser }) => {
   const [suggestions, setSuggestions] = useState([]);
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    window.dispatchEvent(new Event('themeChange'));
+  };
 
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -23,7 +38,7 @@ const Sidebar = ({ currentUser }) => {
       <div className="current-user-card">
         <Link to={`/profile/${currentUser?.username}`}>
           <img
-            src={currentUser?.profilePicture || '/default-avatar.png'}
+            src={currentUser?.profilePicture || `https://ui-avatars.com/api/?name=${currentUser?.name || currentUser?.username || 'User'}&background=random`}
             alt={currentUser?.username}
             className="user-avatar"
           />
@@ -36,10 +51,40 @@ const Sidebar = ({ currentUser }) => {
         </div>
       </div>
 
+      {/* Theme Toggle Card */}
+      <div className="theme-toggle-card">
+        <div className="theme-toggle-header">
+          <span>Appearance</span>
+          <button 
+            onClick={toggleTheme}
+            className="theme-toggle-btn"
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {theme === 'dark' ? (
+              <>
+                <FiSun size={16} />
+                <span>Light Mode</span>
+              </>
+            ) : (
+              <>
+                <FiMoon size={16} />
+                <span>Dark Mode</span>
+              </>
+            )}
+          </button>
+        </div>
+        <div className="theme-toggle-description">
+          {theme === 'dark' 
+            ? 'Switch to light mode for daytime browsing'
+            : 'Switch to dark mode for nighttime browsing'
+          }
+        </div>
+      </div>
+
       <div className="suggestions-box">
         <div className="suggestions-header">
           <span className="suggestions-title">Suggestions For You</span>
-          <button className="see-all-btn">See All</button>
+          <Link to="/search" className="see-all-btn">See All</Link>
         </div>
         
         <div className="suggestions-list">
@@ -47,7 +92,7 @@ const Sidebar = ({ currentUser }) => {
             <div key={user._id} className="suggestion-item">
               <Link to={`/profile/${user.username}`}>
                 <img
-                  src={user.profilePicture || '/default-avatar.png'}
+                  src={user.profilePicture || `https://ui-avatars.com/api/?name=${user.name || user.username}&background=random`}
                   alt={user.username}
                   className="user-avatar"
                 />
