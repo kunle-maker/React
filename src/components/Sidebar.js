@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiSun, FiMoon, FiUsers, FiUserPlus } from 'react-icons/fi';
+import './Sidebar.css';
 import API from '../utils/api';
 
 const Sidebar = ({ currentUser }) => {

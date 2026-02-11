@@ -6,6 +6,7 @@ import {
   FiVolumeX, FiVolume2
 } from 'react-icons/fi';
 import { FaHeart, FaBookmark } from 'react-icons/fa';
+import './PostCard.css';
 
 const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, onPostClick, onDoubleTapLike }) => {
   const [showComments, setShowComments] = useState(false);

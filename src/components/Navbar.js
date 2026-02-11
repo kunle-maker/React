@@ -5,6 +5,7 @@ import {
   FiBell, FiMessageSquare, FiUsers, FiSettings, FiMenu,
   FiSun, FiMoon
 } from 'react-icons/fi';
+import './Navbar.css';
 import API from '../utils/api';
 
 const Navbar = ({ user, unreadCounts = { messages: 0, notifications: 0, groups: 0 } }) => {
