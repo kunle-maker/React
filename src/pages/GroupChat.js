@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar';
 import GroupInfoModal from '../components/GroupInfoModal';
 import EditGroupModal from '../components/EditGroupModal';
 import AddMembersModal from '../components/AddMembersModal';
+import './GroupChat.css';
 import { FiArrowLeft, FiUsers, FiSend, FiImage, FiMoreVertical, FiPlusSquare, FiSettings, FiTrash2, FiEdit2, FiLink, FiUserPlus, FiCopy, FiX } from 'react-icons/fi';
 import API from '../utils/api';
 
