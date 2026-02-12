@@ -3,31 +3,22 @@ class API {
 
   static async request(endpoint, options = {}) {
     const token = localStorage.getItem('token');
-    
-    // Check if body is FormData
-    const isFormData = options.body instanceof FormData;
-    
+    const isFormData = options.body instanceof FormData;    
     const headers = {
       ...options.headers
     };
-
     if (!isFormData) {
       headers['Content-Type'] = 'application/json';
     }
-
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-
     const config = {
       ...options,
       headers
     };
-
     try {
       const response = await fetch(`${this.baseURL}${endpoint}`, config);
-      
-      // Handle empty response or non-json response
       const contentType = response.headers.get("content-type");
       let data;
       if (contentType && contentType.includes("application/json")) {
@@ -35,11 +26,9 @@ class API {
       } else {
         data = { message: await response.text() };
       }
-
       if (!response.ok) {
         throw new Error(data.error || data.message || 'Something went wrong');
       }
-
       return data;
     } catch (error) {
       console.error('API Error:', error);
@@ -62,12 +51,13 @@ class API {
     });
   }
 
-  static async verifyEmailCode(email, code) {
-    return this.request('/api/verify-email/code', {
-      method: 'POST',
-      body: JSON.stringify({ email, code })
-    });
-  }
+const verifyEmailCode = async (email, code) => {
+  const response = await request('/api/verify-email/code', {
+    method: 'POST',
+    body: JSON.stringify({ email, code })
+  });
+  return response;
+};
 
   static async resendVerification(email) {
     return this.request('/api/resend-verification', {
