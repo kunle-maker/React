@@ -38,32 +38,32 @@ const EditGroupModal = ({ groupId, onClose, onGroupUpdated }) => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!name.trim() || isSubmitting) return;
+  e.preventDefault();
+  if (!name.trim() || isSubmitting) return;
 
-    setIsSubmitting(true);
-    setError('');
+  setIsSubmitting(true);
+  setError('');
 
-    try {
-      const formData = new FormData();
-      formData.append('name', name);
-      formData.append('description', description);
-      if (image) formData.append('image', image);
+  try {
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('description', description);
+    if (image) formData.append('profilePicture', image); // ← FIXED
 
-      const updatedGroup = await API.request(`/api/groups/${groupId}`, {
-        method: 'PUT',
-        body: formData,
-        isFormData: true
-      });
+    const updatedGroup = await API.request(`/api/groups/${groupId}`, {
+      method: 'PUT',
+      body: formData,
+      isFormData: true
+    });
 
-      if (onGroupUpdated) onGroupUpdated(updatedGroup);
-      onClose();
-    } catch (err) {
-      setError(err.message || 'Failed to update group');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    if (onGroupUpdated) onGroupUpdated(updatedGroup);
+    onClose();
+  } catch (err) {
+    setError(err.message || 'Failed to update group');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   if (isLoading) return null;
 
