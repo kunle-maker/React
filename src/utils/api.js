@@ -87,23 +87,31 @@ static async getPosts() {
 
 static async getFollowingFeed(page = 1, limit = 10) {
   try {
+    // Try paginated endpoint first
     const response = await fetch(`${this.BASE_URL}/api/feed/following/paginated?page=${page}&limit=${limit}`, {
       headers: this.getHeaders(),
     });
     
-    if (!response.ok) {
-      const fallbackResponse = await fetch(`${this.BASE_URL}/api/feed/following`, {
-        headers: this.getHeaders(),
-      });
-      
-      if (!fallbackResponse.ok) {
-        throw new Error('Failed to fetch following feed');
-      }
-      
-      return await fallbackResponse.json();
+    if (response.ok) {
+      const data = await response.json();
+      return data; // Return raw response, let Feed.js handle format
     }
     
-    return await response.json();
+    // Fallback to non-paginated
+    const fallbackResponse = await fetch(`${this.BASE_URL}/api/feed/following`, {
+      headers: this.getHeaders(),
+    });
+    
+    if (!fallbackResponse.ok) {
+      throw new Error('Failed to fetch following feed');
+    }
+    
+    const fallbackData = await fallbackResponse.json();
+    
+    // The terminal shows it returns { posts: [...] } or direct array?
+    // Return as-is, let Feed.js normalize it
+    return fallbackData;
+    
   } catch (error) {
     console.error('Error fetching following feed:', error);
     throw error;
