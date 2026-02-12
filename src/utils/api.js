@@ -51,20 +51,19 @@ class API {
     });
   }
 
-const verifyEmailCode = async (email, code) => {
-  const response = await request('/api/verify-email/code', {
+static async verifyEmailCode(email, code) {
+  return this.request('/api/verify-email/code', {
     method: 'POST',
     body: JSON.stringify({ email, code })
   });
-  return response;
-};
+}
 
-  static async resendVerification(email) {
-    return this.request('/api/resend-verification', {
-      method: 'POST',
-      body: JSON.stringify({ email })
-    });
-  }
+static async resendVerification(email) {
+  return this.request('/api/resend-verification', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  });
+}
 
   // Posts
 static async getPosts() {
