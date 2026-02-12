@@ -108,45 +108,51 @@ const Feed = () => {
   }, [posts]);
 
   const fetchPosts = async (isLoadMore = false) => {
-    if (!isLoadMore) {
-      setIsLoading(true);
-    }
+  if (!isLoadMore) {
+    setIsLoading(true);
+  }
+  
+  try {
+    let data;
     
-    try {
-      let data;
-      
-      if (activeTab === 'following') {
-        // Use the paginated following feed endpoint
-        data = await API.getFollowingFeed(page, 10);
-        // If the paginated endpoint isn't available, fallback to regular following feed
-        if (!data.posts && data.length !== undefined) {
-          data = { posts: data, hasMore: false, totalPages: 1 };
-        }
-      } else {
-        // Global feed - get all posts
-        data = await API.getPosts();
-        // Ensure consistent format
-        if (Array.isArray(data)) {
-          data = { posts: data, hasMore: false, totalPages: 1 };
-        } else if (!data.posts) {
-          data = { posts: data || [], hasMore: false, totalPages: 1 };
-        }
-      }
-
-      if (isLoadMore) {
-        setPosts(prev => [...prev, ...(data.posts || [])]);
-      } else {
-        setPosts(data.posts || []);
-      }
-      
-      setHasMore(data.hasMore || false);
-      setTotalPages(data.totalPages || 1);
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-    } finally {
-      setIsLoading(false);
+    if (activeTab === 'following') {
+      data = await API.getFollowingFeed(page, 10);
+    } else {
+      data = await API.getPosts();
     }
-  };
+
+    console.log('API Response:', data); // DEBUG: Check what you're getting
+    
+    // Handle different response formats
+    let postsArray = [];
+    
+    if (Array.isArray(data)) {
+      // Case 1: Direct array of posts
+      postsArray = data;
+    } else if (data && Array.isArray(data.posts)) {
+      // Case 2: { posts: [...] }
+      postsArray = data.posts;
+    } else if (data && data.data && Array.isArray(data.data)) {
+      // Case 3: { data: [...] }
+      postsArray = data.data;
+    } else {
+      console.error('Unexpected API response format:', data);
+      postsArray = [];
+    }
+    if (isLoadMore) {
+      setPosts(prev => [...prev, ...postsArray]);
+    } else {
+      setPosts(postsArray);
+    }
+    setHasMore(data?.hasMore || data?.has_more || false);
+    setTotalPages(data?.totalPages || data?.total_pages || 1);
+    
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleLike = async (postId) => {
     try {
