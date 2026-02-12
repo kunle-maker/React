@@ -85,6 +85,48 @@ static async getPosts() {
   }
 }
 
+static async getFollowingFeed(page = 1, limit = 10) {
+  try {
+    const response = await fetch(`${this.BASE_URL}/api/feed/following/paginated?page=${page}&limit=${limit}`, {
+      headers: this.getHeaders(),
+    });
+    
+    if (!response.ok) {
+      const fallbackResponse = await fetch(`${this.BASE_URL}/api/feed/following`, {
+        headers: this.getHeaders(),
+      });
+      
+      if (!fallbackResponse.ok) {
+        throw new Error('Failed to fetch following feed');
+      }
+      
+      return await fallbackResponse.json();
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching following feed:', error);
+    throw error;
+  }
+}
+
+static async getCombinedFeed() {
+  try {
+    const response = await fetch(`${this.BASE_URL}/api/feed/combined`, {
+      headers: this.getHeaders(),
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch combined feed');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching combined feed:', error);
+    throw error;
+  }
+}
+
   static async createPost(formData) {
     return this.request('/api/posts', {
       method: 'POST',
