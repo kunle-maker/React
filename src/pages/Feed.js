@@ -21,6 +21,7 @@ const Feed = () => {
   
   const navigate = useNavigate();
   const observerRef = useRef();
+  const videoObserverRef = useRef();
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -77,82 +78,107 @@ const Feed = () => {
     }
   }, [page]);
 
+  // Setup Intersection Observer for auto-playing videos in feed
   useEffect(() => {
-    // Setup Intersection Observer for auto-playing videos in feed
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          const video = entry.target.querySelector('video');
-          if (video) {
-            if (entry.isIntersecting) {
-              video.muted = true;
-              video.play().catch(e => {
-                console.log("Autoplay prevented:", e);
-              });
-            } else {
-              video.pause();
-              video.currentTime = 0;
-            }
-          }
-        });
-      },
-      { threshold: 0.7 }
-    );
+    if (posts.length === 0) return;
 
-    const postCards = document.querySelectorAll('.post-card');
-    postCards.forEach(card => observer.observe(card));
+    // Delay observation to ensure DOM is ready
+    const timeoutId = setTimeout(() => {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach(entry => {
+            const video = entry.target.querySelector('video');
+            if (video) {
+              if (entry.isIntersecting) {
+                // Small delay to ensure video is ready
+                setTimeout(() => {
+                  if (video) {
+                    video.muted = true;
+                    video.play()
+                      .then(() => {
+                        console.log('Video playing in view');
+                      })
+                      .catch(e => {
+                        console.log("Autoplay prevented:", e);
+                        // Add click handler for manual play
+                        video.addEventListener('click', function playOnClick() {
+                          video.play();
+                          video.removeEventListener('click', playOnClick);
+                        }, { once: true });
+                      });
+                  }
+                }, 100);
+              } else {
+                video.pause();
+              }
+            }
+          });
+        },
+        { threshold: 0.5 }
+      );
+
+      const postCards = document.querySelectorAll('.post-card');
+      postCards.forEach(card => observer.observe(card));
+      
+      videoObserverRef.current = observer;
+    }, 500);
 
     return () => {
-      postCards.forEach(card => observer.unobserve(card));
+      clearTimeout(timeoutId);
+      if (videoObserverRef.current) {
+        videoObserverRef.current.disconnect();
+      }
     };
   }, [posts]);
 
   const fetchPosts = async (isLoadMore = false) => {
-  if (!isLoadMore) {
-    setIsLoading(true);
-  }
-  
-  try {
-    let data;
-    
-    if (activeTab === 'following') {
-      data = await API.getFollowingFeed(page, 10);
-    } else {
-      data = await API.getPosts();
+    if (!isLoadMore) {
+      setIsLoading(true);
     }
+    
+    try {
+      let data;
+      
+      if (activeTab === 'following') {
+        data = await API.getFollowingFeed(page, 10);
+        console.log('Following Feed RAW Data:', data);
+      } else {
+        data = await API.getPosts();
+      }
 
-    console.log('API Response:', data); // DEBUG: Check what you're getting
-    
-    // Handle different response formats
-    let postsArray = [];
-    
-    if (Array.isArray(data)) {
-      // Case 1: Direct array of posts
-      postsArray = data;
-    } else if (data && Array.isArray(data.posts)) {
-      // Case 2: { posts: [...] }
-      postsArray = data.posts;
-    } else if (data && data.data && Array.isArray(data.data)) {
-      // Case 3: { data: [...] }
-      postsArray = data.data;
-    } else {
-      console.error('Unexpected API response format:', data);
-      postsArray = [];
+      console.log('API Response:', data);
+      
+      // Handle different response formats
+      let postsArray = [];
+      
+      if (Array.isArray(data)) {
+        postsArray = data;
+      } else if (data && Array.isArray(data.posts)) {
+        postsArray = data.posts;
+      } else if (data && data.data && Array.isArray(data.data)) {
+        postsArray = data.data;
+      } else if (data && typeof data === 'object') {
+        // Check if any property is an array of posts
+        const arrays = Object.values(data).filter(Array.isArray);
+        if (arrays.length > 0) {
+          postsArray = arrays[0];
+        }
+      }
+      
+      if (isLoadMore) {
+        setPosts(prev => [...prev, ...postsArray]);
+      } else {
+        setPosts(postsArray);
+      }
+      setHasMore(data?.hasMore || data?.has_more || false);
+      setTotalPages(data?.totalPages || data?.total_pages || 1);
+      
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+    } finally {
+      setIsLoading(false);
     }
-    if (isLoadMore) {
-      setPosts(prev => [...prev, ...postsArray]);
-    } else {
-      setPosts(postsArray);
-    }
-    setHasMore(data?.hasMore || data?.has_more || false);
-    setTotalPages(data?.totalPages || data?.total_pages || 1);
-    
-  } catch (error) {
-    console.error('Error fetching posts:', error);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const handleLike = async (postId) => {
     try {

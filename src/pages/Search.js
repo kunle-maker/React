@@ -44,16 +44,30 @@ const Search = () => {
     }
   };
 
-  const handleFollow = async (username) => {
+  const handleFollow = async (userResult) => {
     try {
+      const username = userResult.username;
       await API.followUser(username);
-      // Update the followed user in results
+      
+      // Update the followed user in results and increment/decrement followers count
       setSearchResults(prev =>
-        prev.map(user =>
-          user.username === username
-            ? { ...user, isFollowing: true }
-            : user
-        )
+        prev.map(u => {
+          if (u.username === username) {
+            const isFollowing = !u.isFollowing;
+            const currentFollowers = u.followers?.length || 0;
+            const newFollowersCount = isFollowing ? currentFollowers + 1 : Math.max(0, currentFollowers - 1);
+            
+            // Mocking the followers array for UI update if backend doesn't return full object
+            return { 
+              ...u, 
+              isFollowing: isFollowing,
+              followers: isFollowing 
+                ? [...(u.followers || []), user?._id] 
+                : (u.followers || []).filter(id => id !== user?._id)
+            };
+          }
+          return u;
+        })
       );
     } catch (error) {
       console.error('Error following user:', error);
@@ -126,7 +140,7 @@ const Search = () => {
                         {userResult._id !== user?._id && (
                           <button
                             className={`btn ${userResult.isFollowing ? 'btn-secondary' : 'btn-primary'}`}
-                            onClick={() => handleFollow(userResult.username)}
+                            onClick={() => handleFollow(userResult)}
                           >
                             {userResult.isFollowing ? (
                               <>

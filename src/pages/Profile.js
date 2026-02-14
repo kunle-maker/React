@@ -74,11 +74,29 @@ const Profile = () => {
   const handleFollow = async () => {
     try {
       const data = await API.followUser(username);
-      setProfile(prev => ({
-        ...prev,
-        isFollowing: !prev.isFollowing,
-        followersCount: data.followersCount !== undefined ? data.followersCount : (prev.isFollowing ? prev.followersCount - 1 : prev.followersCount + 1)
-      }));
+      setProfile(prev => {
+        const isFollowing = !prev.isFollowing;
+        const followersCount = data.followersCount !== undefined 
+          ? data.followersCount 
+          : (isFollowing ? prev.followersCount + 1 : Math.max(0, prev.followersCount - 1));
+        
+        return {
+          ...prev,
+          isFollowing: isFollowing,
+          followersCount: followersCount
+        };
+      });
+      
+      // Update local storage if needed or trigger a global event
+      const updatedUser = { ...currentUser };
+      if (updatedUser.following) {
+        if (!profile.isFollowing) {
+          updatedUser.following.push(profile._id);
+        } else {
+          updatedUser.following = updatedUser.following.filter(id => id !== profile._id);
+        }
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
     } catch (error) {
       console.error('Error following user:', error);
     }
