@@ -14,6 +14,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
   const [isLiked, setIsLiked] = useState(
     post.likes?.includes(currentUser?._id) || 
     post.likes?.includes(currentUser?.id) || 
+    post.isLiked ||
     false
   );
   const [isBookmarked, setIsBookmarked] = useState(post.bookmarked || false);
@@ -22,7 +23,10 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [videoProgress, setVideoProgress] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(0);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [isVideoLoading, setIsVideoLoading] = useState(false);
+  const [videoError, setVideoError] = useState(null);
   
   const videoRef = useRef(null);
   const lastTap = useRef(0);
@@ -36,6 +40,23 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
   };
 
   useEffect(() => {
+    // Debug video loading
+    if (post.media && post.media[currentMediaIndex]?.type === 'video') {
+      const videoUrl = post.media[currentMediaIndex].url;
+      console.log('Loading video:', videoUrl);
+      
+      // Test if video is accessible
+      fetch(videoUrl, { method: 'HEAD' })
+        .then(response => {
+          console.log('Video status:', response.status, response.ok);
+        })
+        .catch(error => {
+          console.error('Video fetch error:', error);
+        });
+    }
+  }, [currentMediaIndex, post.media]);
+
+  useEffect(() => {
     // Setup video observer for autoplay
     if (post.media?.[currentMediaIndex]?.type === 'video') {
       const observer = new IntersectionObserver(
@@ -43,17 +64,35 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
           entries.forEach(entry => {
             if (videoRef.current) {
               if (entry.isIntersecting) {
-                videoRef.current.muted = true;
-                videoRef.current.play().catch(console.log);
-                setIsPlaying(true);
+                // Small delay to ensure video is ready
+                setTimeout(() => {
+                  if (videoRef.current) {
+                    videoRef.current.muted = true;
+                    videoRef.current.play()
+                      .then(() => {
+                        setIsPlaying(true);
+                        setIsVideoLoading(false);
+                      })
+                      .catch(e => {
+                        console.log("Autoplay prevented:", e);
+                        setIsPlaying(false);
+                        setIsVideoLoading(false);
+                      });
+                  }
+                }, 100);
               } else {
-                videoRef.current.pause();
-                setIsPlaying(false);
+                if (videoRef.current) {
+                  videoRef.current.pause();
+                  setIsPlaying(false);
+                }
+                if (progressInterval.current) {
+                  clearInterval(progressInterval.current);
+                }
               }
             }
           });
         },
-        { threshold: 0.7 }
+        { threshold: 0.5 }
       );
 
       if (videoRef.current) {
@@ -173,7 +212,16 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play();
+        setIsVideoLoading(true);
+        videoRef.current.play()
+          .then(() => {
+            setIsPlaying(true);
+            setIsVideoLoading(false);
+          })
+          .catch(e => {
+            console.error('Play error:', e);
+            setIsVideoLoading(false);
+          });
       }
       setIsPlaying(!isPlaying);
     }
@@ -199,6 +247,19 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
     }
   };
 
+  const handleVideoLoadedMetadata = () => {
+    if (videoRef.current) {
+      setVideoDuration(videoRef.current.duration);
+      console.log('Video metadata loaded, duration:', videoRef.current.duration);
+    }
+  };
+
+  const handleVideoError = (e) => {
+    console.error('Video error:', e.target.error);
+    setVideoError(e.target.error?.message || 'Failed to load video');
+    setIsVideoLoading(false);
+  };
+
   const formatTime = (dateString) => {
     if (!dateString) return 'Just now';
     const date = new Date(dateString);
@@ -222,7 +283,6 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
 
   const handleCommentClick = (e) => {
     e.stopPropagation();
-    // navigate to the full post view when comment icon is clicked
     navigate(`/post/${post._id}`);
   };
 
@@ -399,16 +459,51 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
                   height: 'auto',
                   display: 'block',
                   maxHeight: '600px',
-                  objectFit: 'contain'
+                  objectFit: 'contain',
+                  background: '#000'
                 }}
                 muted={isMuted}
                 loop
                 playsInline
+                preload="metadata"
                 onClick={handleVideoClick}
                 onTimeUpdate={handleVideoProgress}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
+                onLoadedMetadata={handleVideoLoadedMetadata}
+                onError={handleVideoError}
+                onWaiting={() => setIsVideoLoading(true)}
+                onCanPlay={() => setIsVideoLoading(false)}
               />
+              
+              {isVideoLoading && (
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  color: 'white',
+                  fontSize: '24px'
+                }}>
+                  <div className="loading-spinner"></div>
+                </div>
+              )}
+              
+              {videoError && (
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  color: 'white',
+                  background: 'rgba(0,0,0,0.7)',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}>
+                  Failed to load video
+                </div>
+              )}
               
               {/* Mute/Unmute overlay */}
               <div 
@@ -433,7 +528,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
               </div>
               
               {/* Play/Pause overlay */}
-              {!isPlaying && (
+              {!isPlaying && !isVideoLoading && !videoError && (
                 <div 
                   style={{
                     position: 'absolute',
@@ -495,9 +590,11 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
                 height: 'auto',
                 display: 'block',
                 maxHeight: '600px',
-                objectFit: 'contain'
+                objectFit: 'contain',
+                background: '#000'
               }}
               onError={(e) => {
+                console.error('Image error:', e.target.src);
                 e.target.src = 'https://via.placeholder.com/500x500?text=Image+Not+Found';
               }}
             />
@@ -527,6 +624,11 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
+                    // Pause video if switching away from it
+                    if (post.media[currentMediaIndex].type === 'video' && videoRef.current) {
+                      videoRef.current.pause();
+                      setIsPlaying(false);
+                    }
                     setCurrentMediaIndex(index);
                   }}
                 />

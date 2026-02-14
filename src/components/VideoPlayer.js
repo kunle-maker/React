@@ -10,12 +10,30 @@ const VideoPlayer = ({ src, postId, onDoubleClick }) => {
   const [showControls, setShowControls] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showHeart, setShowHeart] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   const videoRef = useRef(null);
   const containerRef = useRef(null);
   const progressInterval = useRef(null);
 
+  useEffect(() => {
+    // Test video accessibility
+    fetch(src, { method: 'HEAD' })
+      .then(response => {
+        console.log('Video status:', response.status, response.ok);
+        if (!response.ok) {
+          setError(`Failed to load video (${response.status})`);
+        }
+      })
+      .catch(err => {
+        console.error('Video fetch error:', err);
+        setError('Failed to load video');
+      });
+  }, [src]);
+
   const formatTime = (seconds) => {
+    if (!seconds || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -26,7 +44,16 @@ const VideoPlayer = ({ src, postId, onDoubleClick }) => {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play();
+        setIsLoading(true);
+        videoRef.current.play()
+          .then(() => {
+            setIsLoading(false);
+          })
+          .catch(e => {
+            console.error('Play error:', e);
+            setError('Failed to play video');
+            setIsLoading(false);
+          });
       }
       setIsPlaying(!isPlaying);
     }
@@ -72,28 +99,45 @@ const VideoPlayer = ({ src, postId, onDoubleClick }) => {
     }
   };
 
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+      setIsLoading(false);
+      setError(null);
+      console.log('Video metadata loaded, duration:', videoRef.current.duration);
+    }
+  };
+
+  const handleError = (e) => {
+    console.error('Video player error:', e.target.error);
+    setError(e.target.error?.message || 'Failed to load video');
+    setIsLoading(false);
+  };
+
   useEffect(() => {
     const video = videoRef.current;
     
     const updateProgress = () => {
       if (video) {
         setCurrentTime(video.currentTime);
-        setDuration(video.duration || 0);
       }
     };
 
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
     const handleEnded = () => setIsPlaying(false);
+    const handleWaiting = () => setIsLoading(true);
+    const handleCanPlay = () => setIsLoading(false);
 
     if (video) {
       video.addEventListener('timeupdate', updateProgress);
       video.addEventListener('play', handlePlay);
       video.addEventListener('pause', handlePause);
       video.addEventListener('ended', handleEnded);
-      video.addEventListener('loadedmetadata', () => {
-        setDuration(video.duration);
-      });
+      video.addEventListener('loadedmetadata', handleLoadedMetadata);
+      video.addEventListener('error', handleError);
+      video.addEventListener('waiting', handleWaiting);
+      video.addEventListener('canplay', handleCanPlay);
     }
 
     const handleFullscreenChange = () => {
@@ -108,6 +152,10 @@ const VideoPlayer = ({ src, postId, onDoubleClick }) => {
         video.removeEventListener('play', handlePlay);
         video.removeEventListener('pause', handlePause);
         video.removeEventListener('ended', handleEnded);
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        video.removeEventListener('error', handleError);
+        video.removeEventListener('waiting', handleWaiting);
+        video.removeEventListener('canplay', handleCanPlay);
       }
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       if (progressInterval.current) {
@@ -143,6 +191,7 @@ const VideoPlayer = ({ src, postId, onDoubleClick }) => {
         playsInline
         loop
         muted={isMuted}
+        preload="metadata"
         onClick={handleVideoClick}
         onDoubleClick={handleDoubleClick}
         style={{
@@ -153,6 +202,18 @@ const VideoPlayer = ({ src, postId, onDoubleClick }) => {
           display: 'block'
         }}
       />
+
+      {isLoading && (
+        <div className="video-loading">
+          <div className="loading-spinner"></div>
+        </div>
+      )}
+
+      {error && (
+        <div className="video-error">
+          {error}
+        </div>
+      )}
 
       {showHeart && (
         <div className="heart-animation active">

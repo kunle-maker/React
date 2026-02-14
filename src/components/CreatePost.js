@@ -8,6 +8,7 @@ const CreatePost = ({ onClose, onSubmit }) => {
   const [caption, setCaption] = useState('');
   const [cropImage, setCropImage] = useState(null);
   const [cropIndex, setCropIndex] = useState(-1);
+  const [isUploading, setIsUploading] = useState(false);
   const cropperRef = useRef(null);
 
   const handleFileSelect = (e) => {
@@ -61,14 +62,21 @@ const CreatePost = ({ onClose, onSubmit }) => {
   const handleSubmit = async () => {
     if (selectedFiles.length === 0) return;
     
+    setIsUploading(true);
+    
     const formData = new FormData();
     selectedFiles.forEach(file => {
       formData.append('media', file);
     });
     formData.append('caption', caption);
     
-    await onSubmit(formData);
-    onClose();
+    try {
+      await onSubmit(formData);
+    } catch (error) {
+      console.error('Error creating post:', error);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -82,9 +90,9 @@ const CreatePost = ({ onClose, onSubmit }) => {
           <button 
             className="btn btn-primary"
             onClick={handleSubmit}
-            disabled={selectedFiles.length === 0}
+            disabled={selectedFiles.length === 0 || isUploading}
           >
-            Share
+            {isUploading ? 'Sharing...' : 'Share'}
           </button>
         </div>
 
@@ -120,14 +128,37 @@ const CreatePost = ({ onClose, onSubmit }) => {
                     {selectedFiles.map((file, index) => (
                       <div key={index} className="preview-item">
                         {file.type.startsWith('video/') ? (
-                          <video src={URL.createObjectURL(file)} controls />
+                          <video 
+                            src={URL.createObjectURL(file)} 
+                            controls 
+                            muted
+                            preload="metadata"
+                            playsInline
+                            style={{ 
+                              width: '100%', 
+                              height: '100%', 
+                              objectFit: 'contain' 
+                            }}
+                            onError={(e) => console.error('Preview video error:', e)}
+                          />
                         ) : (
-                          <img src={URL.createObjectURL(file)} alt={`Preview ${index}`} />
+                          <img 
+                            src={URL.createObjectURL(file)} 
+                            alt={`Preview ${index}`}
+                            style={{ 
+                              width: '100%', 
+                              height: '100%', 
+                              objectFit: 'contain' 
+                            }}
+                            onError={(e) => console.error('Preview image error:', e)}
+                          />
                         )}
                         <div className="preview-actions">
-                          <button onClick={() => openCropper(index)}>
-                            <FiCrop size={16} />
-                          </button>
+                          {file.type.startsWith('image/') && (
+                            <button onClick={() => openCropper(index)}>
+                              <FiCrop size={16} />
+                            </button>
+                          )}
                           <button onClick={() => removeFile(index)}>
                             <FiX size={16} />
                           </button>
@@ -144,6 +175,9 @@ const CreatePost = ({ onClose, onSubmit }) => {
                     src={JSON.parse(localStorage.getItem('user'))?.profilePicture || '/default-avatar.png'}
                     alt="User"
                     className="user-avatar"
+                    onError={(e) => {
+                      e.target.src = 'https://ui-avatars.com/api/?name=User&background=random';
+                    }}
                   />
                   <span>{JSON.parse(localStorage.getItem('user'))?.username}</span>
                 </div>
