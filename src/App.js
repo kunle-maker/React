@@ -15,7 +15,7 @@ import Search from './pages/Search';
 import Notifications from './pages/Notifications';
 import FullPostView from './pages/FullPostView';
 
-// Video initialization helper
+// Video initialization helper – now does NOT force mute
 const initializeVideos = () => {
   setTimeout(() => {
     document.querySelectorAll('video').forEach(video => {
@@ -24,20 +24,13 @@ const initializeVideos = () => {
       }
       if (!video.hasAttribute('preload')) {
         video.setAttribute('preload', 'metadata');
-      }
-      video.muted = true;
+      }     
       video.addEventListener('loadedmetadata', () => {
         console.log('Video ready:', video.src);
       });      
       video.addEventListener('error', (e) => {
         console.error('Video error:', e.target.error);
       });
-      if (video.getBoundingClientRect().top < window.innerHeight && 
-          video.getBoundingClientRect().bottom > 0) {
-        video.play().catch(e => {
-          console.log("Initial autoplay prevented:", e);
-        });
-      }
     });
   }, 500);
 };
@@ -66,6 +59,7 @@ function App() {
       setTheme(localStorage.getItem('theme') || 'dark');
     });
     initializeVideos();
+    
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.addedNodes.length > 0) {
