@@ -22,8 +22,12 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
   const [showHeart, setShowHeart] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [userUnmuted, setUserUnmuted] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(0);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [isVideoLoading, setIsVideoLoading] = useState(false);
+  const [videoError, setVideoError] = useState(null);
   
   const videoRef = useRef(null);
   const lastTap = useRef(0);
@@ -37,6 +41,23 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
   };
 
   useEffect(() => {
+    // Debug video loading
+    if (post.media && post.media[currentMediaIndex]?.type === 'video') {
+      const videoUrl = post.media[currentMediaIndex].url;
+      console.log('Loading video:', videoUrl);
+      
+      // Test if video is accessible
+      fetch(videoUrl, { method: 'HEAD' })
+        .then(response => {
+          console.log('Video status:', response.status, response.ok);
+        })
+        .catch(error => {
+          console.error('Video fetch error:', error);
+        });
+    }
+  }, [currentMediaIndex, post.media]);
+
+  useEffect(() => {
     // Setup video observer for autoplay
     if (post.media?.[currentMediaIndex]?.type === 'video') {
       const observer = new IntersectionObserver(
@@ -44,17 +65,39 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
           entries.forEach(entry => {
             if (videoRef.current) {
               if (entry.isIntersecting) {
-                videoRef.current.muted = true;
-                videoRef.current.play().catch(console.log);
-                setIsPlaying(true);
+                // Small delay to ensure video is ready
+                setTimeout(() => {
+                  if (videoRef.current) {
+                    // Only force mute if user hasn't manually unmuted
+                    if (!userUnmuted) {
+                      videoRef.current.muted = true;
+                      setIsMuted(true);
+                    }
+                    videoRef.current.play()
+                      .then(() => {
+                        setIsPlaying(true);
+                        setIsVideoLoading(false);
+                      })
+                      .catch(e => {
+                        console.log("Autoplay prevented:", e);
+                        setIsPlaying(false);
+                        setIsVideoLoading(false);
+                      });
+                  }
+                }, 100);
               } else {
-                videoRef.current.pause();
-                setIsPlaying(false);
+                if (videoRef.current) {
+                  videoRef.current.pause();
+                  setIsPlaying(false);
+                }
+                if (progressInterval.current) {
+                  clearInterval(progressInterval.current);
+                }
               }
             }
           });
         },
-        { threshold: 0.7 }
+        { threshold: 0.5 }
       );
 
       if (videoRef.current) {
@@ -70,7 +113,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
         }
       };
     }
-  }, [currentMediaIndex, post.media]);
+  }, [currentMediaIndex, post.media, userUnmuted]);
 
   const getProfilePicture = () => {
     if (!postUser.profilePicture || postUser.profilePicture === '/default-avatar.png') {
@@ -174,7 +217,16 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play();
+        setIsVideoLoading(true);
+        videoRef.current.play()
+          .then(() => {
+            setIsPlaying(true);
+            setIsVideoLoading(false);
+          })
+          .catch(e => {
+            console.error('Play error:', e);
+            setIsVideoLoading(false);
+          });
       }
       setIsPlaying(!isPlaying);
     }
@@ -183,8 +235,10 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
   const toggleMute = (e) => {
     e.stopPropagation();
     if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
+      const newMutedState = !isMuted;
+      videoRef.current.muted = newMutedState;
+      setIsMuted(newMutedState);
+      setUserUnmuted(!newMutedState); // Track if user manually unmuted
     }
   };
 
@@ -197,6 +251,29 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
     if (videoRef.current && videoRef.current.duration) {
       const progress = (videoRef.current.currentTime / videoRef.current.duration) * 100;
       setVideoProgress(progress);
+    }
+  };
+
+  const handleVideoLoadedMetadata = () => {
+    if (videoRef.current) {
+      setVideoDuration(videoRef.current.duration);
+      console.log('Video metadata loaded, duration:', videoRef.current.duration);
+    }
+  };
+
+  const handleVideoError = (e) => {
+    console.error('Video error:', e.target.error);
+    setVideoError(e.target.error?.message || 'Failed to load video');
+    setIsVideoLoading(false);
+    if (videoRef.current) {
+      videoRef.current.muted = true;
+      videoRef.current.load();
+      setTimeout(() => {
+        if (videoRef.current && videoRef.current.error) {
+          console.log('Video still failing, showing fallback');
+          setVideoError('Video format not supported');
+        }
+      }, 1000);
     }
   };
 
@@ -223,8 +300,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
 
   const handleCommentClick = (e) => {
     e.stopPropagation();
-    // navigate to the full post view when comment icon is clicked
-    navigate(`/post/${post._id}`);
+    navigate(`/post/${post._id}`, { state: { post } });
   };
 
   const handleOptionsClick = (e) => {
@@ -400,16 +476,51 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
                   height: 'auto',
                   display: 'block',
                   maxHeight: '600px',
-                  objectFit: 'contain'
+                  objectFit: 'contain',
+                  background: '#000'
                 }}
                 muted={isMuted}
                 loop
                 playsInline
+                preload="metadata"
                 onClick={handleVideoClick}
                 onTimeUpdate={handleVideoProgress}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
+                onLoadedMetadata={handleVideoLoadedMetadata}
+                onError={handleVideoError}
+                onWaiting={() => setIsVideoLoading(true)}
+                onCanPlay={() => setIsVideoLoading(false)}
               />
+              
+              {isVideoLoading && (
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  color: 'white',
+                  fontSize: '24px'
+                }}>
+                  <div className="loading-spinner"></div>
+                </div>
+              )}
+              
+              {videoError && (
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  color: 'white',
+                  background: 'rgba(0,0,0,0.7)',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}>
+                  Failed to load video
+                </div>
+              )}
               
               {/* Mute/Unmute overlay */}
               <div 
@@ -419,22 +530,25 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
                   right: '12px',
                   background: 'rgba(0,0,0,0.6)',
                   color: 'white',
-                  width: '30px',
-                  height: '30px',
+                  width: '36px',
+                  height: '36px',
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  zIndex: 5
+                  zIndex: 5,
+                  transition: 'transform 0.2s'
                 }}
                 onClick={toggleMute}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
-                {isMuted ? <FiVolumeX size={16} /> : <FiVolume2 size={16} />}
+                {isMuted ? <FiVolumeX size={18} /> : <FiVolume2 size={18} />}
               </div>
               
               {/* Play/Pause overlay */}
-              {!isPlaying && (
+              {!isPlaying && !isVideoLoading && !videoError && (
                 <div 
                   style={{
                     position: 'absolute',
@@ -450,11 +564,14 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    zIndex: 5
+                    zIndex: 5,
+                    transition: 'transform 0.2s'
                   }}
                   onClick={handleVideoClick}
+                  onMouseEnter={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1.1)'}
+                  onMouseLeave={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1)'}
                 >
-                  <FiPlay size={24} />
+                  <FiPlay size={28} />
                 </div>
               )}
               
@@ -465,7 +582,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  height: '3px',
+                  height: '4px',
                   background: 'rgba(255,255,255,0.3)',
                   cursor: 'pointer'
                 }}
@@ -480,11 +597,26 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
                 <div 
                   style={{
                     height: '100%',
-                    background: '#e1306c',
+                    background: 'linear-gradient(90deg, #e1306c, #c13584)',
                     width: `${videoProgress}%`,
                     transition: 'width 0.1s linear'
                   }}
                 />
+              </div>
+              
+              {/* Video time indicator */}
+              <div style={{
+                position: 'absolute',
+                bottom: '12px',
+                left: '12px',
+                color: 'white',
+                fontSize: '12px',
+                background: 'rgba(0,0,0,0.6)',
+                padding: '4px 8px',
+                borderRadius: '12px',
+                zIndex: 5
+              }}>
+                {formatVideoTime(videoRef.current?.currentTime || 0)} / {formatVideoTime(videoDuration)}
               </div>
             </div>
           ) : (
@@ -496,9 +628,11 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
                 height: 'auto',
                 display: 'block',
                 maxHeight: '600px',
-                objectFit: 'contain'
+                objectFit: 'contain',
+                background: '#000'
               }}
               onError={(e) => {
+                console.error('Image error:', e.target.src);
                 e.target.src = 'https://via.placeholder.com/500x500?text=Image+Not+Found';
               }}
             />
@@ -512,22 +646,28 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
               left: '50%',
               transform: 'translateX(-50%)',
               display: 'flex',
-              gap: '6px',
+              gap: '8px',
               zIndex: 5
             }}>
               {post.media.map((_, index) => (
                 <div 
                   key={index}
                   style={{
-                    width: '8px',
-                    height: '8px',
+                    width: '10px',
+                    height: '10px',
                     borderRadius: '50%',
                     background: index === currentMediaIndex ? '#fff' : 'rgba(255,255,255,0.5)',
                     cursor: 'pointer',
-                    transition: 'all 0.2s'
+                    transition: 'all 0.2s',
+                    transform: index === currentMediaIndex ? 'scale(1.2)' : 'scale(1)'
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
+                    // Pause video if switching away from it
+                    if (post.media[currentMediaIndex].type === 'video' && videoRef.current) {
+                      videoRef.current.pause();
+                      setIsPlaying(false);
+                    }
                     setCurrentMediaIndex(index);
                   }}
                 />
@@ -543,10 +683,11 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
               left: '50%',
               transform: 'translate(-50%, -50%)',
               color: 'white',
-              fontSize: '64px',
+              fontSize: '80px',
               animation: 'heartFade 0.8s ease-out',
               pointerEvents: 'none',
-              zIndex: 10
+              zIndex: 10,
+              textShadow: '0 0 20px rgba(0,0,0,0.5)'
             }}>
               <FaHeart />
             </div>
@@ -571,8 +712,11 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
               cursor: 'pointer', 
               display: 'flex', 
               alignItems: 'center',
-              padding: '4px'
+              padding: '4px',
+              transition: 'transform 0.2s'
             }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             title={isLiked ? 'Unlike' : 'Like'}
           >
             {isLiked ? <FaHeart size={24} /> : <FiHeart size={24} />}
@@ -589,8 +733,11 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
               cursor: 'pointer', 
               display: 'flex', 
               alignItems: 'center',
-              padding: '4px'
+              padding: '4px',
+              transition: 'transform 0.2s'
             }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             title="Comments"
           >
             <FiMessageCircle size={24} />
@@ -613,8 +760,11 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
               border: 'none', 
               color: 'var(--text-primary)', 
               cursor: 'pointer',
-              padding: '4px'
+              padding: '4px',
+              transition: 'transform 0.2s'
             }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             title="Share"
           >
             <FiSend size={24} />
@@ -627,8 +777,11 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
             border: 'none', 
             color: isBookmarked ? '#0095f6' : 'var(--text-primary)', 
             cursor: 'pointer',
-            padding: '4px'
+            padding: '4px',
+            transition: 'transform 0.2s'
           }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
           title={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
         >
           {isBookmarked ? <FaBookmark size={24} /> : <FiBookmark size={24} />}
