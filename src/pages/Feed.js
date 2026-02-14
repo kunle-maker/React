@@ -78,59 +78,6 @@ const Feed = () => {
     }
   }, [page]);
 
-  // Setup Intersection Observer for auto-playing videos in feed
-  useEffect(() => {
-    if (posts.length === 0) return;
-
-    // Delay observation to ensure DOM is ready
-    const timeoutId = setTimeout(() => {
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach(entry => {
-            const video = entry.target.querySelector('video');
-            if (video) {
-              if (entry.isIntersecting) {
-                // Small delay to ensure video is ready
-                setTimeout(() => {
-                  if (video) {
-                    video.muted = true;
-                    video.play()
-                      .then(() => {
-                        console.log('Video playing in view');
-                      })
-                      .catch(e => {
-                        console.log("Autoplay prevented:", e);
-                        // Add click handler for manual play
-                        video.addEventListener('click', function playOnClick() {
-                          video.play();
-                          video.removeEventListener('click', playOnClick);
-                        }, { once: true });
-                      });
-                  }
-                }, 100);
-              } else {
-                video.pause();
-              }
-            }
-          });
-        },
-        { threshold: 0.5 }
-      );
-
-      const postCards = document.querySelectorAll('.post-card');
-      postCards.forEach(card => observer.observe(card));
-      
-      videoObserverRef.current = observer;
-    }, 500);
-
-    return () => {
-      clearTimeout(timeoutId);
-      if (videoObserverRef.current) {
-        videoObserverRef.current.disconnect();
-      }
-    };
-  }, [posts]);
-
   const fetchPosts = async (isLoadMore = false) => {
     if (!isLoadMore) {
       setIsLoading(true);
