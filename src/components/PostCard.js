@@ -1179,61 +1179,70 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
       </div>
 
       {/* Comments section */}
-      {showComments && post.comments && post.comments.length > 0 && (
-        <div style={{ 
-          padding: '12px 16px', 
-          borderTop: '1px solid var(--border-color)', 
-          maxHeight: '300px', 
-          overflowY: 'auto',
-          cursor: 'default'
-        }} onClick={(e) => e.stopPropagation()}>
-          {post.comments.map(comment => (
-            <div key={comment._id || comment.id} style={{ marginBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <a 
-                  href={`/profile/${comment.user?.username}`}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{ textDecoration: 'none' }}
-                >
-                  <img
-                    src={comment.user?.profilePicture || `https://ui-avatars.com/api/?name=${comment.user?.username || 'User'}&background=random`}
-                    alt={comment.user?.username}
-                    style={{ 
-                      width: '24px', 
-                      height: '24px', 
-                      borderRadius: '50%',
-                      cursor: 'pointer'
-                    }}
-                    onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/24?text=U';
-                    }}
-                  />
-                </a>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <a 
-                    href={`/profile/${comment.user?.username}`}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ 
-                      textDecoration: 'none',
-                      fontWeight: '600', 
-                      fontSize: '13px',
-                      color: 'var(--text-primary)'
-                    }}
-                  >
-                    {comment.user?.username || 'User'}
-                  </a>
-                  <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                    {formatTime(comment.createdAt)}
-                  </div>
-                </div>
-              </div>
-              <div style={{ fontSize: '14px', color: 'var(--text-primary)', marginLeft: '32px' }}>
-                {comment.text}
+{showComments && post.comments && post.comments.length > 0 && (
+  <div
+    style={{
+      padding: '12px 16px',
+      borderTop: '1px solid var(--border-color)',
+      maxHeight: '300px',
+      overflowY: 'auto',
+      cursor: 'default'
+    }}
+    onClick={(e) => e.stopPropagation()}
+  >
+    {post.comments.map(comment => {
+      // Determine username and profile picture – handle both old and new comment formats
+      const commentUsername = comment.username || comment.user?.username || 'User';
+      const commentProfilePic = comment.userProfilePicture || comment.user?.profilePicture;
+
+      return (
+        <div key={comment._id || comment.id} style={{ marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <a
+              href={`/profile/${commentUsername}`}
+              onClick={(e) => e.stopPropagation()}
+              style={{ textDecoration: 'none' }}
+            >
+              <img
+                src={commentProfilePic || `https://ui-avatars.com/api/?name=${commentUsername}&background=random`}
+                alt={commentUsername}
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  cursor: 'pointer'
+                }}
+                onError={(e) => {
+                  e.target.src = 'https://via.placeholder.com/24?text=U';
+                }}
+              />
+            </a>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <a
+                href={`/profile/${commentUsername}`}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  textDecoration: 'none',
+                  fontWeight: '600',
+                  fontSize: '13px',
+                  color: 'var(--text-primary)'
+                }}
+              >
+                {commentUsername}
+              </a>
+              <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                {formatTime(comment.createdAt)}
               </div>
             </div>
-          ))}
+          </div>
+          <div style={{ fontSize: '14px', color: 'var(--text-primary)', marginLeft: '32px' }}>
+            {comment.text}
+          </div>
         </div>
-      )}
+      );
+    })}
+  </div>
+)}
 
       {/* Add comment input */}
       {showComments && currentUser && (
