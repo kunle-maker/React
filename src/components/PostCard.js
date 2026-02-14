@@ -21,7 +21,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
   const [showOptions, setShowOptions] = useState(false);
   const [showHeart, setShowHeart] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false); // Changed to false (unmuted by default)
+  const [isMuted, setIsMuted] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -34,11 +34,11 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [isInView, setIsInView] = useState(false);
   
   const videoRef = useRef(null);
   const containerRef = useRef(null);
   const lastTap = useRef(0);
-  const progressInterval = useRef(null);
   const controlsTimeout = useRef(null);
   const navigate = useNavigate();
 
@@ -48,38 +48,48 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
     profilePicture: `https://ui-avatars.com/api/?name=User&background=random`
   };
 
-  // Video intersection observer for play/pause based on visibility
+  // Video intersection observer for play/pause based on 80% visibility
   useEffect(() => {
     if (post.media?.[currentMediaIndex]?.type !== 'video') return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach(entry => {
+          setIsInView(entry.isIntersecting && entry.intersectionRatio >= 0.8);
+          
           if (videoRef.current) {
-            if (entry.isIntersecting) {
-              // Video is in view - play it
-              const visibilityRatio = entry.intersectionRatio;
-              if (visibilityRatio > 0.2) { // Play when at least 20% visible
-                videoRef.current.play()
-                  .then(() => {
-                    setIsPlaying(true);
-                    setIsVideoLoading(false);
-                  })
-                  .catch(e => {
-                    console.log("Autoplay prevented:", e);
-                    setIsPlaying(false);
+            if (entry.isIntersecting && entry.intersectionRatio >= 0.8) {
+              // Video is at least 80% visible - play it
+              videoRef.current.play()
+                .then(() => {
+                  setIsPlaying(true);
+                  setIsVideoLoading(false);
+                  // Ensure other videos are paused
+                  document.querySelectorAll('video').forEach(video => {
+                    if (video !== videoRef.current && !video.paused) {
+                      video.pause();
+                      video.muted = true;
+                    }
                   });
-              }
+                })
+                .catch(e => {
+                  console.log("Autoplay prevented:", e);
+                  setIsPlaying(false);
+                });
             } else {
-              // Video is out of view - pause it
-              videoRef.current.pause();
-              setIsPlaying(false);
+              // Video is less than 80% visible - pause it and mute
+              if (videoRef.current) {
+                videoRef.current.pause();
+                videoRef.current.muted = true; // Ensure audio stops
+                setIsMuted(true);
+                setIsPlaying(false);
+              }
             }
           }
         });
       },
       { 
-        threshold: [0, 0.2, 0.5, 0.8], // Multiple thresholds for better control
+        threshold: [0.8], // 80% visibility threshold
         rootMargin: '0px'
       }
     );
@@ -94,6 +104,95 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
       }
     };
   }, [currentMediaIndex, post.media]);
+
+  // Global video playback manager to ensure only one video plays at a time
+  useEffect(() => {
+    if (post.media?.[currentMediaIndex]?.type !== 'video') return;
+
+    // Function to handle video play events
+    const handleVideoPlay = (e) => {
+      // If this video is playing, pause all other videos
+      if (e.target === videoRef.current) {
+        document.querySelectorAll('video').forEach(video => {
+          if (video !== videoRef.current && !video.paused) {
+            video.pause();
+            // Also mute the other video to ensure audio stops
+            video.muted = true;
+          }
+        });
+      }
+    };
+
+    const video = videoRef.current;
+    if (video) {
+      video.addEventListener('play', handleVideoPlay);
+    }
+
+    return () => {
+      if (video) {
+        video.removeEventListener('play', handleVideoPlay);
+      }
+    };
+  }, [currentMediaIndex, post.media]);
+
+  // Handle visibility change (tab switching)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.muted = true;
+        setIsMuted(true);
+        setIsPlaying(false);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  // Handle scroll stop to ensure proper video state
+  useEffect(() => {
+    let scrollTimeout;
+    
+    const handleScroll = () => {
+      // Clear previous timeout
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
+      
+      // Set new timeout to check visibility after scroll stops
+      scrollTimeout = setTimeout(() => {
+        if (videoRef.current) {
+          const rect = videoRef.current.getBoundingClientRect();
+          const windowHeight = window.innerHeight;
+          const visibleHeight = Math.max(0, 
+            Math.min(rect.bottom, windowHeight) - Math.max(rect.top, 0)
+          );
+          const visiblePercentage = rect.height > 0 ? visibleHeight / rect.height : 0;
+          
+          // If less than 80% visible after scroll stops, ensure it's paused and muted
+          if (visiblePercentage < 0.8 && isPlaying) {
+            videoRef.current.pause();
+            videoRef.current.muted = true;
+            setIsMuted(true);
+            setIsPlaying(false);
+          }
+        }
+      }, 150); // Wait 150ms after scroll stops
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
+    };
+  }, [isPlaying]);
 
   // Auto-hide controls
   useEffect(() => {
@@ -231,6 +330,13 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
           .then(() => {
             setIsPlaying(true);
             setIsVideoLoading(false);
+            // Pause other videos
+            document.querySelectorAll('video').forEach(video => {
+              if (video !== videoRef.current && !video.paused) {
+                video.pause();
+                video.muted = true;
+              }
+            });
           })
           .catch(e => {
             console.error('Play error:', e);
@@ -899,6 +1005,8 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
                     // Pause video if switching away from it
                     if (post.media[currentMediaIndex].type === 'video' && videoRef.current) {
                       videoRef.current.pause();
+                      videoRef.current.muted = true;
+                      setIsMuted(true);
                       setIsPlaying(false);
                     }
                     setCurrentMediaIndex(index);
