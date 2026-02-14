@@ -421,43 +421,42 @@ const FullPostView = () => {
             
             {/* Comments */}
             {comments.length > 0 ? (
-              <div className="comments-list">
-                {comments.map(comment => {
-                  const commentUser = comment.user || {};
-                  return (
-                    <div key={comment._id} className="comment-item">
-                      <Link to={`/profile/${commentUser.username}`}>
-                        <img
-                          src={getProfilePicture(commentUser)}
-                          alt={commentUser.username}
-                          className="comment-user-avatar"
-                          onError={(e) => {
-                            e.target.src = `https://ui-avatars.com/api/?name=${commentUser.username || 'User'}&background=random`;
-                          }}
-                        />
-                      </Link>
-                      <div className="comment-content">
-                        <div className="comment-header">
-                          <Link to={`/profile/${commentUser.username}`} className="comment-username">
-                            {commentUser.username || commentUser.name || 'User'}
-                          </Link>
-                          <span className="comment-text">
-                            {comment.text}
-                          </span>
-                        </div>
-                        <div className="comment-time">
-                          {formatTime(comment.createdAt)}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="no-comments">
-                <p>No comments yet. Be the first to comment!</p>
-              </div>
-            )}
+  <div className="comments-list">
+    {comments.map(comment => (
+      <div key={comment._id} className="comment-item">
+        <Link to={`/profile/${comment.username}`}>
+          <img
+            src={
+              comment.userProfilePicture
+                ? (comment.userProfilePicture.startsWith('http')
+                    ? comment.userProfilePicture
+                    : `https://vesselx.onrender.com/api/media/${comment.userProfilePicture}`)
+                : `https://ui-avatars.com/api/?name=${comment.username || 'User'}&background=random`
+            }
+            alt={comment.username}
+            className="comment-user-avatar"
+            onError={(e) => {
+              e.target.src = `https://ui-avatars.com/api/?name=${comment.username || 'User'}&background=random`;
+            }}
+          />
+        </Link>
+        <div className="comment-content">
+          <div className="comment-header">
+            <Link to={`/profile/${comment.username}`} className="comment-username">
+              {comment.username || 'User'}
+            </Link>
+            <span className="comment-text">{comment.text}</span>
+          </div>
+          <div className="comment-time">{formatTime(comment.createdAt)}</div>
+        </div>
+      </div>
+    ))}
+  </div>
+) : (
+  <div className="no-comments">
+    <p>No comments yet. Be the first to comment!</p>
+  </div>
+)}
           </div>
           
           {/* Actions Section */}
