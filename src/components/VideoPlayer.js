@@ -4,7 +4,7 @@ import { FaHeart } from 'react-icons/fa';
 
 const VideoPlayer = ({ src, postId, onDoubleClick }) => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(false);
