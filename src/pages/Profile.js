@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom'; // Add useNavigate
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import PostCard from '../components/PostCard';
 import { FiSettings, FiGrid, FiUserCheck, FiUserPlus, FiMoreHorizontal, FiX, FiUsers, FiMessageCircle } from 'react-icons/fi';
@@ -7,7 +7,7 @@ import API from '../utils/api';
 
 const Profile = () => {
   const { username } = useParams();
-  const navigate = useNavigate(); // Add navigate
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,7 +25,26 @@ const Profile = () => {
       try {
         const profileData = await API.getUser(username);
         console.log('Profile Data:', profileData);
-        setProfile(profileData.user || profileData);
+        
+        // Determine if current user follows this profile
+        let isFollowing = false;
+        if (userData && profileData.followers) {
+          // Check if current user's ID is in the followers array
+          isFollowing = profileData.followers.some(follower => 
+            follower._id === userData._id || 
+            follower._id === userData.id ||
+            follower === userData._id ||
+            follower === userData.id
+          );
+        }
+        
+        const profileWithFollow = {
+          ...(profileData.user || profileData),
+          isFollowing
+        };
+        
+        setProfile(profileWithFollow);
+        
         try {
           const postsData = await API.request(`/api/users/${username}/posts`);
           console.log('Posts Data:', postsData);
@@ -33,9 +52,10 @@ const Profile = () => {
           const processedPosts = postsArray.map(post => ({
             ...post,
             user: post.userId || post.user || {
+              _id: profileWithFollow._id,
               username: username,
-              name: profileData.user?.name || username,
-              profilePicture: profileData.user?.profilePicture || `/api/media/${profileData.user?.profilePicture}` || '/default-avatar.png'
+              name: profileWithFollow.name || username,
+              profilePicture: profileWithFollow.profilePicture || '/default-avatar.png'
             },
             media: post.media || [],
             likesCount: post.likesCount || post.likes?.length || 0,
@@ -55,7 +75,8 @@ const Profile = () => {
           followers: [],
           following: [],
           followersCount: 0,
-          followingCount: 0
+          followingCount: 0,
+          isFollowing: false
         });
       } finally {
         setIsLoading(false);
@@ -72,33 +93,70 @@ const Profile = () => {
   };
 
   const handleFollow = async () => {
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+    
     try {
       const data = await API.followUser(username);
+      console.log('Follow response:', data);
+      
+      // Update profile with new follow status
       setProfile(prev => {
-        const isFollowing = !prev.isFollowing;
+        const newIsFollowing = !prev.isFollowing;
         const followersCount = data.followersCount !== undefined 
           ? data.followersCount 
-          : (isFollowing ? prev.followersCount + 1 : Math.max(0, prev.followersCount - 1));
+          : (newIsFollowing ? prev.followersCount + 1 : Math.max(0, prev.followersCount - 1));
+        
+        // Also update the followers array if available
+        const updatedFollowers = [...(prev.followers || [])];
+        if (newIsFollowing) {
+          // Add current user to followers array if not already present
+          if (!updatedFollowers.some(f => f._id === currentUser._id || f === currentUser._id)) {
+            updatedFollowers.push(currentUser._id);
+          }
+        } else {
+          // Remove current user from followers array
+          const filteredFollowers = updatedFollowers.filter(f => 
+            f._id !== currentUser._id && f !== currentUser._id
+          );
+          return {
+            ...prev,
+            isFollowing: newIsFollowing,
+            followersCount: followersCount,
+            followers: filteredFollowers
+          };
+        }
         
         return {
           ...prev,
-          isFollowing: isFollowing,
-          followersCount: followersCount
+          isFollowing: newIsFollowing,
+          followersCount: followersCount,
+          followers: updatedFollowers
         };
       });
       
-      // Update local storage if needed or trigger a global event
-      const updatedUser = { ...currentUser };
-      if (updatedUser.following) {
-        if (!profile.isFollowing) {
-          updatedUser.following.push(profile._id);
-        } else {
-          updatedUser.following = updatedUser.following.filter(id => id !== profile._id);
+      // Update local storage if needed
+      if (currentUser) {
+        const updatedUser = { ...currentUser };
+        if (updatedUser.following) {
+          if (!profile?.isFollowing) {
+            // Following - add to following list
+            if (!updatedUser.following.includes(profile?._id)) {
+              updatedUser.following.push(profile?._id);
+            }
+          } else {
+            // Unfollowing - remove from following list
+            updatedUser.following = updatedUser.following.filter(id => id !== profile?._id);
+          }
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          setCurrentUser(updatedUser);
         }
-        localStorage.setItem('user', JSON.stringify(updatedUser));
       }
     } catch (error) {
       console.error('Error following user:', error);
+      alert(error.message || 'Failed to follow user');
     }
   };
 
@@ -125,7 +183,7 @@ const Profile = () => {
   // Function to cache post data when navigating to full view
   const handlePostClick = (post) => {
     sessionStorage.setItem(`post_${post._id}`, JSON.stringify(post));
-    navigate(`/post/${post._id}`);
+    navigate(`/post/${post._id}`, { state: { post } });
   };
 
   if (isLoading) {
@@ -249,7 +307,7 @@ const Profile = () => {
                   <span className="post-count-number">{posts.length}</span>
                 </div>
                 
-                {/* Posts Grid - UPDATED WITH ONCLICK */}
+                {/* Posts Grid */}
                 <div className="posts-grid">
                   {posts.map((post) => (
                     <div 

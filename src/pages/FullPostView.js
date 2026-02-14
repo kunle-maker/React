@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import VideoPlayer from '../components/VideoPlayer';
 import { 
@@ -13,10 +13,11 @@ import { copyToClipboard } from '../utils/clipboard';
 
 const FullPostView = () => {
   const { postId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
-  const [post, setPost] = useState(null);
+  const [post, setPost] = useState(location.state?.post || null);
   const [currentUser, setCurrentUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!post);
   const [commentText, setCommentText] = useState('');
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [showOptions, setShowOptions] = useState(false);
@@ -28,8 +29,17 @@ const FullPostView = () => {
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     setCurrentUser(user);
-    fetchPost();
-  }, [postId]);
+    
+    if (!post) {
+      fetchPost();
+    } else {
+      // Initialize state from passed post
+      setIsLiked(post.likes?.includes(user?._id) || post.likes?.includes(user?.id) || post.isLiked || false);
+      setIsBookmarked(post.bookmarked || false);
+      setLikesCount(post.likesCount || post.likes?.length || 0);
+      setComments(post.comments || []);
+    }
+  }, [postId, post]);
 
   const fetchPost = async () => {
     setIsLoading(true);
@@ -39,12 +49,12 @@ const FullPostView = () => {
       if (cachedPost) {
         const parsedPost = JSON.parse(cachedPost);
         setPost(parsedPost);
-        setIsLiked(parsedPost.likes?.includes(currentUser?._id) || false);
+        setIsLiked(parsedPost.likes?.includes(currentUser?._id) || parsedPost.likes?.includes(currentUser?.id) || false);
         setIsBookmarked(parsedPost.bookmarked || false);
         setLikesCount(parsedPost.likesCount || parsedPost.likes?.length || 0);
         setComments(parsedPost.comments || []);
       } else {
-        // Fetch from API - we'll try to get it from user's posts
+        // Fetch from API
         await fetchPostFromAPI();
       }
     } catch (error) {
@@ -65,7 +75,6 @@ const FullPostView = () => {
         setPostData(foundPost);
       } else {
         // If not found in feed, try to get it from the post author's posts
-        // We need to get the author first - this is a workaround
         const allPosts = await fetchRecentPosts();
         const postFromAll = allPosts.find(p => p._id === postId);
         if (postFromAll) {
@@ -92,7 +101,7 @@ const FullPostView = () => {
 
   const setPostData = (postData) => {
     setPost(postData);
-    setIsLiked(postData.likes?.includes(currentUser?._id) || false);
+    setIsLiked(postData.likes?.includes(currentUser?._id) || postData.likes?.includes(currentUser?.id) || false);
     setIsBookmarked(postData.bookmarked || false);
     setLikesCount(postData.likesCount || postData.likes?.length || 0);
     setComments(postData.comments || []);
@@ -118,10 +127,11 @@ const FullPostView = () => {
           ...post,
           likesCount: isLiked ? likesCount - 1 : likesCount + 1,
           likes: isLiked 
-            ? (post.likes?.filter(id => id !== currentUser._id) || [])
-            : [...(post.likes || []), currentUser._id]
+            ? (post.likes?.filter(id => id !== currentUser._id && id !== currentUser.id) || [])
+            : [...(post.likes || []), currentUser._id || currentUser.id]
         };
         sessionStorage.setItem(`post_${postId}`, JSON.stringify(updatedPost));
+        setPost(updatedPost);
       }
     } catch (error) {
       console.error('Error liking post:', error);
@@ -137,6 +147,16 @@ const FullPostView = () => {
     try {
       await API.bookmarkPost(postId);
       setIsBookmarked(!isBookmarked);
+      
+      // Update cached post
+      if (post) {
+        const updatedPost = {
+          ...post,
+          bookmarked: !isBookmarked
+        };
+        sessionStorage.setItem(`post_${postId}`, JSON.stringify(updatedPost));
+        setPost(updatedPost);
+      }
     } catch (error) {
       console.error('Error bookmarking post:', error);
     }
@@ -153,6 +173,7 @@ const FullPostView = () => {
         _id: Date.now().toString(),
         text: commentText,
         user: {
+          _id: currentUser._id,
           username: currentUser.username,
           name: currentUser.name,
           profilePicture: currentUser.profilePicture
@@ -171,6 +192,7 @@ const FullPostView = () => {
           commentsCount: (post.commentsCount || 0) + 1
         };
         sessionStorage.setItem(`post_${postId}`, JSON.stringify(updatedPost));
+        setPost(updatedPost);
       }
     } catch (error) {
       console.error('Error adding comment:', error);
@@ -191,16 +213,16 @@ const FullPostView = () => {
     }
   };
 
-const handleShare = async () => {
-  const postUrl = `${window.location.origin}/post/${postId}`;
-  const success = await copyToClipboard(postUrl);
-  
-  if (success) {
-    alert('Post link copied to clipboard!');
-  } else {
-    alert('Could not copy link. Please copy it manually: ' + postUrl);
-  }
-};
+  const handleShare = async () => {
+    const postUrl = `${window.location.origin}/post/${postId}`;
+    const success = await copyToClipboard(postUrl);
+    
+    if (success) {
+      alert('Post link copied to clipboard!');
+    } else {
+      alert('Could not copy link. Please copy it manually: ' + postUrl);
+    }
+  };
 
   const formatTime = (dateString) => {
     if (!dateString) return 'Just now';
@@ -242,9 +264,10 @@ const handleShare = async () => {
   }
 
   const postUser = post.user || post.userId || post.author || {
-    username: 'user',
-    name: 'VesselX User',
-    profilePicture: '/default-avatar.png'
+    _id: post.userId?._id || post.user?._id,
+    username: post.username || 'user',
+    name: post.name || 'VesselX User',
+    profilePicture: post.userProfilePicture || post.user?.profilePicture || '/default-avatar.png'
   };
 
   const getProfilePicture = (userObj) => {
@@ -377,7 +400,7 @@ const handleShare = async () => {
           
           {/* Comments Section */}
           <div className="comments-scroll">
-            {/* Caption - Removed duplicate avatar */}
+            {/* Caption */}
             <div className="post-caption-full">
               <div className="caption-container">
                 <div className="caption-content">
