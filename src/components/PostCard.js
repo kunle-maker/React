@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FiHeart, FiMessageCircle, FiSend, FiBookmark,
   FiMoreVertical, FiTrash2, FiEye, FiPlay, FiPause,
-  FiVolume2, FiVolumeX, FiMaximize, FiMinimize
+  FiVolume2, FiVolumeX, FiMaximize, FiMinimize, FiDownload
 } from 'react-icons/fi';
 import { FaHeart, FaBookmark } from 'react-icons/fa';
 import './PostCard.css';
@@ -35,6 +35,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [isInView, setIsInView] = useState(false);
+  const [controlsLocked, setControlsLocked] = useState(false);
   
   const videoRef = useRef(null);
   const containerRef = useRef(null);
@@ -196,7 +197,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
 
   // Auto-hide controls
   useEffect(() => {
-    if (showControls) {
+    if (showControls && !controlsLocked) {
       if (controlsTimeout.current) {
         clearTimeout(controlsTimeout.current);
       }
@@ -209,7 +210,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
         clearTimeout(controlsTimeout.current);
       }
     };
-  }, [showControls]);
+  }, [showControls, controlsLocked]);
 
   // Fullscreen change listener
   useEffect(() => {
@@ -311,6 +312,27 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
     }
   };
 
+  const handleDownloadMedia = async (e) => {
+    e.stopPropagation();
+    const media = post.media[currentMediaIndex];
+    
+    try {
+      const response = await fetch(media.url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = media.type === 'video' ? `video_${post._id}.mp4` : `image_${post._id}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading media:', error);
+      alert('Failed to download media. Please try again.');
+    }
+  };
+
   const handlePostClick = (e) => {
     e.stopPropagation();
     if (onPostClick) {
@@ -395,7 +417,15 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
 
   const handleVideoClick = (e) => {
     e.stopPropagation();
-    togglePlayPause(e);
+    // Show controls and lock them temporarily
+    setShowControls(true);
+    setControlsLocked(true);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      setControlsLocked(false);
+      setShowControls(false);
+    }, 5000);
   };
 
   const handleVideoProgress = () => {
@@ -428,7 +458,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
   };
 
   const handleMouseLeave = () => {
-    if (!isFullscreen) {
+    if (!isFullscreen && !controlsLocked) {
       setShowControls(false);
     }
   };
@@ -544,7 +574,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
               background: 'var(--card-bg)',
               border: '1px solid var(--border-color)',
               borderRadius: '8px',
-              minWidth: '160px',
+              minWidth: '180px',
               zIndex: 100,
               boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
             }}>
@@ -569,6 +599,27 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
               >
                 <FiEye size={16} /> View Post
               </button>
+              
+              {post.media && post.media.length > 0 && (
+                <button 
+                  onClick={handleDownloadMedia}
+                  style={{
+                    width: '100%',
+                    padding: '10px 16px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-primary)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    fontSize: '14px'
+                  }}
+                >
+                  <FiDownload size={16} /> Download {post.media[currentMediaIndex]?.type === 'video' ? 'Video' : 'Image'}
+                </button>
+              )}
               
               {isOwnPost && (
                 <>
@@ -801,29 +852,27 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
                 </div>
 
                 {/* Center Play/Pause Button */}
-                {!isPlaying && (
-                  <button
-                    onClick={togglePlayPause}
-                    style={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      background: 'rgba(0,0,0,0.6)',
-                      border: 'none',
-                      color: 'white',
-                      width: '60px',
-                      height: '60px',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <FiPlay size={30} />
-                  </button>
-                )}
+                <button
+                  onClick={togglePlayPause}
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    background: 'rgba(0,0,0,0.6)',
+                    border: 'none',
+                    color: 'white',
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {isPlaying ? <FiPause size={30} /> : <FiPlay size={30} />}
+                </button>
 
                 {/* Bottom Controls */}
                 <div style={{
