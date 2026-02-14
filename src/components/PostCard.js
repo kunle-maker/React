@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FiHeart, FiMessageCircle, FiSend, FiBookmark,
   FiMoreVertical, FiTrash2, FiEye, FiPlay, FiPause,
-  FiVolumeX, FiVolume2
+  FiVolume2, FiVolumeX, FiMaximize, FiMinimize
 } from 'react-icons/fi';
 import { FaHeart, FaBookmark } from 'react-icons/fa';
 import './PostCard.css';
@@ -21,17 +21,25 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
   const [showOptions, setShowOptions] = useState(false);
   const [showHeart, setShowHeart] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
-  const [userUnmuted, setUserUnmuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(false); // Changed to false (unmuted by default)
   const [videoProgress, setVideoProgress] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [videoError, setVideoError] = useState(null);
+  const [showControls, setShowControls] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   
   const videoRef = useRef(null);
+  const containerRef = useRef(null);
   const lastTap = useRef(0);
   const progressInterval = useRef(null);
+  const controlsTimeout = useRef(null);
   const navigate = useNavigate();
 
   const postUser = post.userId || post.user || post.author || post.owner || {
@@ -40,80 +48,80 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
     profilePicture: `https://ui-avatars.com/api/?name=User&background=random`
   };
 
+  // Video intersection observer for play/pause based on visibility
   useEffect(() => {
-    // Debug video loading
-    if (post.media && post.media[currentMediaIndex]?.type === 'video') {
-      const videoUrl = post.media[currentMediaIndex].url;
-      console.log('Loading video:', videoUrl);
-      
-      // Test if video is accessible
-      fetch(videoUrl, { method: 'HEAD' })
-        .then(response => {
-          console.log('Video status:', response.status, response.ok);
-        })
-        .catch(error => {
-          console.error('Video fetch error:', error);
+    if (post.media?.[currentMediaIndex]?.type !== 'video') return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (videoRef.current) {
+            if (entry.isIntersecting) {
+              // Video is in view - play it
+              const visibilityRatio = entry.intersectionRatio;
+              if (visibilityRatio > 0.2) { // Play when at least 20% visible
+                videoRef.current.play()
+                  .then(() => {
+                    setIsPlaying(true);
+                    setIsVideoLoading(false);
+                  })
+                  .catch(e => {
+                    console.log("Autoplay prevented:", e);
+                    setIsPlaying(false);
+                  });
+              }
+            } else {
+              // Video is out of view - pause it
+              videoRef.current.pause();
+              setIsPlaying(false);
+            }
+          }
         });
+      },
+      { 
+        threshold: [0, 0.2, 0.5, 0.8], // Multiple thresholds for better control
+        rootMargin: '0px'
+      }
+    );
+
+    if (videoRef.current) {
+      observer.observe(videoRef.current);
     }
+
+    return () => {
+      if (videoRef.current) {
+        observer.unobserve(videoRef.current);
+      }
+    };
   }, [currentMediaIndex, post.media]);
 
+  // Auto-hide controls
   useEffect(() => {
-    // Setup video observer for autoplay
-    if (post.media?.[currentMediaIndex]?.type === 'video') {
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach(entry => {
-            if (videoRef.current) {
-              if (entry.isIntersecting) {
-                // Small delay to ensure video is ready
-                setTimeout(() => {
-                  if (videoRef.current) {
-                    // Only force mute if user hasn't manually unmuted
-                    if (!userUnmuted) {
-                      videoRef.current.muted = true;
-                      setIsMuted(true);
-                    }
-                    videoRef.current.play()
-                      .then(() => {
-                        setIsPlaying(true);
-                        setIsVideoLoading(false);
-                      })
-                      .catch(e => {
-                        console.log("Autoplay prevented:", e);
-                        setIsPlaying(false);
-                        setIsVideoLoading(false);
-                      });
-                  }
-                }, 100);
-              } else {
-                if (videoRef.current) {
-                  videoRef.current.pause();
-                  setIsPlaying(false);
-                }
-                if (progressInterval.current) {
-                  clearInterval(progressInterval.current);
-                }
-              }
-            }
-          });
-        },
-        { threshold: 0.5 }
-      );
-
-      if (videoRef.current) {
-        observer.observe(videoRef.current);
+    if (showControls) {
+      if (controlsTimeout.current) {
+        clearTimeout(controlsTimeout.current);
       }
-
-      return () => {
-        if (videoRef.current) {
-          observer.unobserve(videoRef.current);
-        }
-        if (progressInterval.current) {
-          clearInterval(progressInterval.current);
-        }
-      };
+      controlsTimeout.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3000);
     }
-  }, [currentMediaIndex, post.media, userUnmuted]);
+    return () => {
+      if (controlsTimeout.current) {
+        clearTimeout(controlsTimeout.current);
+      }
+    };
+  }, [showControls]);
+
+  // Fullscreen change listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   const getProfilePicture = () => {
     if (!postUser.profilePicture || postUser.profilePicture === '/default-avatar.png') {
@@ -211,6 +219,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
     }
   };
 
+  // Video Controls
   const togglePlayPause = (e) => {
     e.stopPropagation();
     if (videoRef.current) {
@@ -228,18 +237,54 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
             setIsVideoLoading(false);
           });
       }
-      setIsPlaying(!isPlaying);
     }
   };
 
   const toggleMute = (e) => {
     e.stopPropagation();
     if (videoRef.current) {
-      const newMutedState = !isMuted;
-      videoRef.current.muted = newMutedState;
-      setIsMuted(newMutedState);
-      setUserUnmuted(!newMutedState); // Track if user manually unmuted
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
     }
+  };
+
+  const handleVolumeChange = (e) => {
+    e.stopPropagation();
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    if (videoRef.current) {
+      videoRef.current.volume = newVolume;
+      videoRef.current.muted = newVolume === 0;
+      setIsMuted(newVolume === 0);
+    }
+  };
+
+  const handleSeek = (e) => {
+    e.stopPropagation();
+    if (videoRef.current && videoDuration) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const percent = (e.clientX - rect.left) / rect.width;
+      const newTime = percent * videoDuration;
+      videoRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+    }
+  };
+
+  const toggleFullscreen = (e) => {
+    e.stopPropagation();
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  const handleSpeedChange = (speed) => {
+    setPlaybackSpeed(speed);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = speed;
+    }
+    setShowSpeedMenu(false);
   };
 
   const handleVideoClick = (e) => {
@@ -248,15 +293,20 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
   };
 
   const handleVideoProgress = () => {
-    if (videoRef.current && videoRef.current.duration) {
-      const progress = (videoRef.current.currentTime / videoRef.current.duration) * 100;
-      setVideoProgress(progress);
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+      if (videoRef.current.duration) {
+        const progress = (videoRef.current.currentTime / videoRef.current.duration) * 100;
+        setVideoProgress(progress);
+      }
     }
   };
 
   const handleVideoLoadedMetadata = () => {
     if (videoRef.current) {
       setVideoDuration(videoRef.current.duration);
+      setVolume(videoRef.current.volume);
+      setIsMuted(videoRef.current.muted);
       console.log('Video metadata loaded, duration:', videoRef.current.duration);
     }
   };
@@ -265,15 +315,15 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
     console.error('Video error:', e.target.error);
     setVideoError(e.target.error?.message || 'Failed to load video');
     setIsVideoLoading(false);
-    if (videoRef.current) {
-      videoRef.current.muted = true;
-      videoRef.current.load();
-      setTimeout(() => {
-        if (videoRef.current && videoRef.current.error) {
-          console.log('Video still failing, showing fallback');
-          setVideoError('Video format not supported');
-        }
-      }, 1000);
+  };
+
+  const handleMouseEnter = () => {
+    setShowControls(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (!isFullscreen) {
+      setShowControls(false);
     }
   };
 
@@ -293,6 +343,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
   };
 
   const formatVideoTime = (seconds) => {
+    if (!seconds || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -458,14 +509,20 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
       )}
 
       {post.media && post.media.length > 0 && (
-        <div style={{ 
-          width: '100%', 
-          maxHeight: '600px', 
-          overflow: 'hidden',
-          position: 'relative',
-          cursor: 'pointer',
-          background: '#000'
-        }} onDoubleClick={handleDoubleTap}>
+        <div 
+          ref={containerRef}
+          style={{ 
+            width: '100%', 
+            maxHeight: '600px', 
+            overflow: 'hidden',
+            position: 'relative',
+            cursor: 'pointer',
+            background: '#000'
+          }} 
+          onDoubleClick={handleDoubleTap}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
           {post.media[currentMediaIndex].type === 'video' ? (
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
               <video 
@@ -491,6 +548,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
                 onError={handleVideoError}
                 onWaiting={() => setIsVideoLoading(true)}
                 onCanPlay={() => setIsVideoLoading(false)}
+                volume={volume}
               />
               
               {isVideoLoading && (
@@ -500,7 +558,8 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
                   color: 'white',
-                  fontSize: '24px'
+                  fontSize: '24px',
+                  zIndex: 10
                 }}>
                   <div className="loading-spinner"></div>
                 </div>
@@ -516,107 +575,281 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
                   background: 'rgba(0,0,0,0.7)',
                   padding: '8px 16px',
                   borderRadius: '4px',
-                  fontSize: '14px'
+                  fontSize: '14px',
+                  zIndex: 10
                 }}>
                   Failed to load video
                 </div>
               )}
               
-              {/* Mute/Unmute overlay */}
+              {/* Video Controls Overlay */}
               <div 
                 style={{
                   position: 'absolute',
-                  bottom: '12px',
-                  right: '12px',
-                  background: 'rgba(0,0,0,0.6)',
-                  color: 'white',
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  zIndex: 5,
-                  transition: 'transform 0.2s'
-                }}
-                onClick={toggleMute}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-              >
-                {isMuted ? <FiVolumeX size={18} /> : <FiVolume2 size={18} />}
-              </div>
-              
-              {/* Play/Pause overlay */}
-              {!isPlaying && !isVideoLoading && !videoError && (
-                <div 
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    background: 'rgba(0,0,0,0.6)',
-                    color: 'white',
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    zIndex: 5,
-                    transition: 'transform 0.2s'
-                  }}
-                  onClick={handleVideoClick}
-                  onMouseEnter={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1.1)'}
-                  onMouseLeave={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1)'}
-                >
-                  <FiPlay size={28} />
-                </div>
-              )}
-              
-              {/* Progress bar */}
-              <div 
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
+                  top: 0,
                   left: 0,
                   right: 0,
-                  height: '4px',
-                  background: 'rgba(255,255,255,0.3)',
-                  cursor: 'pointer'
-                }}
-                onClick={(e) => {
-                  if (videoRef.current && videoRef.current.duration) {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const percent = (e.clientX - rect.left) / rect.width;
-                    videoRef.current.currentTime = percent * videoRef.current.duration;
-                  }
+                  bottom: 0,
+                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 70%, rgba(0,0,0,0.3) 100%)',
+                  opacity: showControls ? 1 : 0,
+                  transition: 'opacity 0.3s ease',
+                  pointerEvents: showControls ? 'auto' : 'none',
+                  zIndex: 5
                 }}
               >
-                <div 
-                  style={{
-                    height: '100%',
-                    background: 'linear-gradient(90deg, #e1306c, #c13584)',
-                    width: `${videoProgress}%`,
-                    transition: 'width 0.1s linear'
-                  }}
-                />
-              </div>
-              
-              {/* Video time indicator */}
-              <div style={{
-                position: 'absolute',
-                bottom: '12px',
-                left: '12px',
-                color: 'white',
-                fontSize: '12px',
-                background: 'rgba(0,0,0,0.6)',
-                padding: '4px 8px',
-                borderRadius: '12px',
-                zIndex: 5
-              }}>
-                {formatVideoTime(videoRef.current?.currentTime || 0)} / {formatVideoTime(videoDuration)}
+                {/* Top Controls */}
+                <div style={{
+                  position: 'absolute',
+                  top: '12px',
+                  left: '12px',
+                  right: '12px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  color: 'white'
+                }}>
+                  {/* Left side - Currently playing indicator */}
+                  <div style={{
+                    background: 'rgba(0,0,0,0.6)',
+                    padding: '4px 8px',
+                    borderRadius: '12px',
+                    fontSize: '12px'
+                  }}>
+                    {postUser.username}
+                  </div>
+                  
+                  {/* Right side - Speed and Fullscreen */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowSpeedMenu(!showSpeedMenu);
+                        }}
+                        style={{
+                          background: 'rgba(0,0,0,0.6)',
+                          border: 'none',
+                          color: 'white',
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        {playbackSpeed}x
+                      </button>
+                      
+                      {showSpeedMenu && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '30px',
+                          right: '0',
+                          background: 'rgba(0,0,0,0.9)',
+                          borderRadius: '8px',
+                          padding: '4px 0',
+                          zIndex: 20
+                        }}>
+                          {[0.5, 1, 1.5, 2].map(speed => (
+                            <button
+                              key={speed}
+                              onClick={() => handleSpeedChange(speed)}
+                              style={{
+                                padding: '8px 16px',
+                                width: '80px',
+                                background: 'none',
+                                border: 'none',
+                                color: speed === playbackSpeed ? 'var(--primary)' : 'white',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                textAlign: 'left'
+                              }}
+                            >
+                              {speed}x
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <button
+                      onClick={toggleFullscreen}
+                      style={{
+                        background: 'rgba(0,0,0,0.6)',
+                        border: 'none',
+                        color: 'white',
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {isFullscreen ? <FiMinimize size={16} /> : <FiMaximize size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Center Play/Pause Button */}
+                {!isPlaying && (
+                  <button
+                    onClick={togglePlayPause}
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      background: 'rgba(0,0,0,0.6)',
+                      border: 'none',
+                      color: 'white',
+                      width: '60px',
+                      height: '60px',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <FiPlay size={30} />
+                  </button>
+                )}
+
+                {/* Bottom Controls */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '12px',
+                  left: '12px',
+                  right: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}>
+                  {/* Progress Bar */}
+                  <div 
+                    style={{
+                      width: '100%',
+                      height: '4px',
+                      background: 'rgba(255,255,255,0.3)',
+                      borderRadius: '2px',
+                      cursor: 'pointer',
+                      position: 'relative'
+                    }}
+                    onClick={handleSeek}
+                  >
+                    <div 
+                      style={{
+                        height: '100%',
+                        background: 'var(--primary)',
+                        width: `${videoProgress}%`,
+                        borderRadius: '2px',
+                        transition: 'width 0.1s linear'
+                      }}
+                    />
+                    <div 
+                      style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: `${videoProgress}%`,
+                        transform: 'translate(-50%, -50%)',
+                        width: '12px',
+                        height: '12px',
+                        background: 'var(--primary)',
+                        borderRadius: '50%',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                        opacity: showControls ? 1 : 0,
+                        transition: 'opacity 0.2s'
+                      }}
+                    />
+                  </div>
+
+                  {/* Control Bar */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    color: 'white'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <button
+                        onClick={togglePlayPause}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'white',
+                          cursor: 'pointer',
+                          padding: '4px'
+                        }}
+                      >
+                        {isPlaying ? <FiPause size={20} /> : <FiPlay size={20} />}
+                      </button>
+                      
+                      {/* Volume Control */}
+                      <div 
+                        style={{ position: 'relative' }}
+                        onMouseEnter={() => setShowVolumeSlider(true)}
+                        onMouseLeave={() => setShowVolumeSlider(false)}
+                      >
+                        <button
+                          onClick={toggleMute}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'white',
+                            cursor: 'pointer',
+                            padding: '4px'
+                          }}
+                        >
+                          {isMuted || volume === 0 ? <FiVolumeX size={20} /> : <FiVolume2 size={20} />}
+                        </button>
+                        
+                        {showVolumeSlider && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '30px',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: 'rgba(0,0,0,0.8)',
+                            padding: '8px',
+                            borderRadius: '20px',
+                            height: '80px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center'
+                          }}>
+                            <input
+                              type="range"
+                              min="0"
+                              max="1"
+                              step="0.1"
+                              value={volume}
+                              onChange={handleVolumeChange}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                width: '80px',
+                                height: '4px',
+                                transform: 'rotate(-90deg) translateX(-30px)',
+                                WebkitAppearance: 'none',
+                                background: 'rgba(255,255,255,0.3)',
+                                borderRadius: '2px',
+                                outline: 'none'
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Time Display */}
+                      <span style={{ fontSize: '12px' }}>
+                        {formatVideoTime(currentTime)} / {formatVideoTime(videoDuration)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
