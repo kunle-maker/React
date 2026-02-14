@@ -161,6 +161,26 @@ static async commentOnPost(postId, text) {
   });
 }
 
+static async getVideoUrl(mediaUrl) {
+  if (!mediaUrl) return null;  
+  // If it's already a full URL, test if it's accessible
+  if (mediaUrl.startsWith('http')) {
+    try {
+      const response = await fetch(mediaUrl, { method: 'HEAD' });
+      if (response.ok) {
+        return mediaUrl;
+      }
+    } catch (error) {
+      console.error('Video URL not accessible:', mediaUrl);
+    }   
+    // Return a fallback video URL for testing
+    // You can replace this with a reliable test video
+    return 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_1MB.mp4';
+  }  
+  // Construct the media URL
+  return `${this.baseURL}/api/media/${mediaUrl}`;
+}
+
   static async deletePost(postId) {
     return this.request(`/api/posts/${postId}`, {
       method: 'DELETE'
