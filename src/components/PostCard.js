@@ -254,11 +254,21 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
     }
   };
 
-  const handleVideoError = (e) => {
-    console.error('Video error:', e.target.error);
-    setVideoError(e.target.error?.message || 'Failed to load video');
-    setIsVideoLoading(false);
-  };
+const handleVideoError = (e) => {
+  console.error('Video error:', e.target.error);
+  setVideoError(e.target.error?.message || 'Failed to load video');
+  setIsVideoLoading(false);
+  if (videoRef.current) {
+    videoRef.current.muted = true;
+    videoRef.current.load();
+    setTimeout(() => {
+      if (videoRef.current && videoRef.current.error) {
+        console.log('Video still failing, showing fallback');
+        setVideoError('Video format not supported');
+      }
+    }, 1000);
+  }
+};
 
   const formatTime = (dateString) => {
     if (!dateString) return 'Just now';

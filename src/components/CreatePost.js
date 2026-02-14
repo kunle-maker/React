@@ -9,6 +9,7 @@ const CreatePost = ({ onClose, onSubmit }) => {
   const [cropImage, setCropImage] = useState(null);
   const [cropIndex, setCropIndex] = useState(-1);
   const [isUploading, setIsUploading] = useState(false);
+  const [previewUrls, setPreviewUrls] = useState([]);
   const cropperRef = useRef(null);
 
   const handleFileSelect = (e) => {
@@ -16,6 +17,10 @@ const CreatePost = ({ onClose, onSubmit }) => {
     const validFiles = files.filter(file => 
       file.type.startsWith('image/') || file.type.startsWith('video/')
     );
+    
+    // Generate preview URLs
+    const newPreviewUrls = validFiles.map(file => URL.createObjectURL(file));
+    setPreviewUrls(prev => [...prev, ...newPreviewUrls]);
     setSelectedFiles(prev => [...prev, ...validFiles]);
   };
 
@@ -25,11 +30,20 @@ const CreatePost = ({ onClose, onSubmit }) => {
     const validFiles = files.filter(file => 
       file.type.startsWith('image/') || file.type.startsWith('video/')
     );
+    
+    // Generate preview URLs
+    const newPreviewUrls = validFiles.map(file => URL.createObjectURL(file));
+    setPreviewUrls(prev => [...prev, ...newPreviewUrls]);
     setSelectedFiles(prev => [...prev, ...validFiles]);
   };
 
   const removeFile = (index) => {
+    // Revoke the object URL to free memory
+    if (previewUrls[index]) {
+      URL.revokeObjectURL(previewUrls[index]);
+    }
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    setPreviewUrls(prev => prev.filter((_, i) => i !== index));
   };
 
   const openCropper = (index) => {
@@ -50,9 +64,22 @@ const CreatePost = ({ onClose, onSubmit }) => {
           type: selectedFiles[cropIndex].type
         });
         
+        // Revoke old preview URL
+        if (previewUrls[cropIndex]) {
+          URL.revokeObjectURL(previewUrls[cropIndex]);
+        }
+        
+        // Create new preview URL for cropped image
+        const newPreviewUrl = URL.createObjectURL(blob);
+        
         const newFiles = [...selectedFiles];
         newFiles[cropIndex] = croppedFile;
+        
+        const newPreviewUrls = [...previewUrls];
+        newPreviewUrls[cropIndex] = newPreviewUrl;
+        
         setSelectedFiles(newFiles);
+        setPreviewUrls(newPreviewUrls);
         setCropImage(null);
         setCropIndex(-1);
       }, selectedFiles[cropIndex].type);
@@ -72,6 +99,8 @@ const CreatePost = ({ onClose, onSubmit }) => {
     
     try {
       await onSubmit(formData);
+      // Clean up preview URLs
+      previewUrls.forEach(url => URL.revokeObjectURL(url));
     } catch (error) {
       console.error('Error creating post:', error);
     } finally {
@@ -124,42 +153,50 @@ const CreatePost = ({ onClose, onSubmit }) => {
                     />
                   </div>
                 ) : (
-                  <div className="media-preview">
+                  <div className="media-preview-grid">
                     {selectedFiles.map((file, index) => (
                       <div key={index} className="preview-item">
                         {file.type.startsWith('video/') ? (
                           <video 
-                            src={URL.createObjectURL(file)} 
+                            src={previewUrls[index]} 
                             controls 
                             muted
                             preload="metadata"
                             playsInline
                             style={{ 
                               width: '100%', 
-                              height: '100%', 
-                              objectFit: 'contain' 
+                              height: '200px', 
+                              objectFit: 'contain',
+                              background: '#000'
                             }}
-                            onError={(e) => console.error('Preview video error:', e)}
+                            onError={(e) => {
+                              console.error('Preview video error:', e);
+                              e.target.src = 'https://via.placeholder.com/300?text=Video+Error';
+                            }}
                           />
                         ) : (
                           <img 
-                            src={URL.createObjectURL(file)} 
+                            src={previewUrls[index]} 
                             alt={`Preview ${index}`}
                             style={{ 
                               width: '100%', 
-                              height: '100%', 
-                              objectFit: 'contain' 
+                              height: '200px', 
+                              objectFit: 'contain',
+                              background: '#000'
                             }}
-                            onError={(e) => console.error('Preview image error:', e)}
+                            onError={(e) => {
+                              console.error('Preview image error:', e);
+                              e.target.src = 'https://via.placeholder.com/300?text=Image+Error';
+                            }}
                           />
                         )}
                         <div className="preview-actions">
                           {file.type.startsWith('image/') && (
-                            <button onClick={() => openCropper(index)}>
+                            <button onClick={() => openCropper(index)} title="Crop image">
                               <FiCrop size={16} />
                             </button>
                           )}
-                          <button onClick={() => removeFile(index)}>
+                          <button onClick={() => removeFile(index)} title="Remove">
                             <FiX size={16} />
                           </button>
                         </div>
