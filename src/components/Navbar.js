@@ -71,7 +71,7 @@ const Navbar = ({ user, unreadCounts = { messages: 0, notifications: 0, groups: 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    navigate('/login');
+    navigate('/');
   };
 
   const handleCreatePost = () => {
