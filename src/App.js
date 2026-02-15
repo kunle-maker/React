@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -14,6 +14,9 @@ import GroupChat from './pages/GroupChat';
 import Search from './pages/Search';
 import Notifications from './pages/Notifications';
 import FullPostView from './pages/FullPostView';
+import notificationManager from './utils/notifications';
+import socketManager from './utils/socket';
+import API from './utils/api';
 
 // Video initialization helper – now does NOT force mute
 const initializeVideos = () => {
@@ -36,28 +39,51 @@ const initializeVideos = () => {
 };
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = React.useState(!!localStorage.getItem('token'));
-  const [theme, setTheme] = React.useState(localStorage.getItem('theme') || 'dark');
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+  const [notificationPermission, setNotificationPermission] = useState(Notification?.permission || 'default');
+  const [unreadCounts, setUnreadCounts] = useState({
+    messages: 0,
+    notifications: 0,
+    groups: 0
+  });
 
-  React.useEffect(() => {
+  useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleStorageChange = (e) => {
       if (!e.key || e.key === 'token') {
-        setIsAuthenticated(!!localStorage.getItem('token'));
+        const authenticated = !!localStorage.getItem('token');
+        setIsAuthenticated(authenticated);
+        
+        // Setup socket and notifications when user logs in
+        if (authenticated) {
+          setupUserConnection();
+        } else {
+          socketManager.disconnect();
+        }
       }
       if (!e.key || e.key === 'theme') {
         setTheme(localStorage.getItem('theme') || 'dark');
       }
     };
     
+    // Initial setup if authenticated
+    if (isAuthenticated) {
+      setupUserConnection();
+    }
+    
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('authChange', handleStorageChange);
     window.addEventListener('themeChange', () => {
       setTheme(localStorage.getItem('theme') || 'dark');
     });
+    
+    // Listen for unread count updates from socket
+    window.addEventListener('unreadCountUpdate', handleUnreadCountUpdate);
+    
     initializeVideos();
     
     const observer = new MutationObserver((mutations) => {
@@ -77,32 +103,99 @@ function App() {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('authChange', handleStorageChange);
       window.removeEventListener('themeChange', () => {});
+      window.removeEventListener('unreadCountUpdate', handleUnreadCountUpdate);
       observer.disconnect();
+      socketManager.disconnect();
     };
-  }, []);
+  }, [isAuthenticated]);
 
-  React.useEffect(() => {
-    const handleGlobalError = (event) => {
-      console.error('Global error:', event.error);
-      if (event.error?.message?.includes('The element has no supported sources')) {
-        console.log('Caught video source error - this is expected and handled');
-        event.preventDefault();
+  const setupUserConnection = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user'));
+      
+      if (user && token) {
+        // Connect to socket
+        socketManager.connect(user._id || user.id, token);
+        
+        // Initialize notifications
+        await notificationManager.initialize();
+        
+        // Check notification permission
+        if (Notification.permission === 'granted') {
+          setNotificationPermission('granted');
+          
+          // Check if already subscribed
+          setTimeout(async () => {
+            try {
+              const subscription = await notificationManager.swRegistration?.pushManager.getSubscription();
+              if (!subscription && Notification.permission === 'granted') {
+                // Auto-subscribe if not already subscribed
+                await notificationManager.subscribeToPush();
+              }
+            } catch (error) {
+              console.log('Subscription check error:', error);
+            }
+          }, 3000);
+        } else if (Notification.permission === 'default') {
+          // Prompt for notification permission after a delay
+          setTimeout(() => {
+            notificationManager.requestPermission().then(granted => {
+              if (granted) {
+                setNotificationPermission('granted');
+                notificationManager.subscribeToPush();
+              }
+            });
+          }, 5000);
+        }
+        
+        // Fetch unread counts
+        fetchUnreadCounts();
       }
-    };
-    const handleUnhandledRejection = (event) => {
-      console.error('Unhandled promise rejection:', event.reason);
-      if (event.reason?.message?.includes('The element has no supported sources')) {
-        console.log('Caught video source error from promise - this is expected and handled');
-        event.preventDefault();
-      }
+    } catch (error) {
+      console.error('Setup user connection error:', error);
+    }
+  };
+
+  const fetchUnreadCounts = async () => {
+    try {
+      // Fetch conversations for unread message count
+      const conversations = await API.getConversations();
+      const messageUnread = conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
+      
+      // Fetch groups for unread group message count
+      const groups = await API.getGroups();
+      const groupUnread = groups.reduce((total, group) => total + (group.unreadCount || 0), 0);
+      
+      setUnreadCounts({
+        messages: messageUnread,
+        groups: groupUnread,
+        notifications: 0 // You can implement this if you have a notifications system
+      });
+    } catch (error) {
+      console.error('Error fetching unread counts:', error);
+    }
+  };
+
+  const handleUnreadCountUpdate = (event) => {
+    const { type, increment } = event.detail;
+    setUnreadCounts(prev => ({
+      ...prev,
+      [type]: Math.max(0, (prev[type] || 0) + increment)
+    }));
+  };
+
+  // Handle notification clicks when app is in foreground
+  useEffect(() => {
+    const handleNotificationClick = (event) => {
+      // This is handled by service worker, but we can also handle when app is open
+      console.log('Notification clicked in app:', event);
     };
 
-    window.addEventListener('error', handleGlobalError);
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    navigator.serviceWorker?.addEventListener('notificationclick', handleNotificationClick);
 
     return () => {
-      window.removeEventListener('error', handleGlobalError);
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      navigator.serviceWorker?.removeEventListener('notificationclick', handleNotificationClick);
     };
   }, []);
 
@@ -134,10 +227,13 @@ function App() {
             isAuthenticated ? <AIAssistant /> : <Navigate to="/login" />
           } />
           <Route path="/messages" element={
-            isAuthenticated ? <Messages /> : <Navigate to="/login" />
+            isAuthenticated ? <Messages unreadCounts={unreadCounts} /> : <Navigate to="/login" />
+          } />
+          <Route path="/messages/:username" element={
+            isAuthenticated ? <Messages unreadCounts={unreadCounts} /> : <Navigate to="/login" />
           } />
           <Route path="/groups" element={
-            isAuthenticated ? <Groups /> : <Navigate to="/login" />
+            isAuthenticated ? <Groups unreadCounts={unreadCounts} /> : <Navigate to="/login" />
           } />
           <Route path="/groups/:groupId" element={
             isAuthenticated ? <GroupChat /> : <Navigate to="/login" />
@@ -149,6 +245,39 @@ function App() {
             isAuthenticated ? <Search /> : <Navigate to="/login" />
           } />
         </Routes>
+        
+        {/* Notification permission prompt (only show if not decided) */}
+        {isAuthenticated && notificationPermission === 'default' && (
+          <div className="notification-permission-prompt">
+            <div className="prompt-content">
+              <div className="prompt-icon">🔔</div>
+              <div className="prompt-text">
+                <h4>Stay Updated</h4>
+                <p>Get notified when you receive messages and group activity</p>
+              </div>
+              <div className="prompt-actions">
+                <button 
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setNotificationPermission('denied')}
+                >
+                  Not Now
+                </button>
+                <button 
+                  className="btn btn-primary btn-sm"
+                  onClick={async () => {
+                    const granted = await notificationManager.requestPermission();
+                    if (granted) {
+                      setNotificationPermission('granted');
+                      await notificationManager.subscribeToPush();
+                    }
+                  }}
+                >
+                  Enable
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Router>
   );
