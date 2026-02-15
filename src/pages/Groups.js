@@ -6,7 +6,7 @@ import CreateGroupModal from '../components/CreateGroupModal';
 import { FiSearch, FiPlus, FiUsers, FiMessageSquare } from 'react-icons/fi';
 import API from '../utils/api';
 
-const Groups = () => {
+const Groups = ({ unreadCounts }) => {  // Add unreadCounts prop
   const [groups, setGroups] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -54,9 +54,9 @@ const Groups = () => {
     );
   }
 
-  return (
+    return (
     <>
-      <Navbar user={user} />
+      <Navbar user={user} unreadCounts={unreadCounts} />
       
       <main className="main-content">
         <div className="groups-page">

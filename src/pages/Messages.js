@@ -6,7 +6,7 @@ import MessageThread from '../components/MessageThread';
 import { FiSearch, FiEdit, FiMoreVertical } from 'react-icons/fi';
 import API from '../utils/api';
 
-const Messages = () => {
+const Messages = ({ unreadCounts }) => {  // Add unreadCounts prop
   const { username } = useParams();
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -117,9 +117,9 @@ const Messages = () => {
     navigate('/search');
   };
 
-  return (
+    return (
     <>
-      <Navbar user={user} />
+      <Navbar user={user} unreadCounts={unreadCounts} />
       
       <main className="main-content">
         <div className={`messages-layout ${selectedConversation ? 'chat-open' : ''}`}>
