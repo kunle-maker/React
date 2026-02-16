@@ -1,270 +1,1056 @@
-VESSELX BACKEND API ENDPOINTS
-=============================
-
-BASE URL: https://vesselx.onrender.com
-All protected routes require Authorization: Bearer <token> in headers
-
-AUTHENTICATION ENDPOINTS
-------------------------
-POST   /api/register           - Register new user
-       Body: {username, password, name, email}
-       Returns: {token, user, message}
-
-POST   /api/login              - Login user
-       Body: {username, password}
-       Returns: {token, user, message}
-
-POST   /api/verify-email/code  - Verify email with code
-       Body: {email, code}
-       Returns: {token, user, message}
-
-POST   /api/verify-email/token - Verify email with token
-       Body: {token}
-       Returns: {token, user, message}
-
-POST   /api/resend-verification - Resend verification email
-       Body: {email}
-       Returns: {message}
-
-POST   /api/forgot-password    - Request password reset
-       Body: {email}
-       Returns: {message}
-
-POST   /api/reset-password     - Reset password with token
-       Body: {token, password}
-       Returns: {message}
-
-GET    /api/verify-email       - Verify email via link (webpage)
-       Query: ?token=<verification_token>
-
-GET    /reset-password         - Reset password page (webpage)
-       Query: ?token=<reset_token>
-
-USER PROFILE ENDPOINTS
-----------------------
-GET    /api/profile           - Get current user profile
-       Auth required
-
-PUT    /api/profile          - Update user profile
-       Auth required, multipart/form-data for profile picture
-       Body: {name, bio, profilePicture(file)}
-
-GET    /api/profile/picture  - Get profile picture URL
-       Auth required
-
-GET    /api/users/:username  - Get user by username
-       Auth required
-
-GET    /api/users/:username/followers - Get user's followers
-       Auth required
-
-GET    /api/users/:username/following - Get user's following
-       Auth required
-
-POST   /api/users/:username/follow - Follow/Unfollow user
-       Auth required
-
-DELETE /api/account          - Delete user account
-       Auth required
-
-POSTS ENDPOINTS
----------------
-POST   /api/posts            - Create new post
-       Auth required, multipart/form-data
-       Body: {caption, media[] (files)}
-
-GET    /api/posts            - Get all posts (feed)
-       Auth required
-
-GET    /api/users/:username/posts - Get user's posts
-       Auth required
-
-DELETE /api/posts/:postId    - Delete post
-       Auth required
-
-POST   /api/posts/:postId/like - Like/Unlike post
-       Auth required
-
-POST   /api/posts/:postId/bookmark - Bookmark/Unbookmark post
-       Auth required
-
-POST   /api/posts/:postId/comments - Add comment to post
-       Auth required
-       Body: {text}
-
-MESSAGING ENDPOINTS
--------------------
-GET    /api/conversations    - Get all conversations
-       Auth required
-
-GET    /api/conversations/:username - Get conversation with user
-       Auth required
-
-POST   /api/conversations/:username/read - Mark messages as read
-       Auth required
-
-GET    /api/conversations/:username/status - Get message status
-       Auth required
-
-POST   /api/messages         - Send message
-       Auth required
-       Body: {receiverUsername, text, formattedText, groupId(optional)}
-
-POST   /api/messages/:messageId/status - Update message status
-       Auth required
-       Body: {status: 'delivered' or 'read'}
-
-GROUP CHAT ENDPOINTS
---------------------
-POST   /api/groups           - Create new group
-       Auth required, multipart/form-data for profile picture
-       Body: {name, description, privacy, profilePicture(file)}
-
-GET    /api/groups           - Get user's groups
-       Auth required
-
-GET    /api/groups/:groupId  - Get group details
-       Auth required
-
-PUT    /api/groups/:groupId  - Update group
-       Auth required, multipart/form-data
-       Body: {name, description, privacy, profilePicture(file)}
-
-DELETE /api/groups/:groupId  - Delete group
-       Auth required
-
-POST   /api/groups/:groupId/members - Add members to group
-       Auth required
-       Body: {memberIds: []}
-
-DELETE /api/groups/:groupId/members/:memberId - Remove member
-       Auth required
-
-POST   /api/groups/:groupId/leave - Leave group
-       Auth required
-
-POST   /api/groups/:groupId/transfer-admin - Transfer admin role
-       Auth required
-       Body: {newAdminId}
-
-POST   /api/groups/:inviteCode/join - Join group with invite code
-       Auth required
-
-POST   /api/groups/:groupId/invite-code - Generate new invite code
-       Auth required
-
-POST   /api/groups/:groupId/messages - Send group message
-       Auth required
-       Body: {text, formattedText}
-
-GET    /api/groups/:groupId/messages - Get group messages
-       Auth required
-       Query: ?limit=50&before=<messageId>
-
-GET    /api/groups/search    - Search groups
-       Auth required
-       Query: ?q=<search>&type=all/public/my
-
-GET    /api/groups/:groupId/members - Get group members
-       Auth required
-
-VESSELX AI ENDPOINTS
---------------------
-POST   /api/ai/conversations/start - Start AI conversation
-       Auth required
-       Returns: {conversationId, title, messages, lastActive}
-
-POST   /api/ai/conversations/:conversationId/messages - Send AI message
-       Auth required
-       Body: {message}
-       Returns: {response, conversationId, timestamp}
-
-GET    /api/ai/conversations/:conversationId - Get AI conversation
-       Auth required
-
-GET    /api/ai/conversations - Get all AI conversations
-       Auth required
-
-DELETE /api/ai/conversations/:conversationId - Delete AI conversation
-       Auth required
-
-POST   /api/ai/quick-response - Get quick AI response
-       Auth required
-       Body: {message}
-       Returns: {response, timestamp}
-
-SEARCH ENDPOINTS
-----------------
-GET    /api/users/search     - Search users
-       Auth required
-       Query: ?q=<search_query>
-
-MISC ENDPOINTS
---------------
-GET    /health              - Health check
-       Returns: {status, timestamp, ai, cloudinary, version}
-
-GET    /api/debug-email     - Test email service
-
-GET    /api/debug/cloudinary - Debug Cloudinary config
-       Auth required
-
-POST   /api/cleanup-old-posts - Cleanup old posts
-       Auth required
-
-FILE UPLOADS
-------------
-- Profile pictures: Use multipart/form-data with field name 'profilePicture'
-- Post media: Use multipart/form-data with field name 'media[]' (array)
-- Group profile pictures: Use multipart/form-data with field name 'profilePicture'
-
-MEDIA URLS
-----------
-- Media files are stored on Cloudinary
-- Profile pictures: Automatically optimized to 400x400 with face detection
-- Post media: Optimized to 1200x1200 with quality auto:good
-- Access via: /api/media/:filename or direct Cloudinary URL
-
-WEBSOCKET EVENTS
-----------------
-Socket.IO events for real-time updates:
-- 'newMessage' - New direct message received
-- 'newGroupMessage' - New group message received
-- 'messageRead' - Message was read
-- 'userTyping' - User is typing in DM
-- 'groupUserTyping' - User is typing in group
-- 'userStatusUpdate' - User online status changed
-- 'memberStatusUpdate' - Group member status changed
-- 'joinedGroup' - User joined a group
-- 'leftGroup' - User left a group
-- 'removedFromGroup' - User was removed from group
-
-To join rooms:
-- Emit 'join' with userId to join user room
-- Emit 'joinGroup' with groupId to join group room
-
-REQUIRED HEADERS
-----------------
-For protected routes:
-Authorization: Bearer <jwt_token>
-
-For file uploads:
-Content-Type: multipart/form-data
-
-RESPONSE FORMATS
-----------------
-Success: JSON object with data
-Error: {error: "Error message", [details: "Additional info"]}
-
-IMPORTANT NOTES FOR FRONTEND
-----------------------------
-1. Store JWT token in localStorage/sessionStorage after login
-2. Include token in Authorization header for protected routes
-3. Email verification is required for posting/messaging
-4. Users auto-follow OfficialDeveloper account
-5. File uploads use Cloudinary - no local storage
-6. Real-time features require Socket.IO connection
-7. Formatted text fields support HTML line breaks (<br>)
-8. Message status: 'sent' → 'delivered' → 'read'
-9. Group privacy: 'public' or 'private'
-10. Use /api/media/:filename for optimized media access
+Here's the enhanced and more detailed API documentation for info.txt:
+
+VESSELX BACKEND API DOCUMENTATION
+=================================
+Version: 1.0.0
+Base URL: https://vesselx.onrender.com
+Last Updated: ${new Date().toISOString().split('T')[0]}
+
+TABLE OF CONTENTS
+-----------------
+1.  Authentication & Authorization
+2.  User Management
+3.  Profile Operations
+4.  Posts & Feed
+5.  Direct Messaging
+6.  Group Chats
+7.  Vesselx AI Assistant
+8.  Search & Discovery
+9.  Media Management
+10. WebSocket Events
+11. System & Health
+12. Error Handling
+13. Rate Limits
+14. Data Models
+
+===============================================================================
+1. AUTHENTICATION & AUTHORIZATION
+===============================================================================
+
+All protected routes require Bearer token authentication.
+Token Format: Authorization: Bearer <jwt_token>
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ REGISTRATION                                                              │
+│ POST /api/register                                                        │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Request Body (application/json):                                          │
+│ {                                                                         │
+│   "username": "john_doe",        // required, unique, 3-20 chars         │
+│   "password": "SecurePass123",   // required, min 6 chars                │
+│   "name": "John Doe",            // required, display name               │
+│   "email": "john@example.com"    // required, valid format               │
+│ }                                                                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Success Response (201 Created):                                           │
+│ {                                                                         │
+│   "message": "Registration successful! Please check your email for verification.", │
+│   "token": "eyJhbGc...",         // temporary token (1h expiry)          │
+│   "user": {                                                              │
+│     "id": "67a1b2c3d4e5f6...",                                          │
+│     "username": "john_doe",                                              │
+│     "name": "John Doe",                                                  │
+│     "email": "john@example.com",                                         │
+│     "isEmailVerified": false,                                            │
+│     "requiresVerification": true                                         │
+│   }                                                                      │
+│ }                                                                        │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Error Responses:                                                         │
+│ 400 - { "error": "Username already exists" }                            │
+│ 400 - { "error": "Email already registered" }                           │
+│ 400 - { "error": "Invalid email format" }                               │
+│ 500 - { "error": "Internal server error" }                              │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ LOGIN                                                                     │
+│ POST /api/login                                                           │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Request Body:                                                            │
+│ {                                                                         │
+│   "username": "john_doe",        // required                            │
+│   "password": "SecurePass123"    // required                            │
+│ }                                                                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Success Response (200 OK):                                               │
+│ {                                                                         │
+│   "message": "Login successful",                                         │
+│   "token": "eyJhbGc...",                                                 │
+│   "user": {                                                              │
+│     "id": "67a1b2c3d4e5f6...",                                          │
+│     "username": "john_doe",                                              │
+│     "name": "John Doe",                                                  │
+│     "email": "john@example.com",                                         │
+│     "bio": "Software developer",                                         │
+│     "profilePicture": "https://res.cloudinary.com/...",                 │
+│     "followers": ["user_id1", "user_id2"],                              │
+│     "following": ["user_id3", "user_id4"],                              │
+│     "isEmailVerified": true                                              │
+│   }                                                                      │
+│ }                                                                        │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Special Response (403 Forbidden - Email Not Verified):                   │
+│ {                                                                         │
+│   "error": "Email not verified",                                         │
+│   "requiresVerification": true,                                          │
+│   "email": "john@example.com"                                            │
+│ }                                                                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ EMAIL VERIFICATION (CODE METHOD)                                         │
+│ POST /api/verify-email/code                                              │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Request Body:                                                            │
+│ {                                                                         │
+│   "email": "john@example.com",        // required                       │
+│   "code": "123456"                    // 6-digit verification code      │
+│ }                                                                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Success Response (200 OK):                                               │
+│ {                                                                         │
+│   "message": "Email verified successfully!",                            │
+│   "token": "eyJhbGc...",                // full access token            │
+│   "user": {                                                             │
+│     "id": "...",                                                        │
+│     "username": "john_doe",                                             │
+│     "name": "John Doe",                                                 │
+│     "email": "john@example.com",                                        │
+│     "isEmailVerified": true                                             │
+│   }                                                                     │
+│ }                                                                       │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ EMAIL VERIFICATION (TOKEN METHOD)                                        │
+│ POST /api/verify-email/token                                             │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Request Body:                                                            │
+│ {                                                                         │
+│   "token": "abc123def456..."           // 32-byte hex token             │
+│ }                                                                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Same response format as code method                                      │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ RESEND VERIFICATION EMAIL                                                │
+│ POST /api/resend-verification                                            │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Request Body:                                                            │
+│ {                                                                         │
+│   "email": "john@example.com"          // required                      │
+│ }                                                                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Success Response (200 OK):                                               │
+│ {                                                                         │
+│   "message": "Verification email sent successfully! (don't forget to check spam folder)" │
+│ }                                                                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ PASSWORD RESET                                                           │
+├────────────────────────────────────────────────────────────────────────────┤
+│ 1. REQUEST PASSWORD RESET                                                │
+│    POST /api/forgot-password                                             │
+│    Body: { "email": "john@example.com" }                                │
+│    Response: { "message": "If an account exists with this email, you will receive a password reset link." } │
+│                                                                          │
+│ 2. RESET PASSWORD (with token)                                          │
+│    POST /api/reset-password                                              │
+│    Body: {                                                              │
+│      "token": "reset_token_here",                                       │
+│      "password": "NewPassword123"                                       │
+│    }                                                                    │
+│    Response: { "message": "Password reset successful! You can now login with your new password." } │
+│                                                                          │
+│ 3. WEB INTERFACE                                                        │
+│    GET /reset-password?token=<token>    - Displays password reset form  │
+└────────────────────────────────────────────────────────────────────────────┘
+
+===============================================================================
+2. USER MANAGEMENT
+===============================================================================
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GET USER BY USERNAME                                                     │
+│ GET /api/users/:username                                                 │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Success Response (200 OK):                                               │
+│ {                                                                         │
+│   "_id": "67a1b2c3d4e5f6...",                                           │
+│   "username": "john_doe",                                                │
+│   "name": "John Doe",                                                    │
+│   "bio": "Software developer | Photography enthusiast",                  │
+│   "profilePicture": "https://res.cloudinary.com/...",                   │
+│   "followers": [                                                        │
+│     { "_id": "...", "username": "alice", "name": "Alice", "profilePicture": "..." } │
+│   ],                                                                    │
+│   "following": [                                                        │
+│     { "_id": "...", "username": "bob", "name": "Bob", "profilePicture": "..." } │
+│   ],                                                                    │
+│   "createdAt": "2025-02-01T12:00:00.000Z",                             │
+│   "followerCount": 42,                                                  │
+│   "followingCount": 23                                                  │
+│ }                                                                       │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ FOLLOW/UNFOLLOW USER                                                     │
+│ POST /api/users/:username/follow                                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Success Response (200 OK):                                               │
+│ {                                                                         │
+│   "message": "Followed successfully",  // or "Unfollowed successfully"  │
+│   "following": true                     // or false                     │
+│ }                                                                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GET USER'S FOLLOWERS                                                     │
+│ GET /api/users/:username/followers                                       │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Returns array of users:                                                  │
+│ [{ "_id": "...", "username": "...", "name": "...", "profilePicture": "..." }] │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GET USER'S FOLLOWING                                                     │
+│ GET /api/users/:username/following                                       │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Returns array of users (same format as followers)                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ DELETE ACCOUNT                                                           │
+│ DELETE /api/account                                                      │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Success Response (200 OK):                                               │
+│ {                                                                         │
+│   "message": "Account deleted successfully",                             │
+│   "deletedData": {                                                       │
+│     "posts": 15,                    // number of posts deleted          │
+│     "cloudinaryFiles": 18,          // media files removed from cloud   │
+│     "messages": 342,               // messages deleted                  │
+│     "aiConversations": 5,          // AI conversations deleted          │
+│     "profilePicture": true,        // profile picture removed           │
+│     "account": true                // account deleted                   │
+│   },                                                                     │
+│   "timestamp": "2025-02-11T10:30:00.000Z"                               │
+│ }                                                                       │
+└────────────────────────────────────────────────────────────────────────────┘
+
+===============================================================================
+3. PROFILE OPERATIONS
+===============================================================================
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GET CURRENT USER PROFILE                                                 │
+│ GET /api/profile                                                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Returns full user profile (excludes password, email verification tokens) │
+│ Includes populated followers/following arrays with user details          │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ UPDATE PROFILE                                                           │
+│ PUT /api/profile                                                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+│ Content-Type: multipart/form-data                                        │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Form Fields:                                                             │
+│ ├─ name        : string (optional) - Display name                       │
+│ ├─ bio         : string (optional) - User biography (max 500 chars)    │
+│ └─ profilePicture : file (optional) - Image file (JPEG, PNG, GIF, WebP) │
+│                    Max size: 10MB                                       │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Success Response (200 OK):                                               │
+│ {                                                                         │
+│   "message": "Profile updated successfully",                            │
+│   "user": { ... },                     // Updated user object           │
+│   "profilePictureUpdated": true        // Boolean indicating if picture changed │
+│ }                                                                       │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GET PROFILE PICTURE URL                                                  │
+│ GET /api/profile/picture                                                 │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Response:                                                                │
+│ {                                                                         │
+│   "profilePicture": "https://res.cloudinary.com/...",  // null if none  │
+│   "hasProfilePicture": true                                              │
+│ }                                                                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+===============================================================================
+4. POSTS & FEED
+===============================================================================
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ CREATE POST                                                              │
+│ POST /api/posts                                                          │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+│ Content-Type: multipart/form-data                                        │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Form Fields:                                                             │
+│ ├─ caption    : string (optional) - Post caption                        │
+│ └─ media[]    : files (required, min 1, max 10) - Image/Video files    │
+│                Supported: JPEG, PNG, GIF, WebP, MP4, MOV, AVI, WebM     │
+│                Max file size: 50MB per file                             │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Success Response (201 Created):                                          │
+│ {                                                                         │
+│   "message": "Post created successfully",                               │
+│   "post": {                                                             │
+│     "_id": "67a1b2c3d4e5f6...",                                         │
+│     "userId": { ... },                   // Populated user object       │
+│     "username": "john_doe",                                             │
+│     "userProfilePicture": "https://...",                               │
+│     "caption": "Beautiful sunset!",                                     │
+│     "formattedCaption": "Beautiful sunset!",                           │
+│     "media": [                                                          │
+│       {                                                                 │
+│         "url": "https://res.cloudinary.com/...",                       │
+│         "public_id": "vesselx_12345_...",                              │
+│         "type": "image",                // or "video"                  │
+│         "mimeType": "image/jpeg",                                      │
+│         "size": 1048576,               // bytes                        │
+│         "duration": 0,                 // for videos                   │
+│         "cloudinary": true                                             │
+│       }                                                                │
+│     ],                                                                 │
+│     "likes": ["user_id1", "user_id2"],                                │
+│     "comments": [],                                                   │
+│     "createdAt": "2025-02-11T12:00:00.000Z"                          │
+│   }                                                                   │
+│ }                                                                     │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GET ALL POSTS (GLOBAL FEED)                                             │
+│ GET /api/posts                                                          │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Returns array of all posts from all users, sorted by newest first       │
+│ Each post has populated userId with user details                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GET FOLLOWING FEED (NEW)                                                 │
+│ GET /api/feed/following                                                  │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Returns posts ONLY from users that the current user follows              │
+│ Sorted by newest first                                                  │
+│ Enhanced with:                                                          │
+│ ├─ isLiked: boolean - Whether current user liked the post               │
+│ ├─ commentCount: number - Total comments                                │
+│ └─ likeCount: number - Total likes                                      │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GET COMBINED FEED (NEW)                                                  │
+│ GET /api/feed/combined                                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Returns posts from:                                                      │
+│ ├─ Current user's own posts                                             │
+│ └─ Users that current user follows                                       │
+│ Enhanced with additional:                                                │
+│ └─ isOwnPost: boolean - Whether post belongs to current user            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GET PAGINATED FOLLOWING FEED (NEW - RECOMMENDED)                         │
+│ GET /api/feed/following/paginated                                        │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Query Parameters:                                                        │
+│ ├─ page  : number (default: 1) - Page number                           │
+│ └─ limit : number (default: 10) - Posts per page (max: 50)             │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Success Response:                                                        │
+│ {                                                                         │
+│   "posts": [ ... ],                    // Array of posts                │
+│   "currentPage": 1,                                                    │
+│   "totalPages": 5,                                                     │
+│   "totalPosts": 47,                                                    │
+│   "hasMore": true                                                      │
+│ }                                                                       │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GET USER'S POSTS                                                         │
+│ GET /api/users/:username/posts                                           │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Returns array of posts by specific user, sorted by newest first          │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ DELETE POST                                                              │
+│ DELETE /api/posts/:postId                                                │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Automatically removes associated media files from Cloudinary             │
+│ Only post owner can delete                                               │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ LIKE/UNLIKE POST                                                         │
+│ POST /api/posts/:postId/like                                             │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Toggles like status. Response: { "message": "...", "liked": true/false }│
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ BOOKMARK POST                                                            │
+│ POST /api/posts/:postId/bookmark                                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Toggles bookmark status. Response: { "bookmarked": true/false }         │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ ADD COMMENT                                                              │
+│ POST /api/posts/:postId/comments                                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Request Body: { "text": "Great photo!" }                                │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Response includes the created comment object with user details           │
+└────────────────────────────────────────────────────────────────────────────┘
+
+===============================================================================
+5. DIRECT MESSAGING
+===============================================================================
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GET ALL CONVERSATIONS                                                    │
+│ GET /api/conversations                                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Returns array of conversations with:                                      │
+│ {                                                                         │
+│   "user": { ... },                  // User object of conversation partner│
+│   "lastMessage": {                  // Most recent message               │
+│     "text": "...",                                                       │
+│     "createdAt": "..."                                                    │
+│   },                                                                      │
+│   "unreadCount": 3                 // Number of unread messages          │
+│ }                                                                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GET CONVERSATION WITH USER                                               │
+│ GET /api/conversations/:username                                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Response:                                                                │
+│ {                                                                         │
+│   "targetUser": { ... },            // User details of conversation partner│
+│   "messages": [                    // Array of messages (chronological)  │
+│     {                                                                     │
+│       "_id": "...",                                                        │
+│       "senderId": "...",                                                  │
+│       "receiverId": "...",                                                │
+│       "text": "Hello!",                                                   │
+│       "formattedText": "Hello!",                                          │
+│       "status": "delivered",         // sent, delivered, read            │
+│       "read": false,                                                     │
+│       "createdAt": "..."                                                  │
+│     }                                                                    │
+│   ]                                                                      │
+│ }                                                                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ SEND MESSAGE                                                             │
+│ POST /api/messages                                                       │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Request Body (Direct Message):                                           │
+│ {                                                                         │
+│   "receiverUsername": "alice",          // required for DM              │
+│   "text": "Hey, how are you?",          // required                     │
+│   "formattedText": "Hey, how are you?"  // optional, HTML formatted     │
+│ }                                                                         │
+│                                                                          │
+│ Request Body (Group Message):                                            │
+│ {                                                                         │
+│   "groupId": "67a1b2c3d4e5f6...",        // required for group          │
+│   "text": "Hello everyone!",             // required                     │
+│   "formattedText": "Hello everyone!"     // optional                     │
+│ }                                                                         │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ MARK MESSAGES AS READ                                                    │
+│ POST /api/conversations/:username/read                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Response: { "message": "Messages marked as read", "updatedCount": 5 }   │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GET MESSAGE STATUS                                                       │
+│ GET /api/conversations/:username/status                                  │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Returns detailed status information for messages in a conversation       │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ UPDATE MESSAGE STATUS                                                    │
+│ POST /api/messages/:messageId/status                                     │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Request Body: { "status": "delivered" }  // or "read"                   │
+└────────────────────────────────────────────────────────────────────────────┘
+
+===============================================================================
+6. GROUP CHATS
+===============================================================================
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ CREATE GROUP                                                             │
+│ POST /api/groups                                                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+│ Content-Type: multipart/form-data                                        │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Form Fields:                                                             │
+│ ├─ name            : string (required) - Group name                     │
+│ ├─ description     : string (optional) - Group description              │
+│ ├─ privacy         : string (optional) - 'public' or 'private' (default: private) │
+│ └─ profilePicture  : file (optional) - Group profile picture            │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Success Response:                                                        │
+│ {                                                                         │
+│   "message": "Group created successfully",                              │
+│   "group": { ... }                     // Full group object             │
+│ }                                                                       │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GET USER'S GROUPS                                                        │
+│ GET /api/groups                                                          │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Returns all groups user is a member of, with unread message counts       │
+│ Each group includes: .unreadCount property                               │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GROUP INVITE SYSTEM                                                      │
+├────────────────────────────────────────────────────────────────────────────┤
+│ 1. GENERATE INVITE CODE                                                  │
+│    POST /api/groups/:groupId/invite-code                                 │
+│    Response: {                                                           │
+│      "inviteCode": "a1b2c3d4e5f6",                                       │
+│      "expires": "2025-02-18T12:00:00.000Z"  // 7 days                   │
+│    }                                                                     │
+│                                                                          │
+│ 2. JOIN WITH INVITE CODE                                                │
+│    POST /api/groups/join/:inviteCode                                     │
+│    Response: { "message": "Successfully joined the group", group: {...} }│
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GROUP MEMBER MANAGEMENT                                                  │
+├────────────────────────────────────────────────────────────────────────────┤
+│ ADD MEMBERS      : POST   /api/groups/:groupId/members                  │
+│                   Body: { "memberIds": ["id1", "id2"] }                 │
+│                                                                          │
+│ REMOVE MEMBER    : DELETE /api/groups/:groupId/members/:memberId        │
+│                                                                          │
+│ LEAVE GROUP      : POST   /api/groups/:groupId/leave                    │
+│                                                                          │
+│ TRANSFER ADMIN   : POST   /api/groups/:groupId/transfer-admin           │
+│                   Body: { "newAdminId": "..." }                         │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GROUP MESSAGES                                                           │
+├────────────────────────────────────────────────────────────────────────────┤
+│ SEND MESSAGE    : POST /api/groups/:groupId/messages                    │
+│                 Body: { "text": "...", "formattedText": "..." }         │
+│                                                                          │
+│ GET MESSAGES    : GET  /api/groups/:groupId/messages                    │
+│                 Query: ?limit=50&before=<messageId>                     │
+│                 Returns paginated messages with read receipts           │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ SEARCH GROUPS                                                            │
+│ GET /api/groups/search                                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Query Parameters:                                                        │
+│ ├─ q    : string (required, min 2 chars) - Search term                 │
+│ └─ type : string (optional) - 'all', 'public', 'my' (default: all)     │
+└────────────────────────────────────────────────────────────────────────────┘
+
+===============================================================================
+7. VESSELX AI ASSISTANT
+===============================================================================
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ AI CONVERSATION MANAGEMENT                                               │
+├────────────────────────────────────────────────────────────────────────────┤
+│ 1. START CONVERSATION                                                    │
+│    POST /api/ai/conversations/start                                      │
+│    Response: {                                                           │
+│      "conversationId": "...",                                            │
+│      "title": "Vesselx AI Assistant",                                    │
+│      "messages": [{ role: "assistant", content: "...", timestamp }],     │
+│      "lastActive": "..."                                                 │
+│    }                                                                     │
+│                                                                          │
+│ 2. SEND MESSAGE                                                         │
+│    POST /api/ai/conversations/:conversationId/messages                  │
+│    Body: { "message": "What can you do?" }                              │
+│    Response: {                                                           │
+│      "response": "I can help you with...",                              │
+│      "conversationId": "...",                                            │
+│      "timestamp": "..."                                                  │
+│    }                                                                     │
+│                                                                          │
+│ 3. GET CONVERSATION                                                      │
+│    GET /api/ai/conversations/:conversationId                            │
+│                                                                          │
+│ 4. GET ALL CONVERSATIONS                                                │
+│    GET /api/ai/conversations                                             │
+│                                                                          │
+│ 5. DELETE CONVERSATION                                                  │
+│    DELETE /api/ai/conversations/:conversationId                         │
+│                                                                          │
+│ 6. QUICK RESPONSE (No conversation save)                                │
+│    POST /api/ai/quick-response                                           │
+│    Body: { "message": "Quick question" }                                │
+│    Response: { "response": "...", "timestamp": "..." }                  │
+└────────────────────────────────────────────────────────────────────────────┘
+
+AI Capabilities:
+├─ Platform navigation assistance
+├─ Feature explanations
+├─ General knowledge questions
+├─ Creative writing assistance
+├─ Code snippets and technical help
+├─ Summarization and analysis
+└─ Conversation context retention (up to 10 messages)
+
+Model: llama-3.3-70b-versatile
+Temperature: 0.7
+Max Tokens: 500
+
+===============================================================================
+8. SEARCH & DISCOVERY
+===============================================================================
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ SEARCH USERS                                                             │
+│ GET /api/users/search                                                    │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Headers: Authorization: Bearer <token>                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Query Parameter: q=<search_term>                                         │
+│                                                                          │
+│ If q is empty: Returns user suggestions (20 users, alphabetical)        │
+│ If q provided: Searches username and name fields (case-insensitive)     │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Returns array of users with limited fields:                             │
+│ { _id, username, name, profilePicture, followers }                      │
+└────────────────────────────────────────────────────────────────────────────┘
+
+===============================================================================
+9. MEDIA MANAGEMENT
+===============================================================================
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ CLOUDINARY INTEGRATION                                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Storage Configuration:                                                   │
+│ ├─ Provider: Cloudinary                                                 │
+│ ├─ Folder structure:                                                    │
+│ │  ├─ /vesselx/profile/   - Profile pictures                           │
+│ │  ├─ /vesselx/posts/     - Post media                                  │
+│ │  └─ /vesselx/groups/    - Group profile pictures                     │
+│ ├─ Allowed formats: JPEG, PNG, GIF, WebP, MP4, MOV, AVI, WebM          │
+│ └─ File size limits:                                                    │
+│    ├─ Images: 50MB                                                      │
+│    └─ Videos: 50MB                                                      │
+│                                                                          │
+│ Optimization Parameters:                                                 │
+│ ├─ Profile Pictures: w_400,h_400,c_fill,g_face,q_auto,f_auto            │
+│ ├─ Post Images:     c_limit,w_1200,h_1200,q_auto:good                   │
+│ └─ Post Videos:     q_auto                                              │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ MEDIA ACCESS ENDPOINTS                                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ GET /api/media/:filename            - Optimized media access             │
+│ GET /uploads/:filename              - Legacy media access                │
+│                                                                          │
+│ These endpoints redirect to optimized Cloudinary URLs with proper        │
+│ transformations applied automatically.                                   │
+└────────────────────────────────────────────────────────────────────────────┘
+
+===============================================================================
+10. WEBSOCKET EVENTS (Socket.IO)
+===============================================================================
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ CONNECTION SETUP                                                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│ // Connect to WebSocket                                                  │
+│ const socket = io('https://vesselx.onrender.com');                      │
+│                                                                          │
+│ // Join user's personal room after authentication                       │
+│ socket.emit('join', userId);                                             │
+│                                                                          │
+│ // Join group room when viewing a group                                 │
+│ socket.emit('joinGroup', groupId);                                       │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ OUTGOING EVENTS (Client → Server)                                        │
+├────────────────────────────────────────────────────────────────────────────┤
+│ join(userId)                    - Join personal notification room       │
+│ joinGroup(groupId)             - Join group chat room                   │
+│ leaveGroup(groupId)            - Leave group chat room                  │
+│                                                                         │
+│ sendMessage(data)              - Send direct message                    │
+│   data: { receiverId, message }                                         │
+│                                                                         │
+│ sendGroupMessage(data)         - Send group message                     │
+│   data: { groupId, message }                                            │
+│                                                                         │
+│ messageRead(data)              - Mark message as read (DM)              │
+│   data: { messageId, senderId }                                         │
+│                                                                         │
+│ groupMessageRead(data)         - Mark group message as read             │
+│   data: { messageId, groupId, readerId }                               │
+│                                                                         │
+│ typing(data)                   - Typing indicator (DM)                  │
+│   data: { receiverId, isTyping }                                        │
+│                                                                         │
+│ groupTyping(data)              - Typing indicator (Group)               │
+│   data: { groupId, isTyping }                                           │
+│                                                                         │
+│ setOnlineStatus(isOnline)      - Update online status                   │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ INCOMING EVENTS (Server → Client)                                        │
+├────────────────────────────────────────────────────────────────────────────┤
+│ newMessage          - New direct message received                       │
+│ newGroupMessage     - New group message received                        │
+│ messageSent         - Confirmation message was sent                     │
+│ messageStatusUpdate - Message status changed (delivered/read)           │
+│ userTyping          - User is typing in DM                              │
+│ groupUserTyping     - User is typing in group                           │
+│ userStatusUpdate    - User online status changed                        │
+│ memberStatusUpdate  - Group member status changed                       │
+│ joinedGroup         - Successfully joined group                         │
+│ leftGroup           - Left group voluntarily                            │
+│ removedFromGroup    - Removed from group by admin                       │
+│ messageRead         - Message was read                                  │
+│ groupMessageReadUpdate - Group message read receipt                     │
+└────────────────────────────────────────────────────────────────────────────┘
+
+===============================================================================
+11. SYSTEM & HEALTH
+===============================================================================
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ HEALTH CHECK                                                             │
+│ GET /health                                                              │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Response:                                                                │
+│ {                                                                         │
+│   "status": "OK",                                                        │
+│   "timestamp": "2025-02-11T12:00:00.000Z",                              │
+│   "ai": "Vesselx AI Active",                                             │
+│   "cloudinary": "Active",                                                │
+│   "version": "1.0.0"                                                     │
+│ }                                                                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ DEBUG ENDPOINTS                                                          │
+├────────────────────────────────────────────────────────────────────────────┤
+│ GET /api/debug-email          - Test email service configuration        │
+│ GET /api/simple-email-test   - Simple SMTP test                        │
+│ GET /api/debug/cloudinary    - Debug Cloudinary configuration           │
+│                               (Requires authentication)                 │
+│                                                                         │
+│ POST /api/cleanup-old-posts  - Clean up posts without media            │
+│                               (Requires authentication)                 │
+└────────────────────────────────────────────────────────────────────────────┘
+
+===============================================================================
+12. ERROR HANDLING
+===============================================================================
+
+All endpoints follow consistent error response format:
+
+```json
+{
+  "error": "Human readable error message",
+  "details": "Additional debug information (development only)"
+}
+```
+
+Common HTTP Status Codes:
+├─ 200: Success
+├─ 201: Created successfully
+├─ 400: Bad request - Invalid input, missing fields
+├─ 401: Unauthorized - Missing or invalid token
+├─ 403: Forbidden - Insufficient permissions or email not verified
+├─ 404: Resource not found
+├─ 500: Internal server error
+
+Email Verification Required (403):
+
+```json
+{
+  "error": "Please verify your email to use this feature",
+  "requiresVerification": true,
+  "email": "user@example.com"
+}
+```
+
+===============================================================================
+
+1. RATE LIMITS
+   ===============================================================================
+
+Default rate limits (per IP):
+├─ Authentication endpoints: 10 requests per minute
+├─ Post creation: 30 requests per hour
+├─ Message sending: 60 requests per minute
+├─ Search endpoints: 30 requests per minute
+├─ API calls: 100 requests per minute
+└─ AI requests: 20 requests per minute
+
+Note: Rate limits are subject to change based on server load
+
+===============================================================================
+
+1. DATA MODELS
+   ===============================================================================
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ USER MODEL                                                               │
+├────────────────────────────────────────────────────────────────────────────┤
+│ {                                                                         │
+│   _id: ObjectId,                                                         │
+│   username: String,          // unique, indexed                         │
+│   password: String,          // bcrypt hashed                           │
+│   name: String,              // display name                            │
+│   email: String,             // unique, indexed                         │
+│   bio: String,               // max 500 chars                           │
+│   profilePicture: String,    // Cloudinary URL                          │
+│   followers: [ObjectId],     // array of User IDs                       │
+│   following: [ObjectId],     // array of User IDs                       │
+│   bookmarks: [ObjectId],     // array of Post IDs                       │
+│   isEmailVerified: Boolean,  // default: false                          │
+│   emailVerificationToken: String,                                        │
+│   emailVerificationCode: String, // 6-digit code                        │
+│   verificationTokenExpires: Date,                                        │
+│   passwordResetToken: String,                                            │
+│   passwordResetExpires: Date,                                            │
+│   createdAt: Date,                                                       │
+│   updatedAt: Date                                                        │
+│ }                                                                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ POST MODEL                                                               │
+├────────────────────────────────────────────────────────────────────────────┤
+│ {                                                                         │
+│   _id: ObjectId,                                                         │
+│   userId: ObjectId,           // reference to User                       │
+│   username: String,           // denormalized for performance            │
+│   userProfilePicture: String, // denormalized                            │
+│   caption: String,                                                       │
+│   formattedCaption: String,   // with 
+ tags                          │
+│   media: [{                   // array of media objects                  │
+│     url: String,             // Cloudinary URL                          │
+│     public_id: String,       // Cloudinary public ID                    │
+│     type: String,            // 'image' or 'video'                      │
+│     mimeType: String,                                                   │
+│     size: Number,            // in bytes                                │
+│     duration: Number,        // for videos (seconds)                    │
+│     cloudinary: Boolean      // always true                             │
+│   }],                                                                   │
+│   likes: [ObjectId],         // array of User IDs                       │
+│   comments: [{               // array of comment objects                │
+│     userId: ObjectId,                                                   │
+│     username: String,                                                   │
+│     userProfilePicture: String,                                         │
+│     text: String,                                                       │
+│     formattedText: String,   // with 
+ tags                          │
+│     createdAt: Date                                                     │
+│   }],                                                                   │
+│   createdAt: Date,                                                       │
+│   updatedAt: Date                                                        │
+│ }                                                                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ MESSAGE MODEL                                                            │
+├────────────────────────────────────────────────────────────────────────────┤
+│ {                                                                         │
+│   _id: ObjectId,                                                         │
+│   senderId: ObjectId,         // reference to User                       │
+│   receiverId: ObjectId,       // for DMs, optional                       │
+│   groupId: ObjectId,          // for group messages, optional            │
+│   senderUsername: String,     // denormalized                            │
+│   receiverUsername: String,   // denormalized for DMs                    │
+│   text: String,              // raw message text                        │
+│   formattedText: String,     // with 
+ tags                          │
+│   type: String,              // 'text', 'image', 'video', 'system'      │
+│   status: String,            // 'sent', 'delivered', 'read'             │
+│   read: Boolean,             // legacy flag                             │
+│   readBy: [{                 // detailed read receipts                  │
+│     userId: ObjectId,                                                   │
+│     readAt: Date                                                        │
+│   }],                                                                   │
+│   createdAt: Date,                                                       │
+│   updatedAt: Date                                                        │
+│ }                                                                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ GROUP MODEL                                                              │
+├────────────────────────────────────────────────────────────────────────────┤
+│ {                                                                         │
+│   _id: ObjectId,                                                         │
+│   name: String,                                                          │
+│   description: String,                                                   │
+│   profilePicture: String,       // Cloudinary URL                       │
+│   admin: ObjectId,             // reference to User (group creator)     │
+│   members: [ObjectId],         // array of User IDs                     │
+│   privacy: String,            // 'public' or 'private'                  │
+│   inviteCode: String,         // unique code for joining                │
+│   inviteCodeExpires: Date,    // 7 days after generation                │
+│   lastActivity: Date,                                                   │
+│   createdAt: Date,                                                       │
+│   updatedAt: Date                                                        │
+│ }                                                                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ CONVERSATION MODEL (AI)                                                  │
+├────────────────────────────────────────────────────────────────────────────┤
+│ {                                                                         │
+│   _id: ObjectId,                                                         │
+│   userId: ObjectId,           // reference to User                       │
+│   type: String,              // 'ai'                                    │
+│   title: String,             // 'Vesselx AI Assistant'                  │
+│   messages: [{               // array of message objects                │
+│     role: String,           // 'user' or 'assistant'                    │
+│     content: String,                                                     │
+│     timestamp: Date                                                      │
+│   }],                                                                     │
+│   lastActive: Date,                                                      │
+│   createdAt: Date,                                                       │
+│   updatedAt: Date                                                        │
+│ }                                                                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+===============================================================================
+APPENDIX
+===============================================================================
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ IMPORTANT NOTES FOR FRONTEND DEVELOPMENT                                 │
+├────────────────────────────────────────────────────────────────────────────┤
+│ 1. TOKEN MANAGEMENT                                                      │
+│    - Store JWT token in localStorage/sessionStorage after login         │
+│    - Include token in Authorization header for all protected routes     │
+│    - Token expiry handling: 401 responses should trigger re-login       │
+│                                                                          │
+│ 2. EMAIL VERIFICATION                                                    │
+│    - Required for posting, messaging, and group creation                │
+│    - Users can verify via code or link from email                       │
+│    - Verification status available in user object                        │
+│                                                                          │
+│ 3. AUTO-FOLLOW SYSTEM                                                    │
+│    - All users automatically follow 'OfficialDeveloper' account          │
+│    - This is enforced on registration and periodically                  │
+│    - Cannot unfollow OfficialDeveloper                                   │
+│                                                                          │
+│ 4. MEDIA HANDLING                                                        │
+│    - All media stored on Cloudinary, no local file system               │
+│    - Use multipart/form-data for uploads                                │
+│    - Access optimized versions via /api/media/:filename                 │
+│    - Profile pictures auto-cropped with face detection                  │
+│                                                                          │
+│ 5. REAL-TIME FEATURES                                                    │
+│    - Socket.IO connection required for live updates                     │
+│    - Join user room immediately after authentication                    │
+│    - Join group rooms when viewing groups                               │
+│    - Handle reconnection and event rebinding                            │
+│                                                                          │
+│ 6. TEXT FORMATTING                                                       │
+│    - Server converts newlines to 
+ tags                              │
+│    - Send plain text, receive formattedText with HTML tags              │
+│    - Render formattedText with dangerouslySetInnerHTML or equivalent     │
+│                                                                          │
+│ 7. MESSAGE STATUS                                                       │
+│    - Flow: 'sent' → 'delivered' → 'read'                                │
+│    - Update status when messages are received/displayed                 │
+│    - Use WebSocket for real-time status updates                         │
+│                                                                          │
+│ 8. PAGINATION                                                            │
+│    - Use paginated endpoints for feeds and message history              │
+│    - Implement infinite scroll or "Load More" buttons                   │
+│    - Cache pages for better performance                                 │
+│                                                                          │
+│ 9. ERROR HANDLING                                                        │
+│    - Always check response.ok before parsing JSON                       │
+│    - Handle 403 email verification errors specifically                  │
+│    - Implement retry logic for failed requests                          │
+│                                                                          │
+│ 10. PERFORMANCE OPTIMIZATION                                             │
+│     - Use optimized image URLs with width/height parameters             │
+│     - Implement client-side caching of user profiles                    │
+│     - Debounce search inputs                                            │
+│     - Lazy load images and paginated content                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+===============================================================================
+END OF DOCUMENTATION
+===============================================================================
