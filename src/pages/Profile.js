@@ -248,38 +248,35 @@ const Profile = () => {
                 <h2 className="profile-username">{profile.username}</h2>
                 
                 {isOwnProfile ? (
-                  <div className="profile-actions">
-                    <Link to="/settings" className="btn btn-secondary">
-                      Edit Profile
-                    </Link>
-                    <button className="btn-icon">
-                      <FiSettings size={24} />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="profile-actions">
-                    <button 
-                      className={`btn ${profile?.isFollowing ? 'btn-secondary' : 'btn-primary'}`}
-                      onClick={handleFollow}
-                    >
-                      {profile?.isFollowing ? (
-                        <>
-                          <FiUserCheck className="mr-2" /> Following
-                        </>
-                      ) : (
-                        <>
-                          <FiUserPlus className="mr-2" /> Follow
-                        </>
-                      )}
-                    </button>
-                    <button className="btn btn-secondary" onClick={handleMessage}>
-                      Message
-                    </button>
-                    <button className="btn-icon">
-                      <FiMoreHorizontal size={24} />
-                    </button>
-                  </div>
-                )}
+  <div className="profile-actions">
+    <Link to="/settings" className="btn btn-secondary">
+      Edit Profile
+    </Link>
+    <button className="btn-icon">
+      <FiSettings size={24} />
+    </button>
+  </div>
+) : (
+  <div className="profile-actions">
+    <button 
+      className={`btn ${profile?.isFollowing ? 'btn-secondary' : 'btn-primary'}`}
+      onClick={handleFollow}
+    >
+      {profile?.isFollowing ? (
+        <>
+          <FiUserCheck className="mr-2" /> Following
+        </>
+      ) : (
+        <>
+          <FiUserPlus className="mr-2" /> Follow
+        </>
+      )}
+    </button>
+    <button className="btn btn-secondary" onClick={handleMessage}>
+      Message
+    </button>
+  </div>
+)}
               </div>
               
               <div className="profile-stats">
