@@ -14,11 +14,14 @@ import GroupChat from './pages/GroupChat';
 import Search from './pages/Search';
 import Notifications from './pages/Notifications';
 import FullPostView from './pages/FullPostView';
+import About from './pages/About';
+import Help from './pages/Help';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 import notificationManager from './utils/notifications';
 import socketManager from './utils/socket';
 import API from './utils/api';
 
-// Video initialization helper – now does NOT force mute
 const initializeVideos = () => {
   setTimeout(() => {
     document.querySelectorAll('video').forEach(video => {
@@ -57,8 +60,6 @@ function App() {
       if (!e.key || e.key === 'token') {
         const authenticated = !!localStorage.getItem('token');
         setIsAuthenticated(authenticated);
-        
-        // Setup socket and notifications when user logs in
         if (authenticated) {
           setupUserConnection();
         } else {
@@ -70,7 +71,6 @@ function App() {
       }
     };
     
-    // Initial setup if authenticated
     if (isAuthenticated) {
       setupUserConnection();
     }
@@ -81,9 +81,7 @@ function App() {
       setTheme(localStorage.getItem('theme') || 'dark');
     });
     
-    // Listen for unread count updates from socket
-    window.addEventListener('unreadCountUpdate', handleUnreadCountUpdate);
-    
+    window.addEventListener('unreadCountUpdate', handleUnreadCountUpdate);    
     initializeVideos();
     
     const observer = new MutationObserver((mutations) => {
@@ -115,22 +113,14 @@ function App() {
       const user = JSON.parse(localStorage.getItem('user'));
       
       if (user && token) {
-        // Connect to socket
         socketManager.connect(user._id || user.id, token);
-        
-        // Initialize notifications
         await notificationManager.initialize();
-        
-        // Check notification permission
         if (Notification.permission === 'granted') {
           setNotificationPermission('granted');
-          
-          // Check if already subscribed
           setTimeout(async () => {
             try {
               const subscription = await notificationManager.swRegistration?.pushManager.getSubscription();
               if (!subscription && Notification.permission === 'granted') {
-                // Auto-subscribe if not already subscribed
                 await notificationManager.subscribeToPush();
               }
             } catch (error) {
@@ -138,7 +128,6 @@ function App() {
             }
           }, 3000);
         } else if (Notification.permission === 'default') {
-          // Prompt for notification permission after a delay
           setTimeout(() => {
             notificationManager.requestPermission().then(granted => {
               if (granted) {
@@ -148,8 +137,6 @@ function App() {
             });
           }, 5000);
         }
-        
-        // Fetch unread counts
         fetchUnreadCounts();
       }
     } catch (error) {
@@ -159,14 +146,10 @@ function App() {
 
   const fetchUnreadCounts = async () => {
     try {
-      // Fetch conversations for unread message count
       const conversations = await API.getConversations();
       const messageUnread = conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
-      
-      // Fetch groups for unread group message count
       const groups = await API.getGroups();
-      const groupUnread = groups.reduce((total, group) => total + (group.unreadCount || 0), 0);
-      
+      const groupUnread = groups.reduce((total, group) => total + (group.unreadCount || 0), 0);      
       setUnreadCounts({
         messages: messageUnread,
         groups: groupUnread,
@@ -203,6 +186,13 @@ function App() {
     <Router>
       <div className="app">
         <Routes>
+          {/* Public Routes */}
+          <Route path="/about" element={<About />} />
+          <Route path="/help" element={<Help />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          
+          {/* Auth Routes */}
           <Route path="/login" element={
             isAuthenticated ? <Navigate to="/" replace /> : <Login />
           } />
@@ -211,6 +201,8 @@ function App() {
           } />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          
+          {/* Protected Routes */}
           <Route path="/" element={
             isAuthenticated ? <Feed /> : <Navigate to="/login" replace />
           } />
