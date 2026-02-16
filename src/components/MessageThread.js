@@ -8,12 +8,15 @@ const MessageThread = ({ conversation, messages, onSendMessage, onBack }) => {
   const [newMessage, setNewMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [emojiSearch, setEmojiSearch] = useState('');
   const [optionsPosition, setOptionsPosition] = useState({ x: 0, y: 0 });
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [showMentions, setShowMentions] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const currentUser = JSON.parse(localStorage.getItem('user'));
+  const currentUserId = currentUser?._id || currentUser?.id;
 
   useEffect(() => {
     scrollToBottom();
@@ -141,17 +144,17 @@ const MessageThread = ({ conversation, messages, onSendMessage, onBack }) => {
             <div className="messages-date">
               <span>{date}</span>
             </div>
-            {dateMessages.map((message) => (
-<MessageBubble
-  key={message._id || message.id}
-  message={message}
-  isOwn={
-    message.senderId === currentUser?._id || 
-    message.senderId?._id === currentUser?._id ||
-    message.sender === currentUser?.username
-  }
-/>
-            ))}
+            {dateMessages.map((message) => {
+              const senderId = message.senderId?._id || message.senderId || message.sender?._id || message.sender;
+              const isOwn = senderId === currentUserId || (message.sender && message.sender === currentUser?.username);
+              return (
+                <MessageBubble
+                  key={message._id || message.id}
+                  message={message}
+                  isOwn={isOwn}
+                />
+              );
+            })}
           </React.Fragment>
         ))}
         
@@ -170,12 +173,27 @@ const MessageThread = ({ conversation, messages, onSendMessage, onBack }) => {
             ))}
           </div>
         )}
-        <button className="btn-icon">
-          <FiImage size={20} />
-        </button>
-        <button className="btn-icon">
+        <button className="btn-icon" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
           <FiSmile size={20} />
         </button>
+        {showEmojiPicker && (
+          <div className="emoji-picker-container" style={{ position: 'absolute', bottom: '100%', left: '0', zIndex: 1000, background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '10px', boxShadow: '0 -4px 12px rgba(0,0,0,0.3)', width: '280px' }}>
+            <div style={{ padding: '5px', borderBottom: '1px solid var(--border-color)', marginBottom: '10px' }}>
+              <input 
+                type="text" 
+                placeholder="Search emoji..." 
+                style={{ width: '100%', background: 'var(--bg-dark)', border: 'none', borderRadius: '4px', padding: '5px', color: 'var(--text-primary)' }}
+                onChange={(e) => setEmojiSearch(e.target.value)}
+              />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px', maxHeight: '200px', overflowY: 'auto' }}>
+              {['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','👻','💀','☠️','👽','👾','🤖','🎃','😺','😸','😻','😼','😽','🙀','😿','😾']
+                .map(emoji => (
+                <span key={emoji} onClick={() => { setNewMessage(prev => prev + emoji); setShowEmojiPicker(false); }} style={{ fontSize: '20px', cursor: 'pointer', padding: '5px', textAlign: 'center' }}>{emoji}</span>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="message-input-wrapper">
           <textarea
             ref={inputRef}
@@ -185,6 +203,7 @@ const MessageThread = ({ conversation, messages, onSendMessage, onBack }) => {
             onChange={handleInputChange}
             onKeyPress={handleKeyPress}
             rows={1}
+            style={{ minHeight: '40px', maxHeight: '120px' }}
           />
         </div>
         <button 

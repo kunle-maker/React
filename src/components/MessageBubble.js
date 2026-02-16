@@ -112,17 +112,42 @@ const MessageBubble = ({ message, isOwn }) => {
   const urls = message.text?.match(/(https?:\/\/[^\s]+)/g) || [];
 
   return (
-    <div className={`message-bubble-container ${isOwn ? 'own' : 'other'}`}>
-      <div className={`message-bubble ${isOwn ? 'own' : 'other'}`}>
-        <div className="message-text">
+    <div className={`message-bubble-container ${isOwn ? 'own' : 'other'}`} style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: isOwn ? 'flex-end' : 'flex-start',
+      width: '100%',
+      margin: '4px 0'
+    }}>
+      <div className={`message-bubble ${isOwn ? 'own' : 'other'}`} style={{
+        maxWidth: '80%',
+        padding: '10px 14px',
+        borderRadius: '18px',
+        background: isOwn ? 'var(--primary)' : 'var(--card-bg-light)',
+        color: '#fff',
+        position: 'relative',
+        borderBottomRightRadius: isOwn ? '4px' : '18px',
+        borderBottomLeftRadius: isOwn ? '18px' : '4px',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+      }}>
+        <div className="message-text" style={{ fontSize: '15px', lineHeight: '1.4', wordBreak: 'break-word' }}>
           {renderText(message.text)}
         </div>
         {urls.length > 0 && <LinkPreview url={urls[0]} />}
-        <div className="message-time">
+        <div className="message-time" style={{
+          fontSize: '10px',
+          marginTop: '4px',
+          opacity: 0.7,
+          textAlign: 'right',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: '4px'
+        }}>
           {formatTime(message.createdAt)}
-          {isOwn && message.status && (
-            <span className={`message-status ${message.status}`}>
-              {message.status === 'read' ? '✓✓' : message.status === 'delivered' ? '✓' : ''}
+          {isOwn && (
+            <span className={`message-status ${message.status || 'sent'}`} style={{ color: message.status === 'read' ? 'var(--mention-color)' : 'inherit' }}>
+              {message.status === 'read' ? '✓✓' : '✓'}
             </span>
           )}
         </div>

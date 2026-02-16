@@ -193,19 +193,17 @@ const Navbar = ({ user, unreadCounts = { messages: 0, notifications: 0, groups: 
                   <FiPlusSquare size={24} />
                 </button>
                 
-                <div className="nav-action-btn-wrapper">
-                  <button 
-                    className={`nav-action-btn ${isActive('/messages') ? 'active' : ''}`}
-                    onClick={() => navigate('/messages')}
-                    title="Messages"
-                  >
-                    <FiSend size={24} />
-                    {unreadCounts.messages > 0 && (
-                      <span className="notification-badge">{unreadCounts.messages}</span>
-                    )}
-                    {isActive('/messages') && <div className="active-indicator"></div>}
-                  </button>
-                </div>
+                <button 
+                  className={`nav-action-btn ${isActive('/messages') ? 'active' : ''}`}
+                  onClick={() => navigate('/messages')}
+                  title="Messages"
+                >
+                  <FiSend size={24} />
+                  {unreadCounts.messages > 0 && (
+                    <span className="notification-badge">{unreadCounts.messages}</span>
+                  )}
+                  {isActive('/messages') && <div className="active-indicator"></div>}
+                </button>
                 
                 <div className="nav-action-btn-wrapper">
                   <button 

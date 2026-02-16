@@ -25,7 +25,8 @@ const Sidebar = ({ currentUser }) => {
     const fetchSuggestions = async () => {
       try {
         const data = await API.searchUsers('');
-        setSuggestions(data.users?.slice(0, 5) || []);
+        const users = data.users || data || [];
+        setSuggestions(users.slice(0, 5) || []);
       } catch (error) {
         console.error('Error fetching suggestions:', error);
       }
@@ -112,13 +113,10 @@ const Sidebar = ({ currentUser }) => {
 
       <div className="footer">
         <div className="footer-links">
-          <a href="#" className="footer-link">About</a>
-          <a href="#" className="footer-link">Help</a>
-          <a href="#" className="footer-link">Press</a>
-          <a href="#" className="footer-link">API</a>
-          <a href="#" className="footer-link">Jobs</a>
-          <a href="#" className="footer-link">Privacy</a>
-          <a href="#" className="footer-link">Terms</a>
+          <Link to="/about" className="footer-link">About</Link>
+          <Link to="/help" className="footer-link">Help</Link>
+          <Link to="/privacy" className="footer-link">Privacy</Link>
+          <Link to="/terms" className="footer-link">Terms</Link>
         </div>
         <p>&copy; 2025 Vesselx by Ayokunle</p>
       </div>

@@ -125,13 +125,14 @@ const CreatePost = ({ onClose, onSubmit }) => {
           </button>
         </div>
 
-        <div className="create-post-content">
+        <div className="create-post-content" style={{ display: 'flex', flexWrap: 'wrap', overflow: 'auto' }}>
           {!cropImage ? (
             <>
               <div 
                 className="create-post-media"
                 onDrop={handleDrop}
                 onDragOver={(e) => e.preventDefault()}
+                style={{ flex: '1 1 400px', minWidth: '300px', background: 'var(--bg-dark-alt)' }}
               >
                 {selectedFiles.length === 0 ? (
                   <div className="create-post-upload">
@@ -153,7 +154,7 @@ const CreatePost = ({ onClose, onSubmit }) => {
                     />
                   </div>
                 ) : (
-                  <div className="media-preview-grid">
+                  <div className="media-preview-grid" style={{ padding: '16px' }}>
                     {selectedFiles.map((file, index) => (
                       <div key={index} className="preview-item">
                         {file.type.startsWith('video/') ? (
@@ -206,8 +207,8 @@ const CreatePost = ({ onClose, onSubmit }) => {
                 )}
               </div>
 
-              <div className="create-post-form">
-                <div className="create-post-user">
+              <div className="create-post-form" style={{ flex: '1 1 300px', minWidth: '250px', padding: '20px', borderLeft: '1px solid var(--border-color)' }}>
+                <div className="create-post-user" style={{ marginBottom: '16px' }}>
                   <img 
                     src={JSON.parse(localStorage.getItem('user'))?.profilePicture || '/default-avatar.png'}
                     alt="User"
@@ -216,7 +217,7 @@ const CreatePost = ({ onClose, onSubmit }) => {
                       e.target.src = 'https://ui-avatars.com/api/?name=User&background=random';
                     }}
                   />
-                  <span>{JSON.parse(localStorage.getItem('user'))?.username}</span>
+                  <span style={{ fontWeight: '600' }}>{JSON.parse(localStorage.getItem('user'))?.username}</span>
                 </div>
                 
                 <textarea
@@ -224,7 +225,8 @@ const CreatePost = ({ onClose, onSubmit }) => {
                   placeholder="Write a caption..."
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
-                  rows="4"
+                  rows="10"
+                  style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', resize: 'none', fontSize: '16px', color: 'var(--text-primary)' }}
                 />
               </div>
             </>

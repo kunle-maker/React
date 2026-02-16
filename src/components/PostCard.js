@@ -497,6 +497,58 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
 
   const isOwnPost = currentUser && (currentUser._id === postUser._id || currentUser.id === postUser.id);
 
+  const [showFullText, setShowFullText] = useState(false);
+  const TEXT_LIMIT = 150;
+
+  const renderCaption = (text) => {
+    if (!text) return null;
+
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const mentionRegex = /(@[a-zA-Z0-9_]+)/g;
+
+    const processText = (t) => {
+      const parts = t.split(/((?:https?:\/\/[^\s]+)|(?:@[a-zA-Z0-9_]+))/g);
+      return parts.map((part, i) => {
+        if (part.match(urlRegex)) {
+          return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none' }} onClick={e => e.stopPropagation()}>{part}</a>;
+        }
+        if (part.match(mentionRegex)) {
+          const username = part.substring(1);
+          return <a key={i} href={`/profile/${username}`} style={{ color: 'var(--primary)', fontWeight: '600', textDecoration: 'none' }} onClick={e => e.stopPropagation()}>{part}</a>;
+        }
+        return part;
+      });
+    };
+
+    if (text.length <= TEXT_LIMIT || showFullText) {
+      return (
+        <>
+          {processText(text)}
+          {text.length > TEXT_LIMIT && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); setShowFullText(false); }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-dim)', marginLeft: '4px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}
+            >
+              Show less
+            </button>
+          )}
+        </>
+      );
+    }
+
+    return (
+      <>
+        {processText(text.substring(0, TEXT_LIMIT))}...
+        <button 
+          onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-dim)', marginLeft: '4px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}
+        >
+          Read more
+        </button>
+      </>
+    );
+  };
+
   return (
     <article className="post-card" onClick={handlePostClick} onDoubleClick={handleDoubleTap}>
       <header style={{ 
@@ -581,6 +633,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
+                  setShowOptions(false);
                   handlePostClick(e);
                 }}
                 style={{
@@ -660,7 +713,7 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
             color: 'var(--text-primary)',
             margin: 0
           }}>
-            {post.caption}
+            {renderCaption(post.caption)}
           </p>
         </div>
       )}

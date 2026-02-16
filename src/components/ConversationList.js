@@ -63,16 +63,43 @@ const ConversationList = ({ onSelectConversation, searchQuery = '', selectedConv
     return text.substring(0, maxLength) + '...';
   };
 
-  const handleConversationClick = (conversation) => {
+  const handleConversationClick = async (conversation) => {
     if (onSelectConversation) {
       onSelectConversation(conversation);
+      // Mark as read locally
+      setConversations(prev => prev.map(c => 
+        (c.user?._id === conversation.user?._id || c._id === conversation._id)
+          ? { ...c, unreadCount: 0 }
+          : c
+      ));
+      // Mark as read on server
+      try {
+        await API.request(`/api/conversations/${conversation.user?.username}/read`, { method: 'POST' });
+        // Dispatch event for Navbar to update
+        window.dispatchEvent(new Event('messagesRead'));
+      } catch (e) {
+        console.error('Error marking conversation read:', e);
+      }
     }
   };
 
-  const handleStartNewChat = () => {
-    // This would open a modal to start a new chat
-    // For now, we'll log it
-    console.log('Start new chat clicked');
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [userSuggestions, setUserSuggestions] = useState([]);
+  const [newChatSearch, setNewChatSearch] = useState('');
+
+  const handleStartNewChat = async () => {
+    setShowNewChatModal(true);
+    try {
+      const users = await API.searchUsers('');
+      setUserSuggestions(users.users || users || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const startChatWithUser = (user) => {
+    onSelectConversation({ user });
+    setShowNewChatModal(false);
   };
 
   if (isLoading) {
@@ -123,6 +150,42 @@ const ConversationList = ({ onSelectConversation, searchQuery = '', selectedConv
           <FiEdit size={20} />
         </button>
       </div>
+
+      {showNewChatModal && (
+        <div className="modal-overlay active" onClick={() => setShowNewChatModal(false)} style={{ zIndex: 10001 }}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <button className="modal-close" onClick={() => setShowNewChatModal(false)}>×</button>
+              <span className="modal-title">New Message</span>
+            </div>
+            <div className="modal-content" style={{ padding: '0' }}>
+              <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
+                <input 
+                  type="text" 
+                  placeholder="Search people..." 
+                  className="form-input"
+                  value={newChatSearch}
+                  onChange={e => setNewChatSearch(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                {userSuggestions
+                  .filter(u => u.username?.toLowerCase().includes(newChatSearch.toLowerCase()) || u.name?.toLowerCase().includes(newChatSearch.toLowerCase()))
+                  .map(user => (
+                  <div key={user._id} onClick={() => startChatWithUser(user)} style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', borderBottom: '1px solid var(--border-color)' }} className="user-suggestion-item">
+                    <img src={user.profilePicture || '/default-avatar.png'} alt="" style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
+                    <div>
+                      <div style={{ fontWeight: '600' }}>{user.username}</div>
+                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{user.name}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="conversations-container">
         {filteredConversations.map((conversation) => (
