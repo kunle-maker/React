@@ -5,7 +5,7 @@ import GroupInfoModal from '../components/GroupInfoModal';
 import EditGroupModal from '../components/EditGroupModal';
 import AddMembersModal from '../components/AddMembersModal';
 import './GroupChat.css';
-import { FiArrowLeft, FiUsers, FiSend, FiImage, FiMoreVertical, FiPlusSquare, FiSettings, FiTrash2, FiEdit2, FiLink, FiUserPlus, FiCopy, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiUsers, FiSend, FiImage, FiMoreVertical, FiPlusSquare, FiSettings, FiTrash2, FiEdit2, FiLink, FiUserPlus, FiCopy, FiX, FiSmile } from 'react-icons/fi';
 import API from '../utils/api';
 
 const LinkPreview = ({ url }) => {
@@ -69,6 +69,7 @@ const GroupChat = () => {
   const [showEditGroup, setShowEditGroup] = useState(false);
   const [showAddMembers, setShowAddMembers] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
   const [inviteCopied, setInviteCopied] = useState(false);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
@@ -244,8 +245,8 @@ const GroupChat = () => {
   const handleLeaveGroup = async () => {
     if (!window.confirm('Are you sure you want to leave this group?')) return;
     try {
-      await API.leaveGroup(groupId);
-      navigate('/groups');
+      await API.request(`/api/groups/${groupId}/leave`, { method: 'POST' });
+      navigate('/#/groups');
     } catch (error) {
       console.error('Error leaving group:', error);
       alert(error.message || 'Failed to leave group');
@@ -257,7 +258,7 @@ const GroupChat = () => {
       const response = await API.request(`/api/groups/${groupId}/invite-code`, {
         method: 'POST'
       });
-      const link = `${window.location.origin}/join/${response.inviteCode || response.code || groupId}`;
+      const link = `${window.location.origin}/#/join/${response.inviteCode || response.code || groupId}`;
       setInviteLink(link);
       setShowInviteModal(true);
       setShowOptionsMenu(false);
@@ -307,11 +308,13 @@ const fallbackCopy = (text) => {
   const handleEditGroup = () => {
     setShowEditGroup(true);
     setShowOptionsMenu(false);
+    navigate(`/#/groups/${groupId}/edit`);
   };
 
   const handleAddMembers = () => {
     setShowAddMembers(true);
     setShowOptionsMenu(false);
+    navigate(`/#/groups/${groupId}/add-members`);
   };
 
   const handleGroupInfo = () => {
@@ -323,7 +326,7 @@ const fallbackCopy = (text) => {
     if (!window.confirm('Are you sure you want to delete this group?')) return;
     try {
       await API.request(`/api/groups/${groupId}`, { method: 'DELETE' });
-      navigate('/groups');
+      navigate('/#/groups');
     } catch (error) {
       console.error('Error deleting group:', error);
       alert('Failed to delete group');
@@ -340,7 +343,19 @@ const fallbackCopy = (text) => {
 
   if (!group) return null;
 
-  const isAdmin = group.adminId === user?._id || group.admin === user?._id || group.adminId === user?.id || group.admin === user?.id;
+  const isAdmin = group.adminId === user?._id || group.admin === user?._id || group.adminId === user?.id || group.admin === user?.id || group.creator === user?._id;
+
+  const handleGroupAction = (action) => {
+    switch(action) {
+      case 'info': handleGroupInfo(); break;
+      case 'invite': handleGenerateInvite(); break;
+      case 'add': handleAddMembers(); break;
+      case 'edit': handleEditGroup(); break;
+      case 'delete': handleDeleteGroup(); break;
+      case 'leave': handleLeaveGroup(); break;
+      default: break;
+    }
+  };
 
   return (
     <div className="group-chat-page-wrapper" style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -352,7 +367,7 @@ const fallbackCopy = (text) => {
             <button className="btn-icon" onClick={() => navigate('/groups')}>
               <FiArrowLeft size={24} />
             </button>
-            <div className="group-chat-info" style={{ flex: 1, marginLeft: '12px' }}>
+            <div className="group-chat-info" style={{ flex: 1, marginLeft: '12px', cursor: 'pointer' }} onClick={() => handleGroupAction('info')}>
               <h2 style={{ fontSize: '18px', margin: 0 }}>{group.name}</h2>
               <div className="group-members-count" style={{ fontSize: '12px', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <FiUsers size={14} /> {group.members?.length || 0} members
@@ -364,24 +379,24 @@ const fallbackCopy = (text) => {
               </button>
               {showOptionsMenu && (
                 <div className="options-menu" style={{ position: 'fixed', top: `${optionsPosition.y}px`, left: `${optionsPosition.x - 180}px`, backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '8px 0', width: '200px', zIndex: 10000, boxShadow: '0 4px 24px rgba(0,0,0,0.5)' }}>
-                  <button onClick={handleGroupInfo} className="menu-item"><FiUsers size={16} /> <span>Group Info</span></button>
-                  <button onClick={handleGenerateInvite} className="menu-item"><FiLink size={16} /> <span>Invite Link</span></button>
+                  <button onClick={() => handleGroupAction('info')} className="menu-item"><FiUsers size={16} /> <span>Group Info</span></button>
+                  <button onClick={() => handleGroupAction('invite')} className="menu-item"><FiLink size={16} /> <span>Invite Link</span></button>
                   {isAdmin && (
                     <>
-                      <button onClick={handleAddMembers} className="menu-item"><FiUserPlus size={16} /> <span>Add Members</span></button>
-                      <button onClick={handleEditGroup} className="menu-item"><FiEdit2 size={16} /> <span>Edit Group</span></button>
+                      <button onClick={() => handleGroupAction('add')} className="menu-item"><FiUserPlus size={16} /> <span>Add Members</span></button>
+                      <button onClick={() => handleGroupAction('edit')} className="menu-item"><FiEdit2 size={16} /> <span>Edit Group</span></button>
                       <div className="menu-divider" />
-                      <button onClick={handleDeleteGroup} className="menu-item danger"><FiTrash2 size={16} /> <span>Delete Group</span></button>
+                      <button onClick={() => handleGroupAction('delete')} className="menu-item danger"><FiTrash2 size={16} /> <span>Delete Group</span></button>
                     </>
                   )}
                   <div className="menu-divider" />
-                  <button onClick={handleLeaveGroup} className="menu-item danger"><FiTrash2 size={16} /> <span>Leave Group</span></button>
+                  <button onClick={() => handleGroupAction('leave')} className="menu-item danger"><FiTrash2 size={16} /> <span>Leave Group</span></button>
                 </div>
               )}
             </div>
           </div>
           
-          <div className="group-chat-container" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#000' }}>
+          <div className="group-chat-container" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-dark)' }}>
             <div className="group-chat-messages" style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {messages.length === 0 ? (
                 <div className="empty-chat" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>
@@ -391,7 +406,9 @@ const fallbackCopy = (text) => {
                 </div>
               ) : (
                 messages.map((message) => {
-                  const isOwn = message.senderId?._id === user?._id || message.senderId === user?._id || message.sender?._id === user?._id;
+                  const currentUserId = user?._id || user?.id;
+                  const senderId = message.senderId?._id || message.senderId || message.sender?._id || message.sender;
+                  const isOwn = senderId === currentUserId;
                   const urls = message.text?.match(/(https?:\/\/[^\s]+)/g) || [];
                   return (
                     <div key={message._id || message.id} className={`message-bubble-container ${isOwn ? 'own' : 'other'}`} style={{ display: 'flex', flexDirection: 'column', alignItems: isOwn ? 'flex-end' : 'flex-start', width: '100%' }}>
@@ -401,12 +418,17 @@ const fallbackCopy = (text) => {
                           <span className="message-sender-name" style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>{message.senderId?.username || message.sender?.username || 'User'}</span>
                         </div>
                       )}
-                      <div className={`message-bubble ${isOwn ? 'own' : 'other'}`} style={{ maxWidth: '80%', padding: '8px 12px', borderRadius: '18px', background: isOwn ? 'var(--primary)' : 'var(--card-bg-light)', color: '#fff', position: 'relative', borderBottomRightRadius: isOwn ? '4px' : '18px', borderBottomLeftRadius: isOwn ? '18px' : '4px' }}>
+                      <div className={`message-bubble ${isOwn ? 'own' : 'other'}`} style={{ maxWidth: '80%', padding: '10px 14px', borderRadius: '18px', background: isOwn ? 'var(--primary)' : 'var(--card-bg-light)', color: '#fff', position: 'relative', borderBottomRightRadius: isOwn ? '4px' : '18px', borderBottomLeftRadius: isOwn ? '18px' : '4px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
                         <div className="message-text" style={{ fontSize: '15px', lineHeight: '1.4', wordBreak: 'break-word' }}>
                           {renderMessageText(message.text)}
                         </div>
                         {urls.length > 0 && <LinkPreview url={urls[0]} />}
-                        <div className="message-time" style={{ fontSize: '10px', marginTop: '4px', opacity: 0.7, textAlign: 'right' }}>{formatTime(message.createdAt || message.timestamp)}</div>
+                        <div className="message-time" style={{ fontSize: '10px', marginTop: '4px', opacity: 0.7, textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                          {formatTime(message.createdAt || message.timestamp)}
+                          {isOwn && (
+                            <span className="message-status" style={{ fontSize: '10px' }}>✓</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -427,9 +449,19 @@ const fallbackCopy = (text) => {
                   ))}
                 </div>
               )}
-              <button type="button" className="btn-icon"><FiImage size={20} /></button>
+              <button type="button" className="btn-icon" onClick={() => setShowEmojiPicker(!showEmojiPicker)}><FiSmile size={20} /></button>
+              {showEmojiPicker && (
+                <div className="emoji-picker-container" style={{ position: 'absolute', bottom: '100%', left: '0', zIndex: 1000, background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '10px', boxShadow: '0 -4px 12px rgba(0,0,0,0.3)', width: '280px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px', maxHeight: '200px', overflowY: 'auto' }}>
+                    {['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','👻','💀','☠️','👽','👾','🤖','🎃','😺','😸','😻','😼','😽','🙀','😿','😾']
+                      .map(emoji => (
+                      <span key={emoji} onClick={() => { setNewMessage(prev => prev + emoji); setShowEmojiPicker(false); }} style={{ fontSize: '20px', cursor: 'pointer', padding: '5px', textAlign: 'center' }}>{emoji}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="message-input-wrapper" style={{ flex: 1, background: 'var(--bg-dark)', borderRadius: '24px', padding: '8px 16px', border: '1px solid var(--border-color)' }}>
-                <textarea ref={inputRef} className="message-input" placeholder="Message..." value={newMessage} onChange={handleInputChange} onKeyPress={handleKeyPress} rows={1} style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none', resize: 'none', fontSize: '15px', display: 'block', paddingTop: '4px' }} />
+                <textarea ref={inputRef} className="message-input" placeholder="Message..." value={newMessage} onChange={handleInputChange} onKeyPress={handleKeyPress} rows={1} style={{ width: '100%', background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', resize: 'none', fontSize: '15px', display: 'block', paddingTop: '4px' }} />
               </div>
               <button type="submit" className="send-btn" disabled={!newMessage.trim() || isSending} style={{ background: 'var(--primary)', color: '#fff', border: 'none', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (!newMessage.trim() || isSending) ? 0.5 : 1 }}>
                 <FiSend size={20} />

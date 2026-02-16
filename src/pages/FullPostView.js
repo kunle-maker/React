@@ -168,23 +168,16 @@ const FullPostView = () => {
 
     try {
       const data = await API.commentOnPost(postId, commentText);
-      // Use data from backend if available, otherwise fallback
       const newComment = data.comment || {
-        _id: Date.now().toString(),
-        text: commentText,
-        user: {
-          _id: currentUser._id,
-          username: currentUser.username,
-          name: currentUser.name,
-          profilePicture: currentUser.profilePicture
-        },
-        createdAt: new Date().toISOString()
-      };
+  _id: Date.now().toString(),
+  text: commentText,
+  username: currentUser.username,
+  userProfilePicture: currentUser.profilePicture,
+  createdAt: new Date().toISOString()
+};
       
       setComments(prev => [newComment, ...prev]);
       setCommentText('');
-      
-      // Update cached post
       if (post) {
         const updatedPost = {
           ...post,

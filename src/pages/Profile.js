@@ -204,6 +204,24 @@ const Profile = () => {
 
   const isOwnProfile = currentUser?.username === username || currentUser?._id === profile?._id;
 
+  const renderBio = (text) => {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const mentionRegex = /(@[a-zA-Z0-9_]+)/g;
+    const parts = text.split(/((?:https?:\/\/[^\s]+)|(?:@[a-zA-Z0-9_]+))/g);
+
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none' }}>{part}</a>;
+      }
+      if (part.match(mentionRegex)) {
+        const username = part.substring(1);
+        return <Link key={i} to={`/profile/${username}`} style={{ color: 'var(--primary)', fontWeight: '600', textDecoration: 'none' }}>{part}</Link>;
+      }
+      return part;
+    });
+  };
+
   return (
     <div className="profile-page">
       <Navbar user={currentUser} />
@@ -281,7 +299,7 @@ const Profile = () => {
               
               <div className="profile-bio-section">
                 <h1 className="profile-name">{profile.name || profile.username}</h1>
-                {profile.bio && <p className="profile-bio">{profile.bio}</p>}
+                {profile.bio && <p className="profile-bio" style={{ whiteSpace: 'pre-wrap' }}>{renderBio(profile.bio)}</p>}
               </div>
             </div>
           </div>
