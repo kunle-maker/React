@@ -35,7 +35,7 @@ const MessageOptionsMenu = ({ isGroup, target, onClose, isOpen, position }) => {
       await API.request(`/api/groups/${target._id}/leave`, {
         method: 'POST'
       });
-      window.location.href = '/groups';
+      window.location.href = '/#/groups';
     } catch (error) {
       console.error('Error leaving group:', error);
       alert('Failed to leave group');
@@ -43,7 +43,7 @@ const MessageOptionsMenu = ({ isGroup, target, onClose, isOpen, position }) => {
   };
 
   const handleViewProfile = () => {
-    window.location.href = `/profile/${target.username}`;
+    window.location.href = `/#/profile/${target.username}`;
   };
 
   const handleBlockUser = async () => {
@@ -87,16 +87,16 @@ const MessageOptionsMenu = ({ isGroup, target, onClose, isOpen, position }) => {
       >
         {isGroup ? (
           <>
-            <button className="menu-item" onClick={() => window.location.href = `/groups/${target._id}/info`}>
+            <button className="menu-item" onClick={() => window.location.href = `/#/groups/${target._id}/info`}>
               <FiUsers size={16} /> <span>Group Info</span>
             </button>
             <button className="menu-item" onClick={handleGenerateInvite}>
               <FiLink size={16} /> <span>Invite Link</span>
             </button>
-            <button className="menu-item" onClick={() => window.location.href = `/groups/${target._id}/add-members`}>
+            <button className="menu-item" onClick={() => window.location.href = `/#/groups/${target._id}/add-members`}>
               <FiUser size={16} /> <span>Add Members</span>
             </button>
-            <button className="menu-item" onClick={() => window.location.href = `/groups/${target._id}/edit`}>
+            <button className="menu-item" onClick={() => window.location.href = `/#/groups/${target._id}/edit`}>
               <FiEdit size={16} /> <span>Edit Group</span>
             </button>
             <div className="menu-divider" />
