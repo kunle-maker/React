@@ -19,7 +19,7 @@ const GroupCard = ({ group, onGroupUpdated }) => {
 
   return (
     <div className="group-card">
-      <Link to={`/groups/${group._id}`} className="group-card-link">
+      <div className="group-card-link">
         <div className="group-card-header">
           {group.profilePicture ? (
             <img
@@ -70,7 +70,7 @@ const GroupCard = ({ group, onGroupUpdated }) => {
         <div className="group-last-activity">
           Last activity: {new Date(group.lastActivity).toLocaleDateString()}
         </div>
-      </Link>
+      </div>
     </div>
   );
 };
