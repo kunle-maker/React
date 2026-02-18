@@ -3,8 +3,101 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import GroupCard from '../components/GroupCard';
 import CreateGroupModal from '../components/CreateGroupModal';
-import { FiSearch, FiPlus, FiUsers, FiMessageSquare } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiUsers, FiMessageSquare, FiX } from 'react-icons/fi';
 import API from '../utils/api';
+
+const GroupJoinModal = ({ group, onClose, onJoin }) => {
+  if (!group) return null;
+  return (
+    <div className="modal-overlay active" onClick={onClose} style={{ zIndex: 10000 }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ 
+        maxWidth: '400px', 
+        borderRadius: '20px', 
+        overflow: 'hidden',
+        background: 'var(--card-bg)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+      }}>
+        <div style={{ 
+          background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)', 
+          height: '100px', 
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <button onClick={onClose} style={{ 
+            position: 'absolute', 
+            top: '12px', 
+            right: '12px', 
+            background: 'rgba(0,0,0,0.2)', 
+            border: 'none', 
+            borderRadius: '50%', 
+            width: '32px', 
+            height: '32px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            color: 'white', 
+            cursor: 'pointer' 
+          }}><FiX size={20} /></button>
+          <div style={{ 
+            width: '80px', 
+            height: '80px', 
+            borderRadius: '50%', 
+            background: 'var(--card-bg)', 
+            border: '4px solid var(--card-bg)',
+            position: 'absolute',
+            bottom: '-40px',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+          }}>
+            <img src={group.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(group.name)}&background=random`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+        </div>
+        <div style={{ padding: '50px 24px 24px', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '20px', marginBottom: '8px' }}>{group.name}</h2>
+          <p style={{ color: 'var(--text-dim)', fontSize: '14px', marginBottom: '24px' }}>
+            Group • {group.members?.length || 0} members
+          </p>
+          <div style={{ 
+            background: 'var(--bg-dark)', 
+            padding: '12px', 
+            borderRadius: '12px', 
+            fontSize: '14px', 
+            color: 'var(--text-secondary)',
+            marginBottom: '24px',
+            textAlign: 'left'
+          }}>
+            {group.description || 'Welcome to our group! Join to start chatting with other members.'}
+          </div>
+          <button 
+            onClick={() => onJoin(group._id)}
+            style={{ 
+              width: '100%', 
+              padding: '14px', 
+              background: '#25D366', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '12px', 
+              fontSize: '16px', 
+              fontWeight: '600', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            Join Group
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Groups = ({ unreadCounts }) => {  // Add unreadCounts prop
   const [groups, setGroups] = useState([]);
@@ -12,6 +105,8 @@ const Groups = ({ unreadCounts }) => {  // Add unreadCounts prop
   const [searchQuery, setSearchQuery] = useState('');
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedGroupToJoin, setSelectedGroupToJoin] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('user'));
@@ -38,6 +133,18 @@ const Groups = ({ unreadCounts }) => {  // Add unreadCounts prop
       setShowCreateModal(false);
     } catch (error) {
       console.error('Error creating group:', error);
+    }
+  };
+
+  const handleJoinGroup = async (groupId) => {
+    try {
+      await API.request(`/api/groups/${groupId}/join`, { method: 'POST' });
+      setSelectedGroupToJoin(null);
+      fetchGroups();
+      navigate(`/groups/${groupId}`);
+    } catch (error) {
+      console.error('Error joining group:', error);
+      alert(error.message || 'Failed to join group');
     }
   };
 
@@ -114,13 +221,21 @@ const Groups = ({ unreadCounts }) => {  // Add unreadCounts prop
                 </button>
               </div>
             ) : (
-              filteredGroups.map((group) => (
-                <GroupCard
-                  key={group._id}
-                  group={group}
-                  onGroupUpdated={fetchGroups}
-                />
-              ))
+              filteredGroups.map((group) => {
+                const isMember = group.members?.some(m => m === user?._id || m._id === user?._id);
+                return (
+                  <div key={group._id} onClick={() => {
+                    if (!isMember) {
+                      setSelectedGroupToJoin(group);
+                    }
+                  }}>
+                    <GroupCard
+                      group={group}
+                      onGroupUpdated={fetchGroups}
+                    />
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
@@ -130,6 +245,14 @@ const Groups = ({ unreadCounts }) => {  // Add unreadCounts prop
         <CreateGroupModal
           onClose={() => setShowCreateModal(false)}
           onSubmit={handleCreateGroup}
+        />
+      )}
+
+      {selectedGroupToJoin && (
+        <GroupJoinModal 
+          group={selectedGroupToJoin} 
+          onClose={() => setSelectedGroupToJoin(null)}
+          onJoin={handleJoinGroup}
         />
       )}
     </>
