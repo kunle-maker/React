@@ -64,6 +64,7 @@ body {
   background: var(--bg-dark);
 }
 
+/* Layout */
 .main-content {
   margin-top: var(--navbar-height);
   padding-bottom: 80px;
@@ -72,6 +73,7 @@ body {
   min-height: calc(100vh - 140px);
 }
 
+/* Buttons */
 .btn {
   padding: 8px 16px;
   border-radius: var(--radius-md);
@@ -115,6 +117,7 @@ body {
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* Loading States */
 .loading-page {
   display: flex;
   justify-content: center;
@@ -157,6 +160,7 @@ body {
   50% { opacity: 1; }
 }
 
+/* Form Elements */
 .form-group {
   margin-bottom: 16px;
 }
@@ -188,6 +192,7 @@ textarea.form-input {
   font-family: inherit;
 }
 
+/* Cards */
 .card {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
@@ -195,6 +200,7 @@ textarea.form-input {
   overflow: hidden;
 }
 
+/* Modals */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -256,6 +262,7 @@ textarea.form-input {
   flex: 1;
 }
 
+/* Create Post Modal */
 .create-post-modal {
   max-width: 800px;
   max-height: 80vh;
@@ -365,6 +372,7 @@ textarea.form-input {
   width: 100%;
 }
 
+/* Crop Modal */
 .crop-modal {
   padding: 16px;
   display: flex;
@@ -378,6 +386,7 @@ textarea.form-input {
   justify-content: center;
 }
 
+/* Navbar */
 .navbar {
   position: fixed;
   top: 0;
@@ -480,6 +489,7 @@ textarea.form-input {
   padding: 0 4px;
 }
 
+/* Bottom Navigation */
 .bottom-nav {
   position: fixed;
   bottom: 20px;
@@ -530,6 +540,7 @@ textarea.form-input {
   background: var(--card-bg-light);
 }
 
+/* Feed Layout */
 .feed-layout {
   display: flex;
   gap: 32px;
@@ -567,6 +578,7 @@ textarea.form-input {
   margin-bottom: 24px;
 }
 
+/* Post Card */
 .post-card {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
@@ -738,6 +750,7 @@ textarea.form-input {
   opacity: 1;
 }
 
+/* Sidebar */
 .sidebar {
   width: 300px;
   padding-top: 20px;
@@ -882,6 +895,7 @@ textarea.form-input {
   font-size: 12px;
 }
 
+/* Floating Create Button */
 .floating-create-btn {
   position: fixed;
   bottom: 100px;
