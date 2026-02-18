@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import { FiSearch, FiUserPlus, FiCheck } from 'react-icons/fi';
+import { FiSearch, FiUserPlus, FiCheck, FiPlay } from 'react-icons/fi';
 import API from '../utils/api';
 
 const Search = () => {
+  const navigate = useNavigate(); 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [postResults, setPostResults] = useState([]);
