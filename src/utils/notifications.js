@@ -1,107 +1,55 @@
-import API from './api';
-
 class NotificationManager {
   constructor() {
-    this.swRegistration = null;
-    this.applicationServerKey = null;
+    this.initialized = false;
     this.permission = Notification.permission;
-    this.initialize();
   }
 
   async initialize() {
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
-      try {
-        this.swRegistration = await navigator.serviceWorker.register('/sw.js');
-        console.log('Service Worker registered');
-        await this.fetchVapidKey();
-      } catch (error) {
-        console.error('Service Worker registration failed:', error);
-      }
-    }
-  }
-
-  async fetchVapidKey() {
+    if (this.initialized) return;
     try {
-      const response = await API.request('/api/push/vapid-public-key');
-      this.applicationServerKey = response.publicKey;
+      await window.OneSignal?.Deferred?.initialize?.({
+        appId: "526a0072-47bb-404e-934b-7636ea55e356",
+        allowLocalhostAsSecureOrigin: true,
+        serviceWorkerPath: 'OneSignalSDKWorker.js',
+      });
+      this.initialized = true;
     } catch (error) {
-      console.error('Failed to fetch VAPID key:', error);
+      console.error('OneSignal init failed:', error);
     }
   }
 
   async requestPermission() {
-    if (!('Notification' in window)) {
-      console.log('This browser does not support notifications');
-      return false;
-    }
-
+    if (!window.OneSignal) return false;
     try {
-      const permission = await Notification.requestPermission();
-      this.permission = permission;
-      return permission === 'granted';
+      const result = await window.OneSignal.Notifications.requestPermission();
+      this.permission = result ? 'granted' : 'denied';
+      return result;
     } catch (error) {
-      console.error('Error requesting notification permission:', error);
+      console.error('Permission request failed:', error);
       return false;
     }
   }
 
   async subscribeToPush() {
-    if (!this.swRegistration || !this.applicationServerKey) {
-      console.log('Service worker or VAPID key not ready');
-      return false;
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user && window.OneSignal) {
+      await window.OneSignal.User.addTag('userId', user._id);
     }
-
-    try {
-      const subscription = await this.swRegistration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: this.urlBase64ToUint8Array(this.applicationServerKey)
-      });
-      await API.request('/api/push/subscribe', {
-        method: 'POST',
-        body: JSON.stringify(subscription)
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Failed to subscribe to push notifications:', error);
-      return false;
-    }
+    return true;
   }
 
   async unsubscribeFromPush() {
-    if (!this.swRegistration) return false;
-
-    try {
-      const subscription = await this.swRegistration.pushManager.getSubscription();
-      if (subscription) {
-        await subscription.unsubscribe();
-        await API.request('/api/push/unsubscribe', { method: 'POST' });
-      }
-      return true;
-    } catch (error) {
-      console.error('Failed to unsubscribe:', error);
-      return false;
-    }
+    if (!window.OneSignal) return false;
+    await window.OneSignal.Notifications.setSubscription(false);
+    return true;
   }
-  urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding)
-      .replace(/\-/g, '+')
-      .replace(/_/g, '/');
 
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-  }
   showLocalNotification(title, options) {
     if (this.permission !== 'granted') return;
-
-    if (this.swRegistration) {
-      this.swRegistration.showNotification(title, options);
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(title, options);
+      });
     } else {
       new Notification(title, options);
     }

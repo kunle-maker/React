@@ -320,6 +320,12 @@ static async getPostDetails(postId) {
     });
   }
 
+  static async joinGroup(groupId) {
+    return this.request(`/api/groups/${groupId}/join`, {
+      method: 'POST'
+    });
+  }
+
   // AI
   static async startAIConversation() {
     return this.request('/api/ai/conversations/start', {
