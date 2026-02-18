@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import API from '../utils/api';
+import notificationManager from '../utils/notifications';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -12,6 +13,7 @@ const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');  
   const navigate = useNavigate();
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -20,6 +22,9 @@ const Register = () => {
       const data = await API.register(formData);
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      
+      await notificationManager.setExternalUserId(data.user._id || data.user.id);
+      
       window.dispatchEvent(new Event('authChange'));
       navigate('/verify-email', { replace: true });      
     } catch (err) {

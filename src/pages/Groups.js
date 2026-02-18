@@ -12,10 +12,13 @@ const GroupJoinModal = ({ group, onClose, onJoin }) => {
     <div className="modal-overlay active" onClick={onClose} style={{ zIndex: 10000 }}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ 
         maxWidth: '400px', 
+        width: '90%',
         borderRadius: '20px', 
         overflow: 'hidden',
         background: 'var(--card-bg)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        position: 'relative',
+        display: 'block'
       }}>
         <div style={{ 
           background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)', 
@@ -54,7 +57,7 @@ const GroupJoinModal = ({ group, onClose, onJoin }) => {
             justifyContent: 'center',
             boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
           }}>
-            <img src={group.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(group.name)}&background=random`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src={group.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(group.name)}&background=random`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
         </div>
         <div style={{ padding: '50px 24px 24px', textAlign: 'center' }}>
@@ -114,6 +117,18 @@ const Groups = ({ unreadCounts }) => {  // Add unreadCounts prop
     fetchGroups();
   }, []);
 
+  const handleJoinGroup = async (groupId) => {
+    try {
+      await API.joinGroup(groupId);
+      setSelectedGroupToJoin(null);
+      fetchGroups();
+      navigate(`/groups/${groupId}`);
+    } catch (error) {
+      console.error('Error joining group:', error);
+      alert(error.message || 'Failed to join group');
+    }
+  };
+
   const fetchGroups = async () => {
     setIsLoading(true);
     try {
@@ -133,18 +148,6 @@ const Groups = ({ unreadCounts }) => {  // Add unreadCounts prop
       setShowCreateModal(false);
     } catch (error) {
       console.error('Error creating group:', error);
-    }
-  };
-
-  const handleJoinGroup = async (groupId) => {
-    try {
-      await API.request(`/api/groups/${groupId}/join`, { method: 'POST' });
-      setSelectedGroupToJoin(null);
-      fetchGroups();
-      navigate(`/groups/${groupId}`);
-    } catch (error) {
-      console.error('Error joining group:', error);
-      alert(error.message || 'Failed to join group');
     }
   };
 
@@ -225,10 +228,12 @@ const Groups = ({ unreadCounts }) => {  // Add unreadCounts prop
                 const isMember = group.members?.some(m => m === user?._id || m._id === user?._id);
                 return (
                   <div key={group._id} onClick={() => {
-                    if (!isMember) {
+                    if (isMember) {
+                      navigate(`/groups/${group._id}`);
+                    } else {
                       setSelectedGroupToJoin(group);
                     }
-                  }}>
+                  }} style={{ cursor: 'pointer' }}>
                     <GroupCard
                       group={group}
                       onGroupUpdated={fetchGroups}
@@ -249,8 +254,8 @@ const Groups = ({ unreadCounts }) => {  // Add unreadCounts prop
       )}
 
       {selectedGroupToJoin && (
-        <GroupJoinModal 
-          group={selectedGroupToJoin} 
+        <GroupJoinModal
+          group={selectedGroupToJoin}
           onClose={() => setSelectedGroupToJoin(null)}
           onJoin={handleJoinGroup}
         />

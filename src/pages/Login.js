@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import API from '../utils/api';
+import notificationManager from '../utils/notifications';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -21,6 +22,9 @@ const Login = () => {
       const data = await API.login(formData.username, formData.password);
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      
+      await notificationManager.setExternalUserId(data.user._id || data.user.id);
+      
       window.dispatchEvent(new Event('authChange'));
       navigate('/', { replace: true });
     } catch (err) {

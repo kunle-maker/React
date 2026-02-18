@@ -254,19 +254,19 @@ const GroupChat = () => {
   };
 
   const handleGenerateInvite = async () => {
-  try {
-    const response = await API.request(`/api/groups/${groupId}/invite-code`, {
-      method: 'POST'
-    });
-    const link = `${window.location.origin}/#/join/${response.inviteCode || response.code || groupId}`;
-    setInviteLink(link);
-    setShowInviteModal(true);
-    setShowOptionsMenu(false);
-  } catch (error) {
-    console.error('Error generating invite:', error);
-    alert('Failed to generate invite link');
-  }
-};
+    try {
+      const response = await API.request(`/api/groups/${groupId}/invite-code`, {
+        method: 'POST'
+      });
+      const link = `${window.location.origin}/#/join/${response.inviteCode || response.code || groupId}`;
+      setInviteLink(link);
+      setShowInviteModal(true);
+      setShowOptionsMenu(false);
+    } catch (error) {
+      console.error('Error generating invite:', error);
+      alert('Failed to generate invite link');
+    }
+  };
 
   const handleCopyInvite = () => {
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -474,30 +474,24 @@ const fallbackCopy = (text) => {
       {showGroupInfo && <GroupInfoModal groupId={groupId} onClose={() => setShowGroupInfo(false)} />}
       {showEditGroup && <EditGroupModal groupId={groupId} onClose={() => setShowEditGroup(false)} onGroupUpdated={(updatedGroup) => { setGroup(updatedGroup); setShowEditGroup(false); }} />}
       {showAddMembers && <AddMembersModal groupId={groupId} onClose={() => setShowAddMembers(false)} onMembersAdded={(newMembers) => { setGroup(prev => ({ ...prev, members: [...(prev.members || []), ...newMembers] })); setShowAddMembers(false); }} />}
-{showInviteModal && (
-  <div className="modal-overlay active" onClick={() => setShowInviteModal(false)}>
-    <div className="modal invite-modal" onClick={(e) => e.stopPropagation()}>
-      <div className="modal-header">
-        <button className="modal-close" onClick={() => setShowInviteModal(false)}><FiX size={24} /></button>
-        <span className="modal-title">Invite Link</span>
-      </div>
-      <div className="modal-content">
-        <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>Share this link to invite people to join <strong>{group.name}</strong></p>
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-          <input type="text" value={inviteLink} readOnly style={{ flex: 1, padding: '10px 12px', background: 'var(--bg-dark)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '14px' }} />
-          <button onClick={handleCopyInvite} style={{ padding: '10px 16px', background: inviteCopied ? 'var(--success)' : 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>{inviteCopied ? 'Copied!' : 'Copy'}</button>
+      {showInviteModal && (
+        <div className="modal-overlay active" onClick={() => setShowInviteModal(false)}>
+          <div className="modal invite-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <button className="modal-close" onClick={() => setShowInviteModal(false)}><FiX size={24} /></button>
+              <span className="modal-title">Invite Link</span>
+            </div>
+            <div className="modal-content">
+              <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>Share this link to invite people to join <strong>{group.name}</strong></p>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                <input type="text" value={inviteLink} readOnly style={{ flex: 1, padding: '10px 12px', background: 'var(--bg-dark)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '14px' }} />
+                <button onClick={handleCopyInvite} style={{ padding: '10px 16px', background: inviteCopied ? 'var(--success)' : 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>{inviteCopied ? 'Copied!' : 'Copy'}</button>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-dim)', textAlign: 'center' }}>This link will expire in 7 days</p>
+            </div>
+          </div>
         </div>
-        <p style={{ fontSize: '12px', color: 'var(--text-dim)', textAlign: 'center' }}>This link will expire in 7 days</p>
-        {/* Add a clickable link for testing */}
-        <div style={{ textAlign: 'center', marginTop: '10px' }}>
-          <a href={inviteLink} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontSize: '14px' }}>
-            Test Link (opens in new tab)
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
     </div>
   );
 };

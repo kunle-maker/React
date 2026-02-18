@@ -82,55 +82,36 @@ const Messages = ({ unreadCounts }) => {  // Add unreadCounts prop
   };
 
   const handleSendMessage = async (text) => {
-  if (!selectedConversation || !text.trim()) return;
+    if (!selectedConversation || !text.trim()) return;
 
-  try {
-    const messageData = {
-      receiverUsername: selectedConversation.user.username,
-      text: text.trim()
-    };
+    try {
+      const messageData = {
+        receiverUsername: selectedConversation.user.username,
+        text: text.trim()
+      };
 
-    const data = await API.sendMessage(messageData);
-    
-    // Create a properly formatted message object
-    const newMessage = {
-      _id: data._id || data.message?._id || Date.now().toString(),
-      text: text.trim(),
-      senderId: user?._id || user?.id,
-      sender: {
-        _id: user?._id || user?.id,
-        username: user?.username
-      },
-      receiverId: selectedConversation.user._id,
-      conversationId: data.conversationId || data.message?.conversationId,
-      createdAt: new Date().toISOString(),
-      status: 'sent'
-    };
-
-    // Add the new message to the messages list
-    setMessages(prev => [...prev, newMessage]);
-    
-    // Update conversations list
-    setConversations(prev => 
-      prev.map(conv => 
-        conv.user.username === selectedConversation.user.username
-          ? { 
-              ...conv, 
-              lastMessage: { 
-                text: text.trim(), 
-                createdAt: new Date().toISOString() 
-              },
-              unreadCount: 0
-            }
-          : conv
-      ).sort((a, b) => 
-        new Date(b.lastMessage?.createdAt || 0) - new Date(a.lastMessage?.createdAt || 0)
-      )
-    );
-  } catch (error) {
-    console.error('Error sending message:', error);
-  }
-};
+      const data = await API.sendMessage(messageData);
+      setMessages(prev => [...prev, data.message]);
+      setConversations(prev => 
+        prev.map(conv => 
+          conv.user.username === selectedConversation.user.username
+            ? { 
+                ...conv, 
+                lastMessage: { 
+                  text: text.trim(), 
+                  createdAt: new Date() 
+                },
+                unreadCount: 0
+              }
+            : conv
+        ).sort((a, b) => 
+          new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt)
+        )
+      );
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  };
 
   const handleStartNewChat = () => {
     navigate('/search');
