@@ -10,6 +10,7 @@ import Settings from './pages/Settings';
 import AIAssistant from './pages/AIAssistant';
 import Messages from './pages/Messages';
 import Groups from './pages/Groups';
+import JoinGroup from './pages/JoinGroup';
 import GroupChat from './pages/GroupChat';
 import Search from './pages/Search';
 import Notifications from './pages/Notifications';
@@ -18,10 +19,11 @@ import About from './pages/About';
 import Help from './pages/Help';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
-import notificationManager from './utils/notifications';
+import notificationManager from './utils/notifications'; // now OneSignal wrapper
 import socketManager from './utils/socket';
 import API from './utils/api';
 
+// Keep the video initialisation helper unchanged
 const initializeVideos = () => {
   setTimeout(() => {
     document.querySelectorAll('video').forEach(video => {
@@ -44,7 +46,6 @@ const initializeVideos = () => {
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
-  const [notificationPermission, setNotificationPermission] = useState(Notification?.permission || 'default');
   const [unreadCounts, setUnreadCounts] = useState({
     messages: 0,
     notifications: 0,
@@ -114,29 +115,10 @@ function App() {
       
       if (user && token) {
         socketManager.connect(user._id || user.id, token);
+        // Initialize OneSignal (it handles its own permission prompt)
         await notificationManager.initialize();
-        if (Notification.permission === 'granted') {
-          setNotificationPermission('granted');
-          setTimeout(async () => {
-            try {
-              const subscription = await notificationManager.swRegistration?.pushManager.getSubscription();
-              if (!subscription && Notification.permission === 'granted') {
-                await notificationManager.subscribeToPush();
-              }
-            } catch (error) {
-              console.log('Subscription check error:', error);
-            }
-          }, 3000);
-        } else if (Notification.permission === 'default') {
-          setTimeout(() => {
-            notificationManager.requestPermission().then(granted => {
-              if (granted) {
-                setNotificationPermission('granted');
-                notificationManager.subscribeToPush();
-              }
-            });
-          }, 5000);
-        }
+        // Optionally tag user for targeted notifications
+        notificationManager.setExternalUserId(user._id || user.id);
         fetchUnreadCounts();
       }
     } catch (error) {
@@ -153,7 +135,7 @@ function App() {
       setUnreadCounts({
         messages: messageUnread,
         groups: groupUnread,
-        notifications: 0 // You can implement this if you have a notifications system
+        notifications: 0 // implement if you have a notification system
       });
     } catch (error) {
       console.error('Error fetching unread counts:', error);
@@ -167,20 +149,6 @@ function App() {
       [type]: Math.max(0, (prev[type] || 0) + increment)
     }));
   };
-
-  // Handle notification clicks when app is in foreground
-  useEffect(() => {
-    const handleNotificationClick = (event) => {
-      // This is handled by service worker, but we can also handle when app is open
-      console.log('Notification clicked in app:', event);
-    };
-
-    navigator.serviceWorker?.addEventListener('notificationclick', handleNotificationClick);
-
-    return () => {
-      navigator.serviceWorker?.removeEventListener('notificationclick', handleNotificationClick);
-    };
-  }, []);
 
   return (
     <Router>
@@ -230,6 +198,9 @@ function App() {
           <Route path="/groups/:groupId" element={
             isAuthenticated ? <GroupChat /> : <Navigate to="/login" />
           } />
+          <Route path="/join/:inviteCode" element={
+            isAuthenticated ? <JoinGroup /> : <Navigate to="/login" />
+          } />
           <Route path="/notifications" element={
             isAuthenticated ? <Notifications /> : <Navigate to="/login" />
           } />
@@ -238,38 +209,7 @@ function App() {
           } />
         </Routes>
         
-        {/* Notification permission prompt (only show if not decided) */}
-        {isAuthenticated && notificationPermission === 'default' && (
-          <div className="notification-permission-prompt">
-            <div className="prompt-content">
-              <div className="prompt-icon">🔔</div>
-              <div className="prompt-text">
-                <h4>Stay Updated</h4>
-                <p>Get notified when you receive messages and group activity</p>
-              </div>
-              <div className="prompt-actions">
-                <button 
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setNotificationPermission('denied')}
-                >
-                  Not Now
-                </button>
-                <button 
-                  className="btn btn-primary btn-sm"
-                  onClick={async () => {
-                    const granted = await notificationManager.requestPermission();
-                    if (granted) {
-                      setNotificationPermission('granted');
-                      await notificationManager.subscribeToPush();
-                    }
-                  }}
-                >
-                  Enable
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* OneSignal will show its own permission prompt – remove the custom banner */}
       </div>
     </Router>
   );
