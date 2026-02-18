@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import './Navbar.css';
 import API from '../utils/api';
+import notificationManager from '../utils/notifications';
 
 const Navbar = ({ user, unreadCounts = { messages: 0, notifications: 0, groups: 0 } }) => {
   const [showSearch, setShowSearch] = useState(false);
@@ -69,10 +70,11 @@ const Navbar = ({ user, unreadCounts = { messages: 0, notifications: 0, groups: 
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/');
-  };
+  notificationManager.removeExternalUserId();
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  navigate('/');
+};
 
   const handleCreatePost = () => {
     const event = new CustomEvent('openCreatePostModal');

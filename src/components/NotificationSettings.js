@@ -28,22 +28,18 @@ const NotificationSettings = () => {
   };
 
   const checkSubscription = async () => {
-    if (!notificationManager.swRegistration) return;
-
-    try {
-      const subscription = await notificationManager.swRegistration.pushManager.getSubscription();
-      setIsSubscribed(!!subscription);
-    } catch (error) {
-      console.error('Failed to check subscription:', error);
-    }
+    if (!window.OneSignal) return;
+    const subscribed = await window.OneSignal.Notifications.getPermission();
+    setIsSubscribed(subscribed);
   };
 
   const handleEnableNotifications = async () => {
     const granted = await notificationManager.requestPermission();
+    setPermission(granted ? 'granted' : 'denied');
     if (granted) {
-      setPermission('granted');
-      const subscribed = await notificationManager.subscribeToPush();
-      setIsSubscribed(subscribed);
+      setIsSubscribed(true);
+      // Optionally tag user
+      await notificationManager.setExternalUserId(JSON.parse(localStorage.getItem('user'))._id);
     }
   };
 
@@ -61,7 +57,7 @@ const NotificationSettings = () => {
       }
     } catch (error) {
       console.error('Failed to update settings:', error);
-      setSettings(settings);
+      setSettings(settings); // revert
     }
   };
 
@@ -148,7 +144,7 @@ const NotificationSettings = () => {
             <button 
               className="btn btn-secondary"
               onClick={async () => {
-                await notificationManager.unsubscribeFromPush();
+                await window.OneSignal.Notifications.setSubscription(false);
                 setIsSubscribed(false);
               }}
             >
