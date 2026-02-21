@@ -16,9 +16,10 @@ const ForgotPassword = () => {
     try {
       await API.request('/api/forgot-password', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
       });
-      setMessage('Password reset link has been sent to your email. Check your inbox.');
+      setMessage('Password reset link has been sent to your email. Check your inbox (including spam).');
     } catch (err) {
       setError(err.message || 'Failed to send reset link. Please try again.');
     } finally {

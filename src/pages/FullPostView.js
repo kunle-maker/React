@@ -402,7 +402,15 @@ const FullPostView = () => {
                       {postUser.username}
                     </Link>
                     <span className="caption-text-content">
-                      {post.caption}
+                      {post.caption?.split(/((?:https?:\/\/[^\s]+)|(?:@[a-zA-Z0-9_]+)|(?:#[a-zA-Z0-9_]+))/g).map((part, i) => {
+                        if (part.match(/(https?:\/\/[^\s]+)/)) return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>{part}</a>;
+                        if (part.match(/(@[a-zA-Z0-9_]+)/)) return <Link key={i} to={`/profile/${part.substring(1)}`} style={{ color: 'var(--primary)', fontWeight: '600' }}>{part}</Link>;
+                        if (part.match(/(#[a-zA-Z0-9_]+)/)) return <Link key={i} to={`/search?q=${encodeURIComponent(part)}`} onClick={(e) => {
+                          e.preventDefault();
+                          window.location.hash = `/search?q=${encodeURIComponent(part)}`;
+                        }} style={{ color: 'var(--primary)', fontWeight: '600' }}>{part}</Link>;
+                        return part;
+                      })}
                     </span>
                   </div>
                   <div className="caption-time">

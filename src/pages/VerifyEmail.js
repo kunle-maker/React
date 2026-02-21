@@ -46,13 +46,13 @@ const VerifyEmail = () => {
       const data = await API.verifyEmailCode(user.email, verificationCode);
       
       // Update user data with verified status
-      const updatedUser = {
-        ...user,
-        emailVerified: true
-      };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
       
       setSuccess('Email verified successfully! Redirecting...');
+      
+      // Dispatch auth change event
+      window.dispatchEvent(new Event('authChange'));
       
       // Redirect to feed after successful verification
       setTimeout(() => {

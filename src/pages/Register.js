@@ -20,12 +20,9 @@ const Register = () => {
     setIsLoading(true);
     try {
       const data = await API.register(formData);
-      localStorage.setItem('token', data.token);
+      // Don't set token/user yet, wait for verification
       localStorage.setItem('user', JSON.stringify(data.user));
       
-      await notificationManager.setExternalUserId(data.user._id || data.user.id);
-      
-      window.dispatchEvent(new Event('authChange'));
       navigate('/verify-email', { replace: true });      
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');

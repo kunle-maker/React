@@ -101,7 +101,7 @@ const Messages = ({ unreadCounts }) => {  // Add unreadCounts prop
         _id: user?._id || user?.id,
         username: user?.username
       },
-      receiverId: selectedConversation.user._id,
+      receiverId: selectedConversation.user?._id || selectedConversation.otherUser?._id,
       conversationId: data.conversationId || data.message?.conversationId,
       createdAt: new Date().toISOString(),
       status: 'sent'

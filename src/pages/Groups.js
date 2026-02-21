@@ -18,7 +18,8 @@ const GroupJoinModal = ({ group, onClose, onJoin }) => {
         background: 'var(--card-bg)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
         position: 'relative',
-        display: 'block'
+        display: 'flex',
+        flexDirection: 'column'
       }}>
         <div style={{ 
           background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)', 
@@ -26,7 +27,8 @@ const GroupJoinModal = ({ group, onClose, onJoin }) => {
           position: 'relative',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          flexShrink: 0
         }}>
           <button onClick={onClose} style={{ 
             position: 'absolute', 

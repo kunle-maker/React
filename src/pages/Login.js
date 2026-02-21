@@ -28,6 +28,11 @@ const Login = () => {
       window.dispatchEvent(new Event('authChange'));
       navigate('/', { replace: true });
     } catch (err) {
+      if (err.message === 'Email not verified' || err.requiresVerification) {
+        localStorage.setItem('user', JSON.stringify({ email: err.email || formData.username }));
+        navigate('/verify-email');
+        return;
+      }
       setError(err.message || 'Invalid username or password');
     } finally {
       setIsLoading(false);
