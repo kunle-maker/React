@@ -1,7 +1,9 @@
 class API {
-  static baseURL = window.location.hostname.includes('replit.dev') || window.location.hostname.includes('localhost')
+  /*static baseURL = window.location.hostname.includes('replit.dev') || window.location.hostname.includes('localhost')
     ? `${window.location.protocol}//${window.location.hostname.replace('5000', '5001')}`
     : 'https://vesselx.onrender.com';
+    */
+    static baseURL = 'https://vesselx.onrender.com';
 
   static getHeaders() {
     const token = localStorage.getItem('token');

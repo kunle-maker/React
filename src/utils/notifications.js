@@ -7,14 +7,25 @@ class NotificationManager {
   async initialize() {
     if (this.initialized) return;
     try {
-      await window.OneSignal?.Deferred?.initialize?.({
-        appId: "526a0072-47bb-404e-934b-7636ea55e356",
-        allowLocalhostAsSecureOrigin: true,
-        serviceWorkerPath: 'OneSignalSDKWorker.js',
-      });
-      this.initialized = true;
+      if (window.OneSignal) {
+        await window.OneSignal.init({
+          appId: "526a0072-47bb-404e-934b-7636ea55e356",
+          allowLocalhostAsSecureOrigin: true,
+          serviceWorkerPath: 'OneSignalSDKWorker.js',
+        });
+        this.initialized = true;
+      }
     } catch (error) {
       console.error('OneSignal init failed:', error);
+    }
+  }
+
+  async setExternalUserId(userId) {
+    if (!window.OneSignal) return;
+    try {
+      await window.OneSignal.setExternalUserId(userId);
+    } catch (error) {
+      console.error('Set external user ID failed:', error);
     }
   }
 
