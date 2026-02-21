@@ -19,7 +19,7 @@ import About from './pages/About';
 import Help from './pages/Help';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
-import notificationManager from './utils/notifications'; // now OneSignal wrapper
+import notificationManager from './utils/notifications';
 import socketManager from './utils/socket';
 import API from './utils/api';
 
