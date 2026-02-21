@@ -507,14 +507,22 @@ const PostCard = ({ post, currentUser, onLike, onComment, onBookmark, onDelete, 
     const mentionRegex = /(@[a-zA-Z0-9_]+)/g;
 
     const processText = (t) => {
-      const parts = t.split(/((?:https?:\/\/[^\s]+)|(?:@[a-zA-Z0-9_]+))/g);
+      const parts = t.split(/((?:https?:\/\/[^\s]+)|(?:@[a-zA-Z0-9_]+)|(?:#[a-zA-Z0-9_]+))/g);
       return parts.map((part, i) => {
         if (part.match(urlRegex)) {
           return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none' }} onClick={e => e.stopPropagation()}>{part}</a>;
         }
         if (part.match(mentionRegex)) {
           const username = part.substring(1);
-          return <a key={i} href={`/profile/${username}`} style={{ color: 'var(--primary)', fontWeight: '600', textDecoration: 'none' }} onClick={e => e.stopPropagation()}>{part}</a>;
+          return <a key={i} href={`/#/profile/${username}`} style={{ color: 'var(--primary)', fontWeight: '600', textDecoration: 'none' }} onClick={e => e.stopPropagation()}>{part}</a>;
+        }
+        if (part.startsWith('#')) {
+          const hashtag = part.substring(1);
+          return <a key={i} href={`/search?q=%23${hashtag}`} style={{ color: 'var(--primary)', fontWeight: '600', textDecoration: 'none' }} onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.location.hash = `/search?q=%23${hashtag}`;
+          }}>{part}</a>;
         }
         return part;
       });

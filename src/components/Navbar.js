@@ -70,11 +70,19 @@ const Navbar = ({ user, unreadCounts = { messages: 0, notifications: 0, groups: 
   };
 
   const handleLogout = () => {
-  notificationManager.removeExternalUserId();
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  navigate('/');
-};
+    try {
+      notificationManager.removeExternalUserId();
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Fallback: still redirect to login even if notification removal fails
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/login');
+    }
+  };
 
   const handleCreatePost = () => {
     const event = new CustomEvent('openCreatePostModal');
