@@ -8,22 +8,34 @@ class SocketManager {
     this.userId = null;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
+    this.connectionTimeout = null;
   }
 
   connect(userId, token) {
     if (this.socket?.connected) return;
 
     this.userId = userId;
-    this.socket = io(API.baseURL, {
-      auth: { token },
-      reconnection: true,
-      reconnectionAttempts: this.maxReconnectAttempts,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000
-    });
+    
+    // Clear any existing timeout
+    if (this.connectionTimeout) {
+      clearTimeout(this.connectionTimeout);
+    }
 
-    this.setupListeners();
+    // Delay connection to prioritize UI rendering
+    this.connectionTimeout = setTimeout(() => {
+      console.log('Establishing socket connection...');
+      this.socket = io(API.baseURL, {
+        auth: { token },
+        reconnection: true,
+        reconnectionAttempts: this.maxReconnectAttempts,
+        reconnectionDelay: 2000,
+        reconnectionDelayMax: 10000,
+        timeout: 30000,
+        transports: ['websocket', 'polling']
+      });
+
+      this.setupListeners();
+    }, 3000); // Connect after 3 seconds
   }
 
   setupListeners() {
@@ -41,6 +53,7 @@ class SocketManager {
       this.reconnectAttempts = attempt;
       console.log(`Reconnection attempt ${attempt}`);
     });
+
     this.socket.on('newMessage', (data) => {
       this.handleNewMessage(data);
     });
@@ -48,6 +61,7 @@ class SocketManager {
     this.socket.on('newGroupMessage', (data) => {
       this.handleNewGroupMessage(data);
     });
+
     this.socket.on('userTyping', (data) => {
       this.handleTypingIndicator(data);
     });
@@ -55,6 +69,7 @@ class SocketManager {
     this.socket.on('groupUserTyping', (data) => {
       this.handleGroupTypingIndicator(data);
     });
+
     this.socket.on('messageStatusUpdate', (data) => {
       this.handleMessageStatusUpdate(data);
     });
@@ -67,49 +82,66 @@ class SocketManager {
   handleNewMessage(data) {
     const { sender, message, conversationId } = data;
     this.playNotificationSound();
-    notificationManager.showLocalNotification(
-      `${sender.username} sent you a message`,
-      {
-        body: message.text,
-        icon: sender.profilePicture || '/vesselx-logo.png',
-        badge: '/vesselx-logo.png',
-        tag: `dm-${sender._id}`,
-        data: {
-          url: `/messages?user=${sender.username}`,
-          type: 'dm',
-          senderId: sender._id,
-          conversationId
-        },
-        vibrate: [200, 100, 200],
-        requireInteraction: true
-      }
-    );
+    
+    // Debounce notification to prevent spam
+    if (this.notificationTimeout) {
+      clearTimeout(this.notificationTimeout);
+    }
+    
+    this.notificationTimeout = setTimeout(() => {
+      notificationManager.showLocalNotification(
+        `${sender.username} sent you a message`,
+        {
+          body: message.text,
+          icon: sender.profilePicture || '/vesselx-logo.png',
+          badge: '/vesselx-logo.png',
+          tag: `dm-${sender._id}`,
+          data: {
+            url: `/messages?user=${sender.username}`,
+            type: 'dm',
+            senderId: sender._id,
+            conversationId
+          },
+          vibrate: [200, 100, 200],
+          requireInteraction: true
+        }
+      );
+    }, 500);
 
-    // Update unread count
     this.updateUnreadCount('messages', 1);
   }
 
   handleNewGroupMessage(data) {
     const { group, sender, message } = data;
     if (sender._id === this.userId) return;
+    
     this.playNotificationSound();
-    notificationManager.showLocalNotification(
-      `${group.name}`,
-      {
-        body: `${sender.username}: ${message.text}`,
-        icon: group.profilePicture || '/vesselx-logo.png',
-        badge: '/vesselx-logo.png',
-        tag: `group-${group._id}`,
-        data: {
-          url: `/groups/${group._id}`,
-          type: 'group',
-          groupId: group._id,
-          senderId: sender._id
-        },
-        vibrate: [200, 100, 200],
-        requireInteraction: true
-      }
-    );
+    
+    // Debounce notification
+    if (this.groupNotificationTimeout) {
+      clearTimeout(this.groupNotificationTimeout);
+    }
+    
+    this.groupNotificationTimeout = setTimeout(() => {
+      notificationManager.showLocalNotification(
+        `${group.name}`,
+        {
+          body: `${sender.username}: ${message.text}`,
+          icon: group.profilePicture || '/vesselx-logo.png',
+          badge: '/vesselx-logo.png',
+          tag: `group-${group._id}`,
+          data: {
+            url: `/groups/${group._id}`,
+            type: 'group',
+            groupId: group._id,
+            senderId: sender._id
+          },
+          vibrate: [200, 100, 200],
+          requireInteraction: true
+        }
+      );
+    }, 500);
+    
     this.updateUnreadCount('groups', 1);
   }
 
@@ -157,11 +189,30 @@ class SocketManager {
   }
 
   sendMessage(data) {
-    this.socket?.emit('sendMessage', data);
+    if (this.socket?.connected) {
+      this.socket.emit('sendMessage', data);
+    } else {
+      console.warn('Socket not connected, message queued');
+      // Queue message for retry
+      setTimeout(() => {
+        if (this.socket?.connected) {
+          this.socket.emit('sendMessage', data);
+        }
+      }, 2000);
+    }
   }
 
   sendGroupMessage(data) {
-    this.socket?.emit('sendGroupMessage', data);
+    if (this.socket?.connected) {
+      this.socket.emit('sendGroupMessage', data);
+    } else {
+      console.warn('Socket not connected, group message queued');
+      setTimeout(() => {
+        if (this.socket?.connected) {
+          this.socket.emit('sendGroupMessage', data);
+        }
+      }, 2000);
+    }
   }
 
   markMessageRead(data) {
@@ -189,6 +240,9 @@ class SocketManager {
   }
 
   disconnect() {
+    if (this.connectionTimeout) {
+      clearTimeout(this.connectionTimeout);
+    }
     this.socket?.disconnect();
     this.socket = null;
   }
