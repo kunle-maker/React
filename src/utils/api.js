@@ -3,6 +3,7 @@ class API {
   static cache = new Map();
   static cacheTimeout = 30 * 60 * 1000;
   static pendingRequests = new Map();
+  static abortController = null;
 
   static getHeaders(options = {}) {
     const token = localStorage.getItem('token');
@@ -19,6 +20,16 @@ class API {
   }
 
   static async request(endpoint, options = {}) {
+    // Cancel previous similar request if it's a GET
+    if ((!options.method || options.method === 'GET') && this.abortController) {
+      this.abortController.abort();
+    }
+    
+    // Create new abort controller for GET requests
+    if (!options.method || options.method === 'GET') {
+      this.abortController = new AbortController();
+    }
+
     const cacheKey = `${endpoint}-${options.method || 'GET'}`;
     
     // Prevent duplicate requests
@@ -50,7 +61,8 @@ class API {
 
     const config = {
       ...options,
-      headers
+      headers,
+      signal: (!options.method || options.method === 'GET') ? this.abortController.signal : undefined
     };
 
     const requestPromise = (async () => {
@@ -66,7 +78,18 @@ class API {
         }
         
         if (!response.ok) {
-          throw new Error(data.error || data.message || 'Something went wrong');
+          const error = new Error(data.error || data.message || 'Something went wrong');
+          // Track error for monitoring
+          if (window.Sentry) {
+            window.Sentry.captureException(error, {
+              tags: {
+                endpoint,
+                method: options.method || 'GET',
+                status: response.status
+              }
+            });
+          }
+          throw error;
         }
 
         // Cache GET responses
@@ -79,7 +102,22 @@ class API {
 
         return data;
       } catch (error) {
+        if (error.name === 'AbortError') {
+          console.log('Request aborted:', endpoint);
+          return null;
+        }
         console.error('API Error:', error);
+        
+        // Track error for monitoring
+        if (window.Sentry) {
+          window.Sentry.captureException(error, {
+            tags: {
+              endpoint,
+              method: options.method || 'GET'
+            }
+          });
+        }
+        
         throw error;
       } finally {
         this.pendingRequests.delete(cacheKey);
@@ -90,6 +128,14 @@ class API {
     return requestPromise;
   }
 
+  // Cancel ongoing request
+  static cancelRequest() {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+  }
+
   // Clear cache for specific endpoints
   static clearCache(endpointPattern) {
     for (const [key] of this.cache) {
@@ -97,6 +143,43 @@ class API {
         this.cache.delete(key);
       }
     }
+  }
+
+  // Get optimized media URL with CDN parameters
+  static async getMediaUrl(mediaPath) {
+    if (!mediaPath) return null;
+    
+    if (mediaPath.startsWith('http')) {
+      // Add CDN optimization parameters for images
+      if (mediaPath.includes('cloudinary.com')) {
+        // Add width/quality parameters for responsive images
+        // Remove any existing transformations and add optimized ones
+        return mediaPath.replace('/upload/', '/upload/w_600,q_auto,f_auto/');
+      }
+      return mediaPath;
+    }
+    
+    if (mediaPath.includes('cloudinary.com')) {
+      return mediaPath;
+    }
+    
+    return `${this.baseURL}/api/media/${mediaPath}`;
+  }
+
+  static async getVideoUrl(mediaUrl) {
+    if (!mediaUrl) return null;  
+    if (mediaUrl.startsWith('http')) {
+      try {
+        const response = await fetch(mediaUrl, { method: 'HEAD' });
+        if (response.ok) {
+          return mediaUrl;
+        }
+      } catch (error) {
+        console.error('Video URL not accessible:', mediaUrl);
+      }   
+      return 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_1MB.mp4';
+    }  
+    return `${this.baseURL}/api/media/${mediaUrl}`;
   }
 
   // Auth
@@ -224,22 +307,6 @@ class API {
     return data;
   }
 
-  static async getVideoUrl(mediaUrl) {
-    if (!mediaUrl) return null;  
-    if (mediaUrl.startsWith('http')) {
-      try {
-        const response = await fetch(mediaUrl, { method: 'HEAD' });
-        if (response.ok) {
-          return mediaUrl;
-        }
-      } catch (error) {
-        console.error('Video URL not accessible:', mediaUrl);
-      }   
-      return 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_1MB.mp4';
-    }  
-    return `${this.baseURL}/api/media/${mediaUrl}`;
-  }
-
   static async deletePost(postId) {
     const data = await this.request(`/api/posts/${postId}`, {
       method: 'DELETE'
@@ -247,17 +314,6 @@ class API {
     this.clearCache('/api/posts');
     this.clearCache('/api/feed');
     return data;
-  }
-
-  static async getMediaUrl(mediaPath) {
-    if (!mediaPath) return null;
-    if (mediaPath.startsWith('http')) {
-      return mediaPath;
-    }
-    if (mediaPath.includes('cloudinary.com')) {
-      return mediaPath;
-    }
-    return `${this.baseURL}/api/media/${mediaPath}`;
   }
 
   // Users
