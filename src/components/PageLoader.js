@@ -9,7 +9,7 @@ const PageLoader = () => {
           <div className="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.7)] animate-pulse"></div>
         </div>
         <div className="loading-spinner mx-auto"></div>
-        <p className="text-gray-400 mt-4 text-sm">Loading your experience...</p>
+        <p className="text-gray-400 mt-4 text-sm">Loading your page...</p>
       </div>
     </div>
   );
