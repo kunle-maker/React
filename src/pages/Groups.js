@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import GroupCard from '../components/GroupCard';
@@ -104,20 +104,100 @@ const GroupJoinModal = ({ group, onClose, onJoin }) => {
   );
 };
 
-const Groups = ({ unreadCounts }) => {  // Add unreadCounts prop
+const Groups = ({ unreadCounts }) => {
   const [groups, setGroups] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
   const [selectedGroupToJoin, setSelectedGroupToJoin] = useState(null);
+  
   const navigate = useNavigate();
+  const isFetchingRef = useRef(false);
+  const initialLoadRef = useRef(true);
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('user'));
     setUser(userData);
-    fetchGroups();
+    
+    // Initial fetch with delay
+    setTimeout(() => {
+      fetchGroups();
+    }, 100);
   }, []);
+
+  const fetchGroups = async (loadMore = false) => {
+    if (isFetchingRef.current) return;
+    
+    if (loadMore) {
+      setIsLoadingMore(true);
+    } else {
+      setIsLoading(true);
+    }
+    
+    isFetchingRef.current = true;
+    
+    try {
+      const data = await API.getGroups();
+      let groupsArray = [];
+      
+      if (Array.isArray(data)) {
+        groupsArray = data;
+      } else if (data && data.groups && Array.isArray(data.groups)) {
+        groupsArray = data.groups;
+      } else if (data && data.data && Array.isArray(data.data)) {
+        groupsArray = data.data;
+      } else if (data && typeof data === 'object') {
+        const arrays = Object.values(data).filter(Array.isArray);
+        if (arrays.length > 0) {
+          groupsArray = arrays[0];
+        }
+      }
+      
+      if (loadMore) {
+        setGroups(prev => {
+          const existingIds = new Set(prev.map(g => g._id));
+          const newGroups = groupsArray.filter(g => !existingIds.has(g._id));
+          return [...prev, ...newGroups];
+        });
+      } else {
+        setGroups(groupsArray);
+      }
+      
+      setHasMore(groupsArray.length === 20); // Assuming 20 per page
+      
+      // Retry logic for initial load
+      if (!loadMore && groupsArray.length === 0 && initialLoadRef.current) {
+        setTimeout(() => {
+          if (groups.length === 0 && !isFetchingRef.current) {
+            console.log('Retrying groups fetch...');
+            fetchGroups();
+          }
+        }, 2000);
+      }
+      
+    } catch (error) {
+      console.error('Error fetching groups:', error);
+      
+      // Retry on error
+      if (initialLoadRef.current) {
+        setTimeout(() => {
+          if (!isFetchingRef.current) {
+            console.log('Retrying groups after error...');
+            fetchGroups();
+          }
+        }, 3000);
+      }
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+      isFetchingRef.current = false;
+      initialLoadRef.current = false;
+    }
+  };
 
   const handleJoinGroup = async (groupId) => {
     try {
@@ -131,42 +211,81 @@ const Groups = ({ unreadCounts }) => {  // Add unreadCounts prop
     }
   };
 
-  const fetchGroups = async () => {
-    setIsLoading(true);
-    try {
-      const data = await API.getGroups();
-      setGroups(data || []);
-    } catch (error) {
-      console.error('Error fetching groups:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleCreateGroup = async (groupData) => {
     try {
       const data = await API.createGroup(groupData);
-      setGroups(prev => [data.group, ...prev]);
+      setGroups(prev => [data.group || data, ...prev]);
       setShowCreateModal(false);
+      
+      // Navigate to the new group
+      const groupId = data.group?._id || data._id;
+      if (groupId) {
+        navigate(`/groups/${groupId}`);
+      }
     } catch (error) {
       console.error('Error creating group:', error);
+      alert(error.message || 'Failed to create group');
     }
   };
 
   const filteredGroups = groups.filter(group =>
-    group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    group.description.toLowerCase().includes(searchQuery.toLowerCase())
+    group.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    group.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (isLoading) {
+  if (isLoading && groups.length === 0) {
     return (
-      <div className="loading-page">
-        <span className="loading-spinner"></span>
-      </div>
+      <>
+        <Navbar user={user} unreadCounts={unreadCounts} />
+        <main className="main-content">
+          <div className="groups-page">
+            <div className="groups-header">
+              <div>
+                <h1>Groups</h1>
+                <p>Connect with people who share your interests</p>
+              </div>
+              <button className="btn btn-primary" disabled>
+                <FiPlus size={20} /> Create Group
+              </button>
+            </div>
+            
+            <div className="groups-search">
+              <FiSearch size={20} />
+              <input type="text" placeholder="Search groups..." disabled />
+            </div>
+            
+            <div className="groups-stats">
+              <div className="stat-card">
+                <FiUsers size={24} />
+                <div>
+                  <h3>...</h3>
+                  <p>Total Groups</p>
+                </div>
+              </div>
+              <div className="stat-card">
+                <FiMessageSquare size={24} />
+                <div>
+                  <h3>...</h3>
+                  <p>Unread Messages</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="groups-grid">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="group-card-skeleton">
+                  <div className="skeleton-header"></div>
+                  <div className="skeleton-content"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </main>
+      </>
     );
   }
 
-    return (
+  return (
     <>
       <Navbar user={user} unreadCounts={unreadCounts} />
       
@@ -227,15 +346,24 @@ const Groups = ({ unreadCounts }) => {  // Add unreadCounts prop
               </div>
             ) : (
               filteredGroups.map((group) => {
-                const isMember = group.members?.some(m => m === user?._id || m._id === user?._id);
+                const isMember = group.members?.some(m => 
+                  m === user?._id || 
+                  m === user?.id || 
+                  m._id === user?._id || 
+                  m.userId === user?._id
+                );
                 return (
-                  <div key={group._id} onClick={() => {
-                    if (isMember) {
-                      navigate(`/groups/${group._id}`);
-                    } else {
-                      setSelectedGroupToJoin(group);
-                    }
-                  }} style={{ cursor: 'pointer' }}>
+                  <div 
+                    key={group._id} 
+                    onClick={() => {
+                      if (isMember) {
+                        navigate(`/groups/${group._id}`);
+                      } else {
+                        setSelectedGroupToJoin(group);
+                      }
+                    }} 
+                    style={{ cursor: 'pointer' }}
+                  >
                     <GroupCard
                       group={group}
                       onGroupUpdated={fetchGroups}
@@ -245,6 +373,12 @@ const Groups = ({ unreadCounts }) => {  // Add unreadCounts prop
               })
             )}
           </div>
+          
+          {isLoadingMore && (
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <div className="loading-spinner small"></div>
+            </div>
+          )}
         </div>
       </main>
 
