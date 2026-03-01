@@ -1,8 +1,5 @@
 class API {
   static baseURL = 'https://vesselx.onrender.com';
-  static cache = new Map();
-  static cacheTimeout = 30 * 60 * 1000;
-  static pendingRequests = new Map();
   static abortController = null;
 
   static getHeaders(options = {}) {
@@ -30,21 +27,6 @@ class API {
       this.abortController = new AbortController();
     }
 
-    const cacheKey = `${endpoint}-${options.method || 'GET'}`;
-    
-    // Prevent duplicate requests
-    if (this.pendingRequests.has(cacheKey)) {
-      return this.pendingRequests.get(cacheKey);
-    }
-
-    // Check cache for GET requests
-    if (!options.method || options.method === 'GET') {
-      const cached = this.cache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-        return cached.data;
-      }
-    }
-
     const token = localStorage.getItem('token');
     const isFormData = options.body instanceof FormData;
     
@@ -65,67 +47,52 @@ class API {
       signal: (!options.method || options.method === 'GET') ? this.abortController.signal : undefined
     };
 
-    const requestPromise = (async () => {
-      try {
-        const response = await fetch(`${this.baseURL}${endpoint}`, config);
-        const contentType = response.headers.get("content-type");
-        let data;
-        
-        if (contentType && contentType.includes("application/json")) {
-          data = await response.json();
-        } else {
-          data = { message: await response.text() };
-        }
-        
-        if (!response.ok) {
-          const error = new Error(data.error || data.message || 'Something went wrong');
-          // Track error for monitoring
-          if (window.Sentry) {
-            window.Sentry.captureException(error, {
-              tags: {
-                endpoint,
-                method: options.method || 'GET',
-                status: response.status
-              }
-            });
-          }
-          throw error;
-        }
-
-        // Cache GET responses
-        if (!options.method || options.method === 'GET') {
-          this.cache.set(cacheKey, {
-            data,
-            timestamp: Date.now()
-          });
-        }
-
-        return data;
-      } catch (error) {
-        if (error.name === 'AbortError') {
-          console.log('Request aborted:', endpoint);
-          return null;
-        }
-        console.error('API Error:', error);
-        
+    try {
+      const response = await fetch(`${this.baseURL}${endpoint}`, config);
+      const contentType = response.headers.get("content-type");
+      let data;
+      
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        data = { message: await response.text() };
+      }
+      
+      if (!response.ok) {
+        const error = new Error(data.error || data.message || 'Something went wrong');
         // Track error for monitoring
         if (window.Sentry) {
           window.Sentry.captureException(error, {
             tags: {
               endpoint,
-              method: options.method || 'GET'
+              method: options.method || 'GET',
+              status: response.status
             }
           });
         }
-        
         throw error;
-      } finally {
-        this.pendingRequests.delete(cacheKey);
       }
-    })();
 
-    this.pendingRequests.set(cacheKey, requestPromise);
-    return requestPromise;
+      return data;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log('Request aborted:', endpoint);
+        return null;
+      }
+      console.error('API Error:', error);
+      
+      // Track error for monitoring
+      if (window.Sentry) {
+        window.Sentry.captureException(error, {
+          tags: {
+            endpoint,
+            method: options.method || 'GET'
+          }
+        });
+      }
+      
+      throw error;
+    }
   }
 
   // Cancel ongoing request
@@ -133,15 +100,6 @@ class API {
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;
-    }
-  }
-
-  // Clear cache for specific endpoints
-  static clearCache(endpointPattern) {
-    for (const [key] of this.cache) {
-      if (key.includes(endpointPattern)) {
-        this.cache.delete(key);
-      }
     }
   }
 
@@ -184,20 +142,17 @@ class API {
 
   // Auth
   static async login(username, password) {
-    const data = await this.request('/api/login', {
+    return this.request('/api/login', {
       method: 'POST',
       body: JSON.stringify({ username, password })
     });
-    this.clearCache('/api/'); // Clear all cache on login
-    return data;
   }
 
   static async register(userData) {
-    const data = await this.request('/api/register', {
+    return this.request('/api/register', {
       method: 'POST',
       body: JSON.stringify(userData)
     });
-    return data;
   }
 
   static async verifyEmailCode(email, code) {
@@ -246,7 +201,7 @@ class API {
 
   static async getCombinedFeed() {
     try {
-      const response = await fetch(`${this.BASE_URL}/api/feed/combined`, {
+      const response = await fetch(`${this.baseURL}/api/feed/combined`, {
         headers: this.getHeaders(),
       });
       
@@ -262,13 +217,10 @@ class API {
   }
 
   static async createPost(formData) {
-    const data = await this.request('/api/posts', {
+    return this.request('/api/posts', {
       method: 'POST',
       body: formData
     });
-    this.clearCache('/api/posts');
-    this.clearCache('/api/feed');
-    return data;
   }
   
   static async getPost(postId) {
@@ -282,38 +234,28 @@ class API {
   }
 
   static async likePost(postId) {
-    const data = await this.request(`/api/posts/${postId}/like`, {
+    return this.request(`/api/posts/${postId}/like`, {
       method: 'POST'
     });
-    this.clearCache('/api/posts');
-    this.clearCache('/api/feed');
-    return data;
   }
 
   static async bookmarkPost(postId) {
-    const data = await this.request(`/api/posts/${postId}/bookmark`, {
+    return this.request(`/api/posts/${postId}/bookmark`, {
       method: 'POST'
     });
-    this.clearCache('/api/posts');
-    return data;
   }
 
   static async commentOnPost(postId, text) {
-    const data = await this.request(`/api/posts/${postId}/comments`, {
+    return this.request(`/api/posts/${postId}/comments`, {
       method: 'POST',
       body: JSON.stringify({ text })
     });
-    this.clearCache(`/api/posts/${postId}`);
-    return data;
   }
 
   static async deletePost(postId) {
-    const data = await this.request(`/api/posts/${postId}`, {
+    return this.request(`/api/posts/${postId}`, {
       method: 'DELETE'
     });
-    this.clearCache('/api/posts');
-    this.clearCache('/api/feed');
-    return data;
   }
 
   // Users
@@ -335,13 +277,10 @@ class API {
   }
 
   static async updateProfile(formData) {
-    const data = await this.request('/api/profile', {
+    return this.request('/api/profile', {
       method: 'PUT',
       body: formData
     });
-    this.clearCache('/api/profile');
-    this.clearCache('/api/users');
-    return data;
   }
 
   static async getUser(username) {
@@ -360,12 +299,9 @@ class API {
   }
 
   static async followUser(username) {
-    const data = await this.request(`/api/users/${username}/follow`, {
+    return this.request(`/api/users/${username}/follow`, {
       method: 'POST'
     });
-    this.clearCache(`/api/users/${username}`);
-    this.clearCache('/api/feed');
-    return data;
   }
 
   static async getFollowers(username) {
@@ -390,12 +326,10 @@ class API {
   }
 
   static async sendMessage(messageData) {
-    const data = await this.request('/api/messages', {
+    return this.request('/api/messages', {
       method: 'POST',
       body: JSON.stringify(messageData)
     });
-    this.clearCache('/api/conversations');
-    return data;
   }
 
   // Groups
@@ -408,11 +342,9 @@ class API {
   }
 
   static async leaveGroup(groupId) {
-    const data = await this.request(`/api/groups/${groupId}/leave`, {
+    return this.request(`/api/groups/${groupId}/leave`, {
       method: 'POST'
     });
-    this.clearCache('/api/groups');
-    return data;
   }
   
   static async getPostComments(postId) {
@@ -436,29 +368,23 @@ class API {
   }
 
   static async createGroup(formData) {
-    const data = await this.request('/api/groups', {
+    return this.request('/api/groups', {
       method: 'POST',
       body: formData
     });
-    this.clearCache('/api/groups');
-    return data;
   }
 
   static async joinGroup(groupId) {
-    const data = await this.request(`/api/groups/${groupId}/join`, {
+    return this.request(`/api/groups/${groupId}/join`, {
       method: 'POST'
     });
-    this.clearCache('/api/groups');
-    return data;
   }
 
   // AI
   static async startAIConversation() {
-    const data = await this.request('/api/ai/conversations/start', {
+    return this.request('/api/ai/conversations/start', {
       method: 'POST'
     });
-    this.clearCache('/api/ai/conversations');
-    return data;
   }
 
   static async getAIConversations() {
@@ -466,12 +392,10 @@ class API {
   }
 
   static async sendAIMessage(conversationId, message) {
-    const data = await this.request(`/api/ai/conversations/${conversationId}/messages`, {
+    return this.request(`/api/ai/conversations/${conversationId}/messages`, {
       method: 'POST',
       body: JSON.stringify({ message })
     });
-    this.clearCache(`/api/ai/conversations/${conversationId}`);
-    return data;
   }
 
   static async getAIQuickResponse(message) {
