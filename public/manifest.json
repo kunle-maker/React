@@ -1,0 +1,40 @@
+{
+  "background_color": "#ffffff",
+  "description": "Vesselx - Charting meaningful connections",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Veselx",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "vesselx-frontend.onrender",
+  "start_url": "/",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "https://vesselx-frontend.onrender.com/vesselx-logo.png",
+      "type": "image/png",
+      "sizes": "2828x2828",
+      "isSquare": true,
+      "isPng": true,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 2828,
+      "is512x512": false,
+      "is256x256": false,
+      "is192x192": false
+    },
+    {
+      "src": "https://vesselx-frontend.onrender.com/favicon.ico",
+      "type": "image/x-icon",
+      "isSquare": false,
+      "isPng": false,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 0,
+      "is512x512": false,
+      "is256x256": false,
+      "is192x192": false
+    }
+  ],
+  "id": "vx"
+}
