@@ -1,9 +1,15 @@
-const CACHE_NAME = 'vesselx-v1';
+const CACHE_NAME = 'vesselx-v2';
 const urlsToCache = [
   '/',
   '/index.html',
+  '/offline.html',  // ADD THIS LINE
   '/manifest.json',
-  '/vesselx-logo.png',
+  '/launchericon-48x48.png',
+  '/launchericon-72x72.png',
+  '/launchericon-96x96.png',
+  '/launchericon-144x144.png',
+  '/launchericon-192x192.png',
+  '/launchericon-512x512.png',
   '/notification.mp3',
   '/default-avatar.png'
 ];
@@ -19,20 +25,30 @@ self.addEventListener('install', event => {
   );
 });
 
-// Fetch assets with stale-while-revalidate strategy
+// Fetch with offline page fallback
 self.addEventListener('fetch', event => {
   // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
+  // Handle navigation requests (page loads)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => {
+          // If fetch fails, show offline page
+          return caches.match('/offline.html');
+        })
+    );
+    return;
+  }
+
   // Handle API requests differently
   if (event.request.url.includes('/api/')) {
-    // Network first for API requests
     event.respondWith(
       fetch(event.request)
         .then(response => {
-          // Cache successful responses
           if (response.status === 200) {
             const responseToCache = response.clone();
             caches.open(CACHE_NAME)
@@ -43,8 +59,18 @@ self.addEventListener('fetch', event => {
           return response;
         })
         .catch(() => {
-          // Fallback to cache if offline
-          return caches.match(event.request);
+          // Return cached response if available
+          return caches.match(event.request)
+            .then(cachedResponse => {
+              if (cachedResponse) {
+                return cachedResponse;
+              }
+              // If no cache, return a fallback
+              return new Response(
+                JSON.stringify({ error: 'You are offline', posts: [] }),
+                { headers: { 'Content-Type': 'application/json' } }
+              );
+            });
         })
     );
     return;
@@ -96,8 +122,8 @@ self.addEventListener('push', event => {
   
   const options = {
     body: data.body,
-    icon: data.icon || '/vesselx-logo.png',
-    badge: '/vesselx-logo.png',
+    icon: data.icon || '/launchericon-192x192.png',
+    badge: '/launchericon-96x96.png',
     vibrate: [200, 100, 200],
     data: data.data,
     actions: data.actions || [
@@ -126,11 +152,9 @@ self.addEventListener('notificationclick', event => {
     return;
   }
 
-  // Open the app and navigate to the relevant page
   event.waitUntil(
     clients.matchAll({ type: 'window' })
       .then(clientList => {
-        // If we have an open window, focus it and navigate
         for (const client of clientList) {
           if (client.url === '/' && 'focus' in client) {
             if (event.notification.data && event.notification.data.url) {
@@ -142,9 +166,8 @@ self.addEventListener('notificationclick', event => {
             return client.focus();
           }
         }
-        // Otherwise open a new window
         if (clients.openWindow) {
-          return clients.openWindow(event.notification.data?.url || '/');
+          return clients.openWindow(event.notification.data?.url || '/#/');
         }
       })
   );
