@@ -1,40 +1,77 @@
 {
-  "background_color": "#ffffff",
-  "description": "Vesselx - Charting meaningful connections",
-  "dir": "ltr",
+  "name": "VesselX",
+  "short_name": "VesselX",
+  "description": "Charting meaningful connections - Share posts, chat with friends, create groups, and get AI assistance",
+  "start_url": "/#/",
   "display": "standalone",
-  "name": "Veselx",
-  "orientation": "any",
-  "scope": "/",
-  "short_name": "vesselx-frontend.onrender",
-  "start_url": "/",
+  "background_color": "#000000",
   "theme_color": "#000000",
+  "orientation": "portrait",
+  "scope": "/",
+  "id": "vesselx-app",
   "icons": [
     {
-      "src": "https://vesselx-frontend.onrender.com/vesselx-logo.png",
+      "src": "/launchericon-48x48.png",
+      "sizes": "48x48",
       "type": "image/png",
-      "sizes": "2828x2828",
-      "isSquare": true,
-      "isPng": true,
-      "isWebp": false,
-      "isJpg": false,
-      "width": 2828,
-      "is512x512": false,
-      "is256x256": false,
-      "is192x192": false
+      "purpose": "any"
     },
     {
-      "src": "https://vesselx-frontend.onrender.com/favicon.ico",
-      "type": "image/x-icon",
-      "isSquare": false,
-      "isPng": false,
-      "isWebp": false,
-      "isJpg": false,
-      "width": 0,
-      "is512x512": false,
-      "is256x256": false,
-      "is192x192": false
+      "src": "/launchericon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/launchericon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/launchericon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/launchericon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/launchericon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
-  "id": "vx"
+  "categories": ["social", "communication", "lifestyle"],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Feed",
+      "short_name": "Feed",
+      "description": "View your feed",
+      "url": "/#/",
+      "icons": [{ "src": "/launchericon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Messages",
+      "short_name": "Chat",
+      "description": "Check your messages",
+      "url": "/#/messages",
+      "icons": [{ "src": "/launchericon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Groups",
+      "short_name": "Groups",
+      "description": "View your groups",
+      "url": "/#/groups",
+      "icons": [{ "src": "/launchericon-96x96.png", "sizes": "96x96" }]
+    }
+  ],
+  "lang": "en",
+  "dir": "ltr"
 }
