@@ -1,0 +1,77 @@
+{
+  "name": "VesselX",
+  "short_name": "VesselX",
+  "description": "Charting meaningful connections - Share posts, chat with friends, create groups, and get AI assistance",
+  "start_url": "/#/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait",
+  "scope": "/",
+  "id": "vesselx-app",
+  "icons": [
+    {
+      "src": "/launchericon-48x48.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/launchericon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/launchericon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/launchericon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/launchericon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/launchericon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["social", "communication", "lifestyle"],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Feed",
+      "short_name": "Feed",
+      "description": "View your feed",
+      "url": "/#/",
+      "icons": [{ "src": "/launchericon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Messages",
+      "short_name": "Chat",
+      "description": "Check your messages",
+      "url": "/#/messages",
+      "icons": [{ "src": "/launchericon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Groups",
+      "short_name": "Groups",
+      "description": "View your groups",
+      "url": "/#/groups",
+      "icons": [{ "src": "/launchericon-96x96.png", "sizes": "96x96" }]
+    }
+  ],
+  "lang": "en",
+  "dir": "ltr"
+}
