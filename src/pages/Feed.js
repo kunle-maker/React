@@ -25,16 +25,19 @@ const Feed = () => {
     rootMargin: '100px'
   });
 
-  // Add a ref to track initial load
+  // Use refs to track state
   const initialLoadRef = useRef(true);
   const isFetchingRef = useRef(false);
+  const tabChangeRef = useRef(false);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     setCurrentUser(user);
     
-    // Fetch posts immediately on mount
-    fetchPosts();
+    // Fetch posts immediately on mount with a slight delay to ensure API is ready
+    setTimeout(() => {
+      fetchPosts();
+    }, 100);
 
     const handleOpenCreatePost = () => {
       setShowCreatePost(true);
@@ -46,27 +49,31 @@ const Feed = () => {
     };
   }, []);
 
-  // Fetch posts when tab changes
+  // Handle tab changes
   useEffect(() => {
-    // Skip the initial render
-    if (initialLoadRef.current) {
-      initialLoadRef.current = false;
-      return;
+    if (!initialLoadRef.current) {
+      // Mark that we're changing tabs
+      tabChangeRef.current = true;
+      
+      // Reset everything
+      setPosts([]);
+      setPage(1);
+      setHasMore(true);
+      
+      // Small delay to ensure state updates before fetching
+      setTimeout(() => {
+        fetchPosts();
+        tabChangeRef.current = false;
+      }, 50);
     }
-    
-    // Reset and fetch for tab change
-    setPosts([]);
-    setPage(1);
-    setHasMore(true);
-    fetchPosts();
   }, [activeTab]);
 
   // Load more when scroll reaches bottom
   useEffect(() => {
-    if (inView && hasMore && !isLoading && !isLoadingMore && !isFetchingRef.current) {
+    if (inView && hasMore && !isLoading && !isLoadingMore && !isFetchingRef.current && posts.length > 0) {
       setPage(prev => prev + 1);
     }
-  }, [inView, hasMore, isLoading, isLoadingMore]);
+  }, [inView, hasMore, isLoading, isLoadingMore, posts.length]);
 
   // Fetch more posts when page changes
   useEffect(() => {
@@ -79,6 +86,9 @@ const Feed = () => {
     // Prevent multiple simultaneous requests
     if (isFetchingRef.current) return;
     
+    // Don't fetch if we're already loading more and this isn't a load more request
+    if (isLoadingMore && !isLoadMore) return;
+    
     if (isLoadMore) {
       setIsLoadingMore(true);
     } else {
@@ -88,36 +98,40 @@ const Feed = () => {
     isFetchingRef.current = true;
     
     try {
-      console.log(`Fetching posts for tab: ${activeTab}, page: ${page}`); // Debug log
+      console.log(`Fetching posts for tab: ${activeTab}, page: ${page}, loadMore: ${isLoadMore}`);
       
       let data;
+      let postsArray = [];
       
+      // Try to fetch with retry logic for initial load
       if (activeTab === 'following') {
         data = await API.getFollowingFeed(page, 10);
       } else {
         data = await API.getPosts(page, 10);
       }
 
-      console.log('Received data:', data); // Debug log
+      console.log('Received data:', data);
 
-      let postsArray = [];
-      
+      // Extract posts array from various possible response formats
       if (Array.isArray(data)) {
         postsArray = data;
-      } else if (data && Array.isArray(data.posts)) {
+      } else if (data && data.posts && Array.isArray(data.posts)) {
         postsArray = data.posts;
       } else if (data && data.data && Array.isArray(data.data)) {
         postsArray = data.data;
+      } else if (data && data.results && Array.isArray(data.results)) {
+        postsArray = data.results;
       } else if (data && typeof data === 'object') {
         // Try to find any array property in the response
-        const arrays = Object.values(data).filter(Array.isArray);
+        const arrays = Object.values(data).filter(val => Array.isArray(val));
         if (arrays.length > 0) {
           postsArray = arrays[0];
         }
       }
       
-      console.log('Processed posts array:', postsArray); // Debug log
+      console.log('Processed posts array:', postsArray);
       
+      // Update posts based on whether it's load more or not
       if (isLoadMore) {
         setPosts(prev => {
           // Filter out duplicates by _id
@@ -130,14 +144,42 @@ const Feed = () => {
       }
       
       // Check if there are more posts to load
-      setHasMore(data?.hasMore || data?.has_more || postsArray.length === 10);
+      // Different APIs might return this differently
+      const morePosts = data?.hasMore || 
+                       data?.has_more || 
+                       data?.nextPage || 
+                       postsArray.length === 10 ||
+                       (data?.total && data.total > page * 10);
+      
+      setHasMore(!!morePosts);
+      
+      // If this is the initial load and we got no posts, try one more time after a delay
+      if (!isLoadMore && postsArray.length === 0 && initialLoadRef.current) {
+        setTimeout(() => {
+          if (posts.length === 0 && !isFetchingRef.current) {
+            console.log('Retrying initial fetch...');
+            fetchPosts();
+          }
+        }, 2000);
+      }
       
     } catch (error) {
       console.error('Error fetching posts:', error);
+      
+      // If error on initial load, try again after delay
+      if (initialLoadRef.current) {
+        setTimeout(() => {
+          if (!isFetchingRef.current) {
+            console.log('Retrying after error...');
+            fetchPosts();
+          }
+        }, 3000);
+      }
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
       isFetchingRef.current = false;
+      initialLoadRef.current = false;
     }
   };
 
@@ -225,9 +267,16 @@ const Feed = () => {
     try {
       await API.createPost(formData);
       setShowCreatePost(false);
-      setPage(1);
+      
+      // Refresh posts after creating new post
       setPosts([]);
-      fetchPosts();
+      setPage(1);
+      setHasMore(true);
+      
+      // Small delay to ensure cache is cleared
+      setTimeout(() => {
+        fetchPosts();
+      }, 100);
     } catch (error) {
       console.error('Error creating post:', error);
     }
@@ -261,6 +310,56 @@ const Feed = () => {
         <main className="main-content">
           <div className="feed-layout">
             <div className="posts-container">
+              {/* Feed Tabs - Show during loading */}
+              <div style={{
+                display: 'flex',
+                borderBottom: '1px solid var(--border-color)',
+                marginBottom: '24px',
+                background: 'var(--card-bg)',
+                borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
+                padding: '0 16px'
+              }}>
+                <button
+                  style={{
+                    flex: 1,
+                    padding: '16px 0',
+                    background: 'none',
+                    border: 'none',
+                    borderBottom: activeTab === 'forYou' ? '2px solid var(--primary)' : '2px solid transparent',
+                    color: activeTab === 'forYou' ? 'var(--primary)' : 'var(--text-secondary)',
+                    fontWeight: activeTab === 'forYou' ? '600' : '400',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <FiHome size={18} />
+                  For You
+                </button>
+                <button
+                  style={{
+                    flex: 1,
+                    padding: '16px 0',
+                    background: 'none',
+                    border: 'none',
+                    borderBottom: activeTab === 'following' ? '2px solid var(--primary)' : '2px solid transparent',
+                    color: activeTab === 'following' ? 'var(--primary)' : 'var(--text-secondary)',
+                    fontWeight: activeTab === 'following' ? '600' : '400',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <FiUsers size={18} />
+                  Following
+                </button>
+              </div>
+              
+              {/* Skeleton Loaders */}
               {[1, 2, 3].map((i) => (
                 <PostSkeleton key={i} />
               ))}
@@ -291,11 +390,6 @@ const Feed = () => {
               <button
                 onClick={() => {
                   setActiveTab('forYou');
-                  // Force immediate fetch when clicking tab
-                  setPosts([]);
-                  setPage(1);
-                  setHasMore(true);
-                  fetchPosts();
                 }}
                 style={{
                   flex: 1,
@@ -320,11 +414,6 @@ const Feed = () => {
               <button
                 onClick={() => {
                   setActiveTab('following');
-                  // Force immediate fetch when clicking tab
-                  setPosts([]);
-                  setPage(1);
-                  setHasMore(true);
-                  fetchPosts();
                 }}
                 style={{
                   flex: 1,
@@ -444,7 +533,7 @@ const Feed = () => {
                   </div>
                 )}
                 
-                {hasMore && (
+                {hasMore && posts.length > 0 && (
                   <div ref={ref} style={{ height: '20px', margin: '20px 0' }} />
                 )}
                 
