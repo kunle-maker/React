@@ -9,16 +9,24 @@ import CreatePost from '../components/CreatePost';
 import PostSkeleton from '../components/PostSkeleton';
 import API from '../utils/api';
 
+const CACHE_KEYS = {
+  forYou: 'feed_forYou_cache',
+  following: 'feed_following_cache'
+};
+
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 const Feed = () => {
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [activeTab, setActiveTab] = useState('forYou');
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [lastFetchTime, setLastFetchTime] = useState({});
   
   const navigate = useNavigate();
   const { ref, inView } = useInView({
@@ -26,17 +34,16 @@ const Feed = () => {
     rootMargin: '100px'
   });
 
+  // Load cached posts immediately on mount or tab change
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     setCurrentUser(user);
     
-    // Show cached posts immediately
-    const cachedPosts = sessionStorage.getItem('feed_posts');
-    if (cachedPosts) {
-      setPosts(JSON.parse(cachedPosts));
-    }
+    // Load from cache first
+    loadFromCache();
     
-    fetchPosts();
+    // Then fetch fresh data
+    refreshPosts();
 
     const handleOpenCreatePost = () => {
       setShowCreatePost(true);
@@ -48,43 +55,103 @@ const Feed = () => {
     };
   }, []);
 
-  // Fetch posts when tab changes
+  // Handle tab changes
   useEffect(() => {
-    setPosts([]);
+    // Reset pagination
     setPage(1);
     setHasMore(true);
-    fetchPosts();
+    
+    // Load cached posts for this tab
+    loadFromCache();
+    
+    // Check if we need to refresh (cache older than 5 minutes)
+    const lastFetch = lastFetchTime[activeTab] || 0;
+    const now = Date.now();
+    
+    if (now - lastFetch > CACHE_DURATION) {
+      refreshPosts();
+    }
   }, [activeTab]);
 
   // Load more when scroll reaches bottom
   useEffect(() => {
-    if (inView && hasMore && !isLoading && !isLoadingMore) {
+    if (inView && hasMore && !isLoading && !isLoadingMore && !isRefreshing) {
       setPage(prev => prev + 1);
     }
-  }, [inView, hasMore, isLoading, isLoadingMore]);
+  }, [inView, hasMore, isLoading, isLoadingMore, isRefreshing]);
 
   // Fetch more posts when page changes
   useEffect(() => {
     if (page > 1) {
-      fetchPosts(true);
+      fetchMorePosts();
     }
   }, [page]);
 
-  const fetchPosts = async (isLoadMore = false) => {
+  const loadFromCache = () => {
+    try {
+      const cacheKey = CACHE_KEYS[activeTab];
+      const cached = sessionStorage.getItem(cacheKey);
+      
+      if (cached) {
+        const { posts: cachedPosts, timestamp } = JSON.parse(cached);
+        const now = Date.now();
+        
+        // Use cache if it's less than 5 minutes old
+        if (now - timestamp < CACHE_DURATION) {
+          setPosts(cachedPosts);
+          setIsLoading(false);
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading from cache:', error);
+    }
+    return false;
+  };
+
+  const saveToCache = (postsToCache) => {
+    try {
+      const cacheKey = CACHE_KEYS[activeTab];
+      sessionStorage.setItem(cacheKey, JSON.stringify({
+        posts: postsToCache,
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error('Error saving to cache:', error);
+    }
+  };
+
+  const refreshPosts = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchPosts(false, true);
+      setLastFetchTime(prev => ({
+        ...prev,
+        [activeTab]: Date.now()
+      }));
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const fetchPosts = async (isLoadMore = false, isRefresh = false) => {
     if (isLoadMore) {
       setIsLoadingMore(true);
-    } else {
+    } else if (!isRefresh) {
       setIsLoading(true);
     }
     
     try {
-      let data;
+      console.log(`Fetching posts for tab: ${activeTab}, page: ${page}`);
       
+      let data;
       if (activeTab === 'following') {
         data = await API.getFollowingFeed(page, 10);
       } else {
         data = await API.getPosts(page, 10);
       }
+
+      console.log('Received data:', data);
 
       let postsArray = [];
       
@@ -101,21 +168,24 @@ const Feed = () => {
         }
       }
       
+      console.log('Processed posts array:', postsArray);
+      
       if (isLoadMore) {
         setPosts(prev => {
           const newPosts = [...prev, ...postsArray];
-          // Cache posts
-          sessionStorage.setItem('feed_posts', JSON.stringify(newPosts));
+          // Update cache with merged posts
+          saveToCache(newPosts);
           return newPosts;
         });
       } else {
         setPosts(postsArray);
-        // Cache posts
-        sessionStorage.setItem('feed_posts', JSON.stringify(postsArray));
+        // Update cache
+        saveToCache(postsArray);
       }
       
-      setHasMore(data?.hasMore || data?.has_more || postsArray.length === 10);
-      setTotalPages(data?.totalPages || data?.total_pages || 1);
+      // Check if there are more posts to load
+      const moreAvailable = data?.hasMore || data?.has_more || postsArray.length === 10;
+      setHasMore(moreAvailable);
       
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -123,6 +193,10 @@ const Feed = () => {
       setIsLoading(false);
       setIsLoadingMore(false);
     }
+  };
+
+  const fetchMorePosts = () => {
+    fetchPosts(true);
   };
 
   const handleLike = useCallback(async (postId) => {
@@ -133,25 +207,30 @@ const Feed = () => {
       
       await API.likePost(postId);
       
-      setPosts(prev => prev.map(post => {
-        if (post._id === postId) {
-          const newLikesCount = isAlreadyLiked 
-            ? Math.max(0, (post.likesCount || post.likes?.length || 1) - 1) 
-            : (post.likesCount || post.likes?.length || 0) + 1;
-          
-          const newLikes = isAlreadyLiked
-            ? (post.likes || []).filter(id => id !== currentUser?._id && id !== currentUser?.id)
-            : [...(post.likes || []), currentUser?._id || currentUser?.id];
+      setPosts(prev => {
+        const updatedPosts = prev.map(post => {
+          if (post._id === postId) {
+            const newLikesCount = isAlreadyLiked 
+              ? Math.max(0, (post.likesCount || post.likes?.length || 1) - 1) 
+              : (post.likesCount || post.likes?.length || 0) + 1;
             
-          return {
-            ...post,
-            likes: newLikes,
-            likesCount: newLikesCount,
-            isLiked: !isAlreadyLiked
-          };
-        }
-        return post;
-      }));
+            const newLikes = isAlreadyLiked
+              ? (post.likes || []).filter(id => id !== currentUser?._id && id !== currentUser?.id)
+              : [...(post.likes || []), currentUser?._id || currentUser?.id];
+              
+            return {
+              ...post,
+              likes: newLikes,
+              likesCount: newLikesCount,
+              isLiked: !isAlreadyLiked
+            };
+          }
+          return post;
+        });
+        // Update cache after like
+        saveToCache(updatedPosts);
+        return updatedPosts;
+      });
     } catch (error) {
       console.error('Error liking post:', error);
     }
@@ -160,11 +239,16 @@ const Feed = () => {
   const handleBookmark = useCallback(async (postId) => {
     try {
       await API.bookmarkPost(postId);
-      setPosts(prev => prev.map(post => 
-        post._id === postId 
-          ? { ...post, bookmarked: !post.bookmarked } 
-          : post
-      ));
+      setPosts(prev => {
+        const updatedPosts = prev.map(post => 
+          post._id === postId 
+            ? { ...post, bookmarked: !post.bookmarked } 
+            : post
+        );
+        // Update cache after bookmark
+        saveToCache(updatedPosts);
+        return updatedPosts;
+      });
     } catch (error) {
       console.error('Error bookmarking post:', error);
     }
@@ -180,15 +264,20 @@ const Feed = () => {
         createdAt: new Date().toISOString()
       };
       
-      setPosts(prev => prev.map(post => 
-        post._id === postId 
-          ? { 
-              ...post, 
-              comments: [...(post.comments || []), newComment],
-              commentsCount: (post.commentsCount || post.comments?.length || 0) + 1
-            } 
-          : post
-      ));
+      setPosts(prev => {
+        const updatedPosts = prev.map(post => 
+          post._id === postId 
+            ? { 
+                ...post, 
+                comments: [...(post.comments || []), newComment],
+                commentsCount: (post.commentsCount || post.comments?.length || 0) + 1
+              } 
+            : post
+        );
+        // Update cache after comment
+        saveToCache(updatedPosts);
+        return updatedPosts;
+      });
     } catch (error) {
       console.error('Error adding comment:', error);
     }
@@ -199,19 +288,23 @@ const Feed = () => {
     
     try {
       await API.deletePost(postId);
-      setPosts(prev => prev.filter(post => post._id !== postId));
-      sessionStorage.setItem('feed_posts', JSON.stringify(posts.filter(post => post._id !== postId)));
+      setPosts(prev => {
+        const updatedPosts = prev.filter(post => post._id !== postId);
+        // Update cache after delete
+        saveToCache(updatedPosts);
+        return updatedPosts;
+      });
     } catch (error) {
       console.error('Error deleting post:', error);
     }
-  }, [posts]);
+  }, []);
 
   const handleCreatePostSubmit = async (formData) => {
     try {
       await API.createPost(formData);
       setShowCreatePost(false);
-      setPage(1);
-      fetchPosts();
+      // Refresh both tabs after new post
+      refreshPosts();
     } catch (error) {
       console.error('Error creating post:', error);
     }
@@ -221,27 +314,15 @@ const Feed = () => {
     navigate(`/post/${post._id}`, { state: { post } });
   };
 
-  const calculateEngagementScore = (post) => {
-    let score = (post.likesCount || post.likes?.length || 0) * 2;
-    score += (post.commentsCount || post.comments?.length || 0) * 3;
-    
-    if (post.media && post.media.some(m => m.type === 'video')) {
-      score += 10;
-    }
-    
-    const hoursSincePosted = (new Date() - new Date(post.createdAt)) / (1000 * 60 * 60);
-    if (hoursSincePosted < 24) {
-      score += (24 - hoursSincePosted) * 0.5;
-    }
-    
-    return score;
-  };
-
   const switchTab = (tab) => {
     if (tab !== activeTab) {
       setActiveTab(tab);
     }
   };
+
+  const handlePullToRefresh = useCallback(() => {
+    refreshPosts();
+  }, []);
 
   // Show skeletons while loading initial posts
   if (isLoading && posts.length === 0) {
@@ -269,14 +350,15 @@ const Feed = () => {
       <main className="main-content">
         <div className="feed-layout">
           <div className="posts-container">
-            {/* Feed Tabs */}
+            {/* Feed Tabs with Refresh Indicator */}
             <div style={{
               display: 'flex',
               borderBottom: '1px solid var(--border-color)',
               marginBottom: '24px',
               background: 'var(--card-bg)',
               borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
-              padding: '0 16px'
+              padding: '0 16px',
+              position: 'relative'
             }}>
               <button
                 onClick={() => switchTab('forYou')}
@@ -322,6 +404,27 @@ const Feed = () => {
                 <FiUsers size={18} />
                 Following
               </button>
+              
+              {/* Pull to refresh indicator */}
+              {isRefreshing && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  padding: '8px',
+                  background: 'var(--card-bg)',
+                  borderBottom: '1px solid var(--border-color)',
+                  zIndex: 10
+                }}>
+                  <div className="loading-spinner small"></div>
+                  <span style={{ marginLeft: '8px', fontSize: '12px', color: 'var(--text-dim)' }}>
+                    Refreshing...
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Feed Content */}
@@ -356,62 +459,26 @@ const Feed = () => {
               </div>
             ) : (
               <>
-                {activeTab === 'forYou' ? (
-                  [...posts].sort((a, b) => {
-                    const aScore = calculateEngagementScore(a);
-                    const bScore = calculateEngagementScore(b);
-                    const aHasVideo = a.media && a.media.some(m => m.type === 'video');
-                    const bHasVideo = b.media && b.media.some(m => m.type === 'video');
-                    
-                    if (aHasVideo === bHasVideo) {
-                      const aRandomFactor = aHasVideo ? 0.7 + Math.random() * 0.3 : 1.0;
-                      const bRandomFactor = bHasVideo ? 0.7 + Math.random() * 0.3 : 1.0;
-                      return (bScore * bRandomFactor) - (aScore * aRandomFactor);
-                    }
-                    
-                    return bHasVideo ? 1 : -1;
-                  }).map((post) => (
-                    <PostCard
-                      key={post._id}
-                      post={post}
-                      currentUser={currentUser}
-                      onLike={handleLike}
-                      onComment={handleComment}
-                      onBookmark={handleBookmark}
-                      onDelete={handleDeletePost}
-                      onPostClick={() => handlePostClick(post)}
-                      onDoubleTapLike={(postId) => {
-                        const post = posts.find(p => p._id === postId);
-                        const isLiked = post?.likes?.includes(currentUser?._id) || 
-                                       post?.likes?.includes(currentUser?.id);
-                        if (!isLiked) {
-                          handleLike(postId);
-                        }
-                      }}
-                    />
-                  ))
-                ) : (
-                  posts.map((post) => (
-                    <PostCard
-                      key={post._id}
-                      post={post}
-                      currentUser={currentUser}
-                      onLike={handleLike}
-                      onComment={handleComment}
-                      onBookmark={handleBookmark}
-                      onDelete={handleDeletePost}
-                      onPostClick={() => handlePostClick(post)}
-                      onDoubleTapLike={(postId) => {
-                        const post = posts.find(p => p._id === postId);
-                        const isLiked = post?.likes?.includes(currentUser?._id) || 
-                                       post?.likes?.includes(currentUser?.id);
-                        if (!isLiked) {
-                          handleLike(postId);
-                        }
-                      }}
-                    />
-                  ))
-                )}
+                {posts.map((post) => (
+                  <PostCard
+                    key={post._id}
+                    post={post}
+                    currentUser={currentUser}
+                    onLike={handleLike}
+                    onComment={handleComment}
+                    onBookmark={handleBookmark}
+                    onDelete={handleDeletePost}
+                    onPostClick={() => handlePostClick(post)}
+                    onDoubleTapLike={(postId) => {
+                      const post = posts.find(p => p._id === postId);
+                      const isLiked = post?.likes?.includes(currentUser?._id) || 
+                                     post?.likes?.includes(currentUser?.id);
+                      if (!isLiked) {
+                        handleLike(postId);
+                      }
+                    }}
+                  />
+                ))}
                 
                 {/* Loading indicator and intersection observer target */}
                 {isLoadingMore && (
@@ -420,11 +487,11 @@ const Feed = () => {
                   </div>
                 )}
                 
-                {hasMore && activeTab === 'following' && (
+                {hasMore && (
                   <div ref={ref} style={{ height: '20px', margin: '20px 0' }} />
                 )}
                 
-                {!hasMore && activeTab === 'following' && posts.length > 0 && (
+                {!hasMore && posts.length > 0 && (
                   <div style={{ 
                     textAlign: 'center', 
                     padding: '20px', 
