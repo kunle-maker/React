@@ -180,9 +180,11 @@ const Profile = () => {
     }
   };
 
+  // Function to cache post data when navigating to full view
   const handlePostClick = (post) => {
-  navigate(`/post/${post._id}`, { state: { post } });
-};
+    sessionStorage.setItem(`post_${post._id}`, JSON.stringify(post));
+    navigate(`/post/${post._id}`, { state: { post } });
+  };
 
   if (isLoading) {
     return (
