@@ -42,51 +42,47 @@ const FullPostView = () => {
   }, [postId, post]);
 
   const fetchPost = async () => {
-    setIsLoading(true);
-    try {
-      // Try to get post from session storage first
-      const cachedPost = sessionStorage.getItem(`post_${postId}`);
-      if (cachedPost) {
-        const parsedPost = JSON.parse(cachedPost);
-        setPost(parsedPost);
-        setIsLiked(parsedPost.likes?.includes(currentUser?._id) || parsedPost.likes?.includes(currentUser?.id) || false);
-        setIsBookmarked(parsedPost.bookmarked || false);
-        setLikesCount(parsedPost.likesCount || parsedPost.likes?.length || 0);
-        setComments(parsedPost.comments || []);
-      } else {
-        // Fetch from API
-        await fetchPostFromAPI();
-      }
-    } catch (error) {
-      console.error('Error fetching post:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  setIsLoading(true);
+  try {
+    await fetchPostFromAPI();
+  } catch (error) {
+    console.error('Error fetching post:', error);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-  const fetchPostFromAPI = async () => {
-    try {
-      // Try to fetch all posts and find the matching one
-      const data = await API.getPosts();
-      const foundPost = data.posts?.find(p => p._id === postId) || 
-                       data.posts?.find(p => p.id === postId);
-      
-      if (foundPost) {
-        setPostData(foundPost);
+const fetchPostFromAPI = async () => {
+  try {
+    // Try to fetch all posts and find the matching one
+    const data = await API.getPosts();
+    const foundPost = data.posts?.find(p => p._id === postId) || 
+                     data.posts?.find(p => p.id === postId);
+    
+    if (foundPost) {
+      setPost(foundPost);
+      setIsLiked(foundPost.likes?.includes(currentUser?._id) || foundPost.likes?.includes(currentUser?.id) || false);
+      setIsBookmarked(foundPost.bookmarked || false);
+      setLikesCount(foundPost.likesCount || foundPost.likes?.length || 0);
+      setComments(foundPost.comments || []);
+    } else {
+      // If not found in feed, try to get it from the post author's posts
+      const allPosts = await fetchRecentPosts();
+      const postFromAll = allPosts.find(p => p._id === postId);
+      if (postFromAll) {
+        setPost(postFromAll);
+        setIsLiked(postFromAll.likes?.includes(currentUser?._id) || postFromAll.likes?.includes(currentUser?.id) || false);
+        setIsBookmarked(postFromAll.bookmarked || false);
+        setLikesCount(postFromAll.likesCount || postFromAll.likes?.length || 0);
+        setComments(postFromAll.comments || []);
       } else {
-        // If not found in feed, try to get it from the post author's posts
-        const allPosts = await fetchRecentPosts();
-        const postFromAll = allPosts.find(p => p._id === postId);
-        if (postFromAll) {
-          setPostData(postFromAll);
-        } else {
-          console.error('Post not found');
-        }
+        console.error('Post not found');
       }
-    } catch (error) {
-      console.error('Error fetching post from API:', error);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching post from API:', error);
+  }
+};
 
   const fetchRecentPosts = async () => {
     try {
