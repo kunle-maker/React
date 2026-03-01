@@ -9,24 +9,15 @@ import CreatePost from '../components/CreatePost';
 import PostSkeleton from '../components/PostSkeleton';
 import API from '../utils/api';
 
-const CACHE_KEYS = {
-  forYou: 'feed_forYou_cache',
-  following: 'feed_following_cache'
-};
-
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
 const Feed = () => {
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [activeTab, setActiveTab] = useState('forYou');
   const [page, setPage] = useState(1);
-  const [lastFetchTime, setLastFetchTime] = useState({});
   
   const navigate = useNavigate();
   const { ref, inView } = useInView({
@@ -34,16 +25,15 @@ const Feed = () => {
     rootMargin: '100px'
   });
 
-  // Load cached posts immediately on mount or tab change
+  // Add a ref to track initial load
+  const initialLoadRef = useRef(true);
+
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     setCurrentUser(user);
     
-    // Load from cache first
-    loadFromCache();
-    
-    // Then fetch fresh data
-    refreshPosts();
+    // Don't show cached posts - fetch fresh data immediately
+    fetchPosts();
 
     const handleOpenCreatePost = () => {
       setShowCreatePost(true);
@@ -53,105 +43,56 @@ const Feed = () => {
     return () => {
       window.removeEventListener('openCreatePostModal', handleOpenCreatePost);
     };
-  }, []);
+  }, []); // Empty dependency array for initial load
 
-  // Handle tab changes
+  // Fetch posts when tab changes
   useEffect(() => {
-    // Reset pagination
+    // Skip the initial render
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      return;
+    }
+    
+    // Reset and fetch for tab change
+    setPosts([]);
     setPage(1);
     setHasMore(true);
-    
-    // Load cached posts for this tab
-    loadFromCache();
-    
-    // Check if we need to refresh (cache older than 5 minutes)
-    const lastFetch = lastFetchTime[activeTab] || 0;
-    const now = Date.now();
-    
-    if (now - lastFetch > CACHE_DURATION) {
-      refreshPosts();
-    }
+    fetchPosts();
   }, [activeTab]);
 
   // Load more when scroll reaches bottom
   useEffect(() => {
-    if (inView && hasMore && !isLoading && !isLoadingMore && !isRefreshing) {
+    if (inView && hasMore && !isLoading && !isLoadingMore) {
       setPage(prev => prev + 1);
     }
-  }, [inView, hasMore, isLoading, isLoadingMore, isRefreshing]);
+  }, [inView, hasMore, isLoading, isLoadingMore]);
 
   // Fetch more posts when page changes
   useEffect(() => {
     if (page > 1) {
-      fetchMorePosts();
+      fetchPosts(true);
     }
   }, [page]);
 
-  const loadFromCache = () => {
-    try {
-      const cacheKey = CACHE_KEYS[activeTab];
-      const cached = sessionStorage.getItem(cacheKey);
-      
-      if (cached) {
-        const { posts: cachedPosts, timestamp } = JSON.parse(cached);
-        const now = Date.now();
-        
-        // Use cache if it's less than 5 minutes old
-        if (now - timestamp < CACHE_DURATION) {
-          setPosts(cachedPosts);
-          setIsLoading(false);
-          return true;
-        }
-      }
-    } catch (error) {
-      console.error('Error loading from cache:', error);
-    }
-    return false;
-  };
-
-  const saveToCache = (postsToCache) => {
-    try {
-      const cacheKey = CACHE_KEYS[activeTab];
-      sessionStorage.setItem(cacheKey, JSON.stringify({
-        posts: postsToCache,
-        timestamp: Date.now()
-      }));
-    } catch (error) {
-      console.error('Error saving to cache:', error);
-    }
-  };
-
-  const refreshPosts = async () => {
-    setIsRefreshing(true);
-    try {
-      await fetchPosts(false, true);
-      setLastFetchTime(prev => ({
-        ...prev,
-        [activeTab]: Date.now()
-      }));
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const fetchPosts = async (isLoadMore = false, isRefresh = false) => {
+  const fetchPosts = async (isLoadMore = false) => {
     if (isLoadMore) {
       setIsLoadingMore(true);
-    } else if (!isRefresh) {
+    } else {
       setIsLoading(true);
     }
     
     try {
-      console.log(`Fetching posts for tab: ${activeTab}, page: ${page}`);
-      
       let data;
+      
+      console.log(`Fetching posts for tab: ${activeTab}, page: ${page}`); // Debug log
+      
       if (activeTab === 'following') {
         data = await API.getFollowingFeed(page, 10);
       } else {
         data = await API.getPosts(page, 10);
       }
 
-      console.log('Received data:', data);
+      console.log('Received data:', data); // Debug log
 
       let postsArray = [];
       
@@ -168,24 +109,19 @@ const Feed = () => {
         }
       }
       
-      console.log('Processed posts array:', postsArray);
+      console.log('Processed posts array:', postsArray); // Debug log
       
       if (isLoadMore) {
         setPosts(prev => {
           const newPosts = [...prev, ...postsArray];
-          // Update cache with merged posts
-          saveToCache(newPosts);
           return newPosts;
         });
       } else {
         setPosts(postsArray);
-        // Update cache
-        saveToCache(postsArray);
       }
       
       // Check if there are more posts to load
-      const moreAvailable = data?.hasMore || data?.has_more || postsArray.length === 10;
-      setHasMore(moreAvailable);
+      setHasMore(data?.hasMore || data?.has_more || postsArray.length === 10);
       
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -195,135 +131,8 @@ const Feed = () => {
     }
   };
 
-  const fetchMorePosts = () => {
-    fetchPosts(true);
-  };
-
-  const handleLike = useCallback(async (postId) => {
-    try {
-      const postToUpdate = posts.find(p => p._id === postId);
-      const isAlreadyLiked = postToUpdate?.likes?.includes(currentUser?._id) || 
-                            postToUpdate?.likes?.includes(currentUser?.id);
-      
-      await API.likePost(postId);
-      
-      setPosts(prev => {
-        const updatedPosts = prev.map(post => {
-          if (post._id === postId) {
-            const newLikesCount = isAlreadyLiked 
-              ? Math.max(0, (post.likesCount || post.likes?.length || 1) - 1) 
-              : (post.likesCount || post.likes?.length || 0) + 1;
-            
-            const newLikes = isAlreadyLiked
-              ? (post.likes || []).filter(id => id !== currentUser?._id && id !== currentUser?.id)
-              : [...(post.likes || []), currentUser?._id || currentUser?.id];
-              
-            return {
-              ...post,
-              likes: newLikes,
-              likesCount: newLikesCount,
-              isLiked: !isAlreadyLiked
-            };
-          }
-          return post;
-        });
-        // Update cache after like
-        saveToCache(updatedPosts);
-        return updatedPosts;
-      });
-    } catch (error) {
-      console.error('Error liking post:', error);
-    }
-  }, [posts, currentUser]);
-
-  const handleBookmark = useCallback(async (postId) => {
-    try {
-      await API.bookmarkPost(postId);
-      setPosts(prev => {
-        const updatedPosts = prev.map(post => 
-          post._id === postId 
-            ? { ...post, bookmarked: !post.bookmarked } 
-            : post
-        );
-        // Update cache after bookmark
-        saveToCache(updatedPosts);
-        return updatedPosts;
-      });
-    } catch (error) {
-      console.error('Error bookmarking post:', error);
-    }
-  }, []);
-
-  const handleComment = useCallback(async (postId, text) => {
-    try {
-      const data = await API.commentOnPost(postId, text);
-      const newComment = data.comment || {
-        _id: Date.now().toString(),
-        text,
-        user: currentUser,
-        createdAt: new Date().toISOString()
-      };
-      
-      setPosts(prev => {
-        const updatedPosts = prev.map(post => 
-          post._id === postId 
-            ? { 
-                ...post, 
-                comments: [...(post.comments || []), newComment],
-                commentsCount: (post.commentsCount || post.comments?.length || 0) + 1
-              } 
-            : post
-        );
-        // Update cache after comment
-        saveToCache(updatedPosts);
-        return updatedPosts;
-      });
-    } catch (error) {
-      console.error('Error adding comment:', error);
-    }
-  }, [currentUser]);
-
-  const handleDeletePost = useCallback(async (postId) => {
-    if (!window.confirm('Are you sure you want to delete this post?')) return;
-    
-    try {
-      await API.deletePost(postId);
-      setPosts(prev => {
-        const updatedPosts = prev.filter(post => post._id !== postId);
-        // Update cache after delete
-        saveToCache(updatedPosts);
-        return updatedPosts;
-      });
-    } catch (error) {
-      console.error('Error deleting post:', error);
-    }
-  }, []);
-
-  const handleCreatePostSubmit = async (formData) => {
-    try {
-      await API.createPost(formData);
-      setShowCreatePost(false);
-      // Refresh both tabs after new post
-      refreshPosts();
-    } catch (error) {
-      console.error('Error creating post:', error);
-    }
-  };
-
-  const handlePostClick = (post) => {
-    navigate(`/post/${post._id}`, { state: { post } });
-  };
-
-  const switchTab = (tab) => {
-    if (tab !== activeTab) {
-      setActiveTab(tab);
-    }
-  };
-
-  const handlePullToRefresh = useCallback(() => {
-    refreshPosts();
-  }, []);
-
+  // ... rest of your component remains the same (handlers, render, etc.)
+  
   // Show skeletons while loading initial posts
   if (isLoading && posts.length === 0) {
     return (
@@ -350,18 +159,23 @@ const Feed = () => {
       <main className="main-content">
         <div className="feed-layout">
           <div className="posts-container">
-            {/* Feed Tabs with Refresh Indicator */}
+            {/* Feed Tabs */}
             <div style={{
               display: 'flex',
               borderBottom: '1px solid var(--border-color)',
               marginBottom: '24px',
               background: 'var(--card-bg)',
               borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
-              padding: '0 16px',
-              position: 'relative'
+              padding: '0 16px'
             }}>
               <button
-                onClick={() => switchTab('forYou')}
+                onClick={() => {
+                  setActiveTab('forYou');
+                  // Force immediate fetch when clicking tab
+                  setPosts([]);
+                  setPage(1);
+                  fetchPosts();
+                }}
                 style={{
                   flex: 1,
                   padding: '16px 0',
@@ -383,7 +197,13 @@ const Feed = () => {
                 For You
               </button>
               <button
-                onClick={() => switchTab('following')}
+                onClick={() => {
+                  setActiveTab('following');
+                  // Force immediate fetch when clicking tab
+                  setPosts([]);
+                  setPage(1);
+                  fetchPosts();
+                }}
                 style={{
                   flex: 1,
                   padding: '16px 0',
@@ -404,27 +224,6 @@ const Feed = () => {
                 <FiUsers size={18} />
                 Following
               </button>
-              
-              {/* Pull to refresh indicator */}
-              {isRefreshing && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  display: 'flex',
-                  justifyContent: 'center',
-                  padding: '8px',
-                  background: 'var(--card-bg)',
-                  borderBottom: '1px solid var(--border-color)',
-                  zIndex: 10
-                }}>
-                  <div className="loading-spinner small"></div>
-                  <span style={{ marginLeft: '8px', fontSize: '12px', color: 'var(--text-dim)' }}>
-                    Refreshing...
-                  </span>
-                </div>
-              )}
             </div>
 
             {/* Feed Content */}
