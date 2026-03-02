@@ -1,7 +1,7 @@
 {
   "name": "VesselX",
-  "short_name": "VSX",
-  "description": "Charting meaningful connections - Share posts, chat with friends, create groups, and get AI assistance",
+  "short_name": "VesselX",
+  "description": "Share posts, chat with friends, create groups, and get AI assistance",
   "start_url": "/#/",
   "display": "fullscreen",
   "display_override": ["fullscreen", "standalone", "minimal-ui"],
