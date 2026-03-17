@@ -1,49 +1,26 @@
 {
-  "name": "vesselx-frontend",
+  "name": "vesselx-backend",
   "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "axios": "^1.4.0",
-    "cropperjs": "^1.6.1",
-    "react": "^18.2.0",
-    "react-cropper": "^2.3.3",
-    "react-dom": "^18.2.0",
-    "react-icons": "^4.10.1",
-    "react-intersection-observer": "^9.5.2",
-    "react-router-dom": "^6.14.0",
-    "react-lazy-load-image-component": "^1.5.6",
-    "socket.io-client": "^4.6.1"
-  },
+  "description": "Vesselx social media platform backend",
+  "main": "server.js",
   "scripts": {
-    "start": "PORT=3000 react-scripts start",
-    "build": "react-scripts build && gzip -k -r build/static/js/*.js",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "analyze": "source-map-explorer 'build/static/js/*.js'"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
-  "devDependencies": {
-    "react-scripts": "^5.0.1",
-    "tailwindcss": "^3.3.3",
-    "autoprefixer": "^10.4.14",
-    "postcss": "^8.4.27",
-    "source-map-explorer": "^2.5.3",
-    "compression-webpack-plugin": "^10.0.0"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+  "dependencies": {
+    "axios": "^1.6.0",
+    "bcryptjs": "^2.4.3",
+    "chalk": "^4.1.2",
+    "cloudinary": "^1.41.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "groq-sdk": "^0.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.0.0",
+    "multer": "^1.4.5-lts.1",
+    "multer-storage-cloudinary": "^4.0.0",
+    "resend": "^2.0.0",
+    "socket.io": "^4.6.1",
+    "web-push": "^3.6.7"
   }
 }
