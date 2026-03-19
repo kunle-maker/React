@@ -4,6 +4,7 @@ import { formatDistanceToNow } from 'date-fns';
 import Layout from '../components/Layout';
 import Avatar from '../components/Avatar';
 import API from '../utils/api';
+import { parseEmojisToHtml } from '../utils/emoji';
 
 const VESSELX_AVATAR = { name: 'Vesselx AI', username: 'vesselx_ai', profilePicture: null };
 
@@ -107,9 +108,10 @@ export default function AIAssistant({ currentUser, unreadCounts }) {
                   )}
                 </div>
                 <div className={`max-w-xs lg:max-w-md ${isAI ? '' : 'items-end'} flex flex-col`}>
-                  <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${isAI ? 'bg-discord-sidebar text-discord-text rounded-tl-sm' : 'bg-discord-brand text-white rounded-tr-sm'}`}>
-                    {msg.content}
-                  </div>
+                  <div
+                    className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${isAI ? 'bg-discord-sidebar text-discord-text rounded-tl-sm' : 'bg-discord-brand text-white rounded-tr-sm'}`}
+                    dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(msg.content) }}
+                  />
                   <span className="text-discord-muted text-[10px] mt-1">
                     {msg.timestamp ? formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true }) : ''}
                   </span>

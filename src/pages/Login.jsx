@@ -82,7 +82,7 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-discord-muted text-xs font-bold uppercase tracking-wide mb-1.5">
-                Username
+                Username or Email
               </label>
               <input
                 type="text"

@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiSend, FiArrowLeft, FiUsers, FiInfo, FiTrash2, FiCopy, FiMoreVertical, FiLogOut } from 'react-icons/fi';
+import { FiSend, FiArrowLeft, FiUsers, FiInfo, FiTrash2, FiCopy, FiMoreVertical, FiLogOut, FiFlag, FiSmile } from 'react-icons/fi';
+import ReportModal from '../components/ReportModal';
 import { format, isToday, isYesterday } from 'date-fns';
 import Layout from '../components/Layout';
 import Avatar from '../components/Avatar';
 import FormattedText from '../components/FormattedText';
 import LinkPreview from '../components/LinkPreview';
+import EmojiPicker from '../components/EmojiPicker';
 import API from '../utils/api';
 import socket from '../utils/socket';
 
@@ -44,7 +46,9 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   const [newMsgCount, setNewMsgCount] = useState(0);
   const [showCopied, setShowCopied] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
+  const [reportTarget, setReportTarget] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -61,9 +65,19 @@ export default function GroupChat({ currentUser, unreadCounts }) {
 
   useEffect(() => {
     const handler = (e) => {
-      const { message, group: g } = e.detail;
-      if (g?._id === groupId || message?.groupId === groupId) {
-        setMessages(prev => [...prev, message]);
+      const { message, group: g, groupId: evtGroupId } = e.detail;
+      const msgGroupId = message?.groupId?.toString?.() || message?.groupId;
+      const matches =
+        g?._id === groupId ||
+        evtGroupId === groupId ||
+        msgGroupId === groupId;
+      if (matches) {
+        setMessages(prev => {
+          const exists = prev.some(m => m._id?.toString() === message._id?.toString());
+          if (exists) return prev;
+          const filtered = prev.filter(m => typeof m._id !== 'number');
+          return [...filtered, message];
+        });
         if (isAtBottom) scrollToBottom();
         else setNewMsgCount(c => c + 1);
       }
@@ -100,8 +114,10 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   const fetchMessages = async () => {
     setLoading(true);
     try {
+      API.clearCache(`/api/groups/${groupId}/messages`);
       const data = await API.getGroupMessages(groupId);
-      setMessages(data.messages || []);
+      const msgs = Array.isArray(data) ? data : (data.messages || data.data || []);
+      setMessages(msgs);
       scrollToBottom(true);
     } catch { }
     finally { setLoading(false); }
@@ -114,8 +130,9 @@ export default function GroupChat({ currentUser, unreadCounts }) {
     setNewMsg('');
     if (textareaRef.current) { textareaRef.current.style.height = '42px'; }
     setSending(true);
+    const tempId = Date.now();
     const tempMsg = {
-      _id: Date.now(),
+      _id: tempId,
       text,
       senderId: { _id: myId, username: currentUser?.username, name: currentUser?.name, profilePicture: currentUser?.profilePicture },
       senderUsername: currentUser?.username,
@@ -124,8 +141,14 @@ export default function GroupChat({ currentUser, unreadCounts }) {
     setMessages(prev => [...prev, tempMsg]);
     scrollToBottom();
     try {
-      await API.sendGroupMessage(groupId, text);
-    } catch { setMessages(prev => prev.filter(m => m._id !== tempMsg._id)); }
+      const data = await API.sendGroupMessage(groupId, text);
+      const realMsg = data?.message || data;
+      if (realMsg?._id && realMsg._id !== tempId) {
+        setMessages(prev => prev.map(m => m._id === tempId ? { ...realMsg } : m));
+      }
+    } catch {
+      setMessages(prev => prev.filter(m => m._id !== tempId));
+    }
     finally { setSending(false); }
   };
 
@@ -160,7 +183,9 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   const handleMessageContextMenu = (e, msg) => {
     e.preventDefault();
     e.stopPropagation();
-    setContextMenu({ x: e.clientX, y: e.clientY, msg });
+    const senderUserId = msg.senderId?._id || msg.senderId;
+    const senderName = msg.senderUsername || msg.senderId?.name || msg.senderId?.username;
+    setContextMenu({ x: e.clientX, y: e.clientY, msg, senderUserId, senderName });
   };
 
   const copyMessage = (text) => {
@@ -294,6 +319,17 @@ export default function GroupChat({ currentUser, unreadCounts }) {
           ) : items.map(item => {
             if (item.type === 'date') return <DateSeparator key={item.key} date={item.date} />;
             const { msg, isFirstInGroup } = item;
+
+            if (msg.type === 'system') {
+              return (
+                <div key={item.key} className="flex justify-center items-center my-2 px-4">
+                  <span className="text-[11px] text-discord-muted bg-white/5 border border-white/8 rounded-full px-3 py-1 text-center max-w-[80%] leading-snug">
+                    {msg.text}
+                  </span>
+                </div>
+              );
+            }
+
             const mine = isSentByMe(msg);
             const sender = msg.senderId || { username: msg.senderUsername };
             return (
@@ -372,29 +408,53 @@ export default function GroupChat({ currentUser, unreadCounts }) {
         {/* Input */}
         <form onSubmit={handleSend} className="px-4 pt-3 pb-20 md:pb-3 border-t border-white/6 flex-shrink-0">
           <div className="flex items-end gap-2">
-            <textarea
-              ref={textareaRef}
-              value={newMsg}
-              onChange={e => { handleTyping(e); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'; }}
-              placeholder={`Message ${group?.name || 'group'}...`}
-              className="discord-input flex-1 resize-none overflow-hidden"
-              rows={1}
-              style={{ minHeight: '42px', maxHeight: '160px', lineHeight: '1.5' }}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  const start = e.target.selectionStart;
-                  const end = e.target.selectionEnd;
-                  setNewMsg(prev => prev.slice(0, start) + '\n' + prev.slice(end));
-                  setTimeout(() => {
-                    const el = e.target;
-                    el.selectionStart = el.selectionEnd = start + 1;
-                    el.style.height = 'auto';
-                    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
-                  }, 0);
-                }
-              }}
-            />
+            <div className="relative flex-1">
+              <textarea
+                ref={textareaRef}
+                value={newMsg}
+                onChange={e => { handleTyping(e); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'; }}
+                placeholder={`Message ${group?.name || 'group'}...`}
+                className="discord-input w-full resize-none overflow-hidden pr-10"
+                rows={1}
+                style={{ minHeight: '42px', maxHeight: '160px', lineHeight: '1.5' }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    const start = e.target.selectionStart;
+                    const end = e.target.selectionEnd;
+                    setNewMsg(prev => prev.slice(0, start) + '\n' + prev.slice(end));
+                    setTimeout(() => {
+                      const el = e.target;
+                      el.selectionStart = el.selectionEnd = start + 1;
+                      el.style.height = 'auto';
+                      el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+                    }, 0);
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="absolute right-2 bottom-2 text-discord-muted hover:text-discord-brand transition-colors p-1"
+                onClick={e => { e.stopPropagation(); setShowEmojiPicker(p => !p); }}
+              >
+                <FiSmile size={18} />
+              </button>
+              {showEmojiPicker && (
+                <EmojiPicker
+                  onSelect={emoji => {
+                    const ta = textareaRef.current;
+                    if (!ta) { setNewMsg(prev => prev + emoji); setShowEmojiPicker(false); return; }
+                    const start = ta.selectionStart;
+                    const end = ta.selectionEnd;
+                    setNewMsg(prev => prev.slice(0, start) + emoji + prev.slice(end));
+                    setTimeout(() => { ta.selectionStart = ta.selectionEnd = start + emoji.length; ta.focus(); }, 0);
+                    setShowEmojiPicker(false);
+                  }}
+                  onClose={() => setShowEmojiPicker(false)}
+                  anchor="top"
+                />
+              )}
+            </div>
             <button type="submit" disabled={!newMsg.trim() || sending} className="discord-btn p-2.5 rounded-lg disabled:opacity-40 flex-shrink-0 mb-0.5">
               <FiSend size={16} />
             </button>
@@ -406,7 +466,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
       {contextMenu && (
         <div
           className="fixed z-50 bg-discord-dark border border-white/10 rounded-xl shadow-2xl py-1 min-w-36 backdrop-blur-xl"
-          style={{ top: Math.min(contextMenu.y, window.innerHeight - 100), left: Math.min(contextMenu.x, window.innerWidth - 160) }}
+          style={{ top: Math.min(contextMenu.y, window.innerHeight - 120), left: Math.min(contextMenu.x, window.innerWidth - 170) }}
           onClick={e => e.stopPropagation()}
         >
           <button
@@ -415,7 +475,36 @@ export default function GroupChat({ currentUser, unreadCounts }) {
           >
             <FiCopy size={13} /> Copy Text
           </button>
+          {contextMenu.senderUserId && contextMenu.senderUserId !== (currentUser?._id || currentUser?.id) && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-orange-400 hover:bg-orange-400/10 transition-colors"
+              onClick={() => {
+                setReportTarget({ type: 'user', id: contextMenu.senderUserId, name: contextMenu.senderName });
+                setContextMenu(null);
+              }}
+            >
+              <FiFlag size={13} /> Report User
+            </button>
+          )}
+          <button
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-orange-400 hover:bg-orange-400/10 transition-colors"
+            onClick={() => {
+              setReportTarget({ type: 'group', id: groupId, name: group?.name });
+              setContextMenu(null);
+            }}
+          >
+            <FiFlag size={13} /> Report Group
+          </button>
         </div>
+      )}
+
+      {reportTarget && (
+        <ReportModal
+          type={reportTarget.type}
+          targetId={reportTarget.id}
+          targetName={reportTarget.name}
+          onClose={() => setReportTarget(null)}
+        />
       )}
 
       <CopiedToast show={showCopied} />

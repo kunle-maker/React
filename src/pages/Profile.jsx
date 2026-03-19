@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiSettings, FiMessageSquare, FiUserPlus, FiUserCheck, FiEdit2, FiGrid, FiBookmark, FiUsers, FiCamera } from 'react-icons/fi';
+import { FiSettings, FiMessageSquare, FiUserPlus, FiUserCheck, FiEdit2, FiGrid, FiBookmark, FiUsers, FiCamera, FiFlag } from 'react-icons/fi';
+import ReportModal from '../components/ReportModal';
+import ProfilePictureModal from '../components/ProfilePictureModal';
 import { formatDistanceToNow } from 'date-fns';
 import Layout from '../components/Layout';
 import Avatar from '../components/Avatar';
 import PostCard from '../components/PostCard';
 import API from '../utils/api';
 import ImageCropModal from '../components/ImageCropModal';
+import { parseEmojisToHtml } from '../utils/emoji';
 
 export default function Profile({ currentUser, unreadCounts }) {
   const { username } = useParams();
@@ -24,6 +27,9 @@ export default function Profile({ currentUser, unreadCounts }) {
   const [followersList, setFollowersList] = useState([]);
   const [followingList, setFollowingList] = useState([]);
   const [cropSrc, setCropSrc] = useState(null);
+  const [showReport, setShowReport] = useState(false);
+  const [showPicModal, setShowPicModal] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const fileRef = useRef();
 
   const isMyProfile = currentUser?.username === username;
@@ -58,8 +64,28 @@ export default function Profile({ currentUser, unreadCounts }) {
       setFollowing(!prev);
       setUser(u => ({ ...u, followers: prev ? u.followers.filter(f => f !== myId && f._id !== myId) : [...u.followers, myId] }));
       await API.followUser(username);
+      const fresh = await API.getUser(username);
+      if (fresh) {
+        setUser(fresh);
+        setFollowing(fresh.followers?.some(f => f._id === myId || f === myId) || false);
+      }
     } catch { fetchUser(); }
   };
+
+  const refreshCounts = async () => {
+    try {
+      API.clearCache(`/api/users/${username}`);
+      const data = await API.getUser(username);
+      if (data) {
+        setUser(prev => ({ ...prev, followers: data.followers, following: data.following }));
+      }
+    } catch { }
+  };
+
+  useEffect(() => {
+    const interval = setInterval(refreshCounts, 4000);
+    return () => clearInterval(interval);
+  }, [username]);
 
   const handleEditSave = async (e) => {
     e.preventDefault();
@@ -94,12 +120,14 @@ export default function Profile({ currentUser, unreadCounts }) {
   };
 
   const loadFollowers = async () => {
+    API.clearCache(`/api/users/${username}/followers`);
     const data = await API.getFollowers(username);
     setFollowersList(Array.isArray(data) ? data : data.followers || []);
     setShowFollowers(true);
   };
 
   const loadFollowing = async () => {
+    API.clearCache(`/api/users/${username}/following`);
     const data = await API.getFollowing(username);
     setFollowingList(Array.isArray(data) ? data : data.following || []);
     setShowFollowing(true);
@@ -119,9 +147,16 @@ export default function Profile({ currentUser, unreadCounts }) {
     <Layout currentUser={currentUser} unreadCounts={unreadCounts}>
       <div className="max-w-2xl mx-auto">
         {/* Cover */}
-        <div className={`relative h-32 ${user.isSupa ? 'supa-profile-banner' : 'bg-gradient-to-r from-discord-brand to-purple-700'}`}>
-          <div className="absolute -bottom-10 left-4">
-            <Avatar user={user} size={80} showStatus={!user.isSupa} supaRing={true} className={user.isSupa ? '' : 'border-4 border-discord-bg rounded-full'} />
+        <div className="relative" style={{ overflow: 'visible' }}>
+          <div className={`h-32 relative overflow-hidden ${user.isSupa ? 'supa-profile-banner' : 'bg-gradient-to-r from-discord-brand to-purple-700'}`} />
+          <div className="absolute left-4" style={{ bottom: 0, transform: 'translateY(50%)', zIndex: 10 }}>
+            <button
+              className="focus:outline-none active:scale-95 transition-transform"
+              onClick={() => setShowPicModal(true)}
+              aria-label="View profile picture"
+            >
+              <Avatar user={user} size={80} showStatus={!user.isSupa} supaRing={true} className={user.isSupa ? '' : 'border-4 border-discord-bg rounded-full'} />
+            </button>
           </div>
         </div>
 
@@ -130,7 +165,7 @@ export default function Profile({ currentUser, unreadCounts }) {
           <div className="flex items-start justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <h1 className={`text-xl ${user.isSupa ? 'supa-username supa-name-container supa-sparkle' : 'font-bold text-discord-text'}`}>{user.name}</h1>
+                <h1 className={`text-xl ${user.isSupa ? 'supa-username supa-name-container supa-sparkle' : 'font-bold text-discord-text'}`} dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(user.name) }} />
                 {user.isVerified && (
                   <span className="supa-verified-tick" title="Verified">
                     <svg viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg">
@@ -139,10 +174,15 @@ export default function Profile({ currentUser, unreadCounts }) {
                   </span>
                 )}
                 {user.isSupa && <span className="supa-badge">SUPA</span>}
-                {user.badge && <span className="text-base">{user.badge}</span>}
+                {user.badge && <span className="text-base" dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(user.badge) }} />}
               </div>
               <p className="text-discord-muted text-sm">@{user.username}</p>
-              {user.bio && <p className="text-discord-text text-sm mt-2 whitespace-pre-wrap break-words">{user.bio}</p>}
+              {user.bio && (
+                <p
+                  className="text-discord-text text-sm mt-2 whitespace-pre-wrap break-words"
+                  dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(user.bio) }}
+                />
+              )}
               <div className="flex items-center gap-4 mt-2">
                 <button className="text-discord-muted text-sm hover:underline" onClick={loadFollowers}>
                   <span className="text-discord-text font-bold">{user.followers?.length || 0}</span> Followers
@@ -175,6 +215,13 @@ export default function Profile({ currentUser, unreadCounts }) {
                     onClick={handleFollow}
                   >
                     {following ? <><FiUserCheck size={13} /> Following</> : <><FiUserPlus size={13} /> Follow</>}
+                  </button>
+                  <button
+                    className="p-2 rounded-full border border-discord-hover text-discord-muted hover:text-orange-400 hover:border-orange-400/50 hover:bg-orange-400/10 transition-all"
+                    title="Report user"
+                    onClick={() => setShowReport(true)}
+                  >
+                    <FiFlag size={14} />
                   </button>
                 </>
               )}
@@ -285,6 +332,37 @@ export default function Profile({ currentUser, unreadCounts }) {
           onCrop={handleCropDone}
           onCancel={() => setCropSrc(null)}
         />
+      )}
+
+      {showReport && user && (
+        <ReportModal
+          type="user"
+          targetId={user._id}
+          targetName={user.name || user.username}
+          onClose={() => setShowReport(false)}
+        />
+      )}
+
+      {showPicModal && user && (
+        <ProfilePictureModal
+          user={user}
+          isOwnProfile={isMyProfile}
+          onClose={() => setShowPicModal(false)}
+          onChangePhoto={() => { setEditing(true); setTimeout(() => fileRef.current?.click(), 150); }}
+          onMessage={() => navigate(`/messages/${user.username}`)}
+          onCopyLink={() => {
+            const url = `${window.location.origin}/#/profile/${user.username}`;
+            navigator.clipboard?.writeText(url).catch(() => {});
+            setCopiedLink(true);
+            setTimeout(() => setCopiedLink(false), 2000);
+          }}
+        />
+      )}
+
+      {copiedLink && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[200] bg-discord-dark border border-white/10 text-discord-text text-xs px-4 py-2 rounded-full shadow-xl backdrop-blur-xl pointer-events-none">
+          Link copied!
+        </div>
       )}
     </Layout>
   );

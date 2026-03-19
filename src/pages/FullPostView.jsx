@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { FiArrowLeft, FiSend } from 'react-icons/fi';
 import { formatDistanceToNow } from 'date-fns';
 import Layout from '../components/Layout';
@@ -11,23 +11,29 @@ import API from '../utils/api';
 export default function FullPostView({ currentUser, unreadCounts }) {
   const { postId } = useParams();
   const navigate = useNavigate();
-  const [post, setPost] = useState(null);
+  const location = useLocation();
+  const statePost = location.state?.post;
+  const [post, setPost] = useState(statePost || null);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!statePost);
+  const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchPost();
+    if (!statePost) fetchPost();
     fetchComments();
   }, [postId]);
 
   const fetchPost = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await API.getPost(postId);
       setPost(data.post || data);
-    } catch { navigate('/'); }
+    } catch (err) {
+      setError(err.message || 'Could not load this post.');
+    }
     finally { setLoading(false); }
   };
 
@@ -55,6 +61,29 @@ export default function FullPostView({ currentUser, unreadCounts }) {
     <Layout currentUser={currentUser} unreadCounts={unreadCounts}>
       <div className="flex justify-center py-16">
         <div className="w-8 h-8 border-2 border-discord-brand border-t-transparent rounded-full animate-spin" />
+      </div>
+    </Layout>
+  );
+
+  if (error) return (
+    <Layout currentUser={currentUser} unreadCounts={unreadCounts}>
+      <div className="max-w-2xl mx-auto">
+        <div className="sticky top-0 z-10 bg-discord-bg/95 backdrop-blur border-b border-discord-hover px-4 py-3 flex items-center gap-3">
+          <button className="text-discord-muted hover:text-discord-text transition-colors" onClick={() => navigate(-1)}>
+            <FiArrowLeft size={20} />
+          </button>
+          <h1 className="font-bold text-discord-text">Post</h1>
+        </div>
+        <div className="flex flex-col items-center justify-center py-20 px-4 text-center gap-4">
+          <p className="text-discord-muted text-sm">This post could not be loaded.</p>
+          <p className="text-discord-muted text-xs opacity-60">{error}</p>
+          <button
+            className="discord-btn px-4 py-2 rounded-lg text-sm"
+            onClick={() => navigate('/')}
+          >
+            Back to feed
+          </button>
+        </div>
       </div>
     </Layout>
   );

@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiSend, FiArrowLeft, FiMessageSquare, FiSearch, FiCheck, FiCheckCircle, FiTrash2, FiCopy, FiX, FiMoreHorizontal } from 'react-icons/fi';
+import { FiSend, FiArrowLeft, FiMessageSquare, FiSearch, FiCheck, FiCheckCircle, FiTrash2, FiCopy, FiX, FiMoreHorizontal, FiFlag, FiSmile } from 'react-icons/fi';
+import ReportModal from '../components/ReportModal';
 import { formatDistanceToNow, format, isToday, isYesterday, differenceInMinutes } from 'date-fns';
 import Layout from '../components/Layout';
 import Avatar from '../components/Avatar';
 import FormattedText from '../components/FormattedText';
 import LinkPreview from '../components/LinkPreview';
+import EmojiPicker from '../components/EmojiPicker';
+import { parseEmojisToHtml } from '../utils/emoji';
 import API from '../utils/api';
 import socket from '../utils/socket';
 
@@ -47,6 +50,8 @@ export default function Messages({ currentUser, unreadCounts }) {
   const [contextMenu, setContextMenu] = useState(null);
   const [showCopied, setShowCopied] = useState(false);
   const [convMenu, setConvMenu] = useState(null);
+  const [reportTarget, setReportTarget] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -112,6 +117,20 @@ export default function Messages({ currentUser, unreadCounts }) {
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
+
+  const insertEmoji = (emoji) => {
+    const ta = textareaRef.current;
+    if (!ta) { setNewMsg(prev => prev + emoji); return; }
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    setNewMsg(prev => prev.slice(0, start) + emoji + prev.slice(end));
+    setTimeout(() => {
+      ta.selectionStart = ta.selectionEnd = start + emoji.length;
+      ta.focus();
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
+    }, 0);
+  };
 
   const fetchConversations = async () => {
     setConvsLoading(true);
@@ -359,10 +378,13 @@ export default function Messages({ currentUser, unreadCounts }) {
                     <span className="text-discord-muted text-[11px] flex-shrink-0">{formatConvTime(c.lastMessageTime)}</span>
                   </div>
                   <div className="flex items-center justify-between gap-1">
-                    <p className={`text-xs truncate flex-1 ${c.unreadCount > 0 ? 'text-discord-text font-medium' : 'text-discord-muted'}`}>
-                      {c.isMine && <span className="text-discord-muted">You: </span>}
+                    <p className={`text-xs truncate flex-1 flex items-center gap-1 ${c.unreadCount > 0 ? 'text-discord-text font-medium' : 'text-discord-muted'}`}>
+                      {c.isMine && <span className="text-discord-muted flex-shrink-0">You: </span>}
                       {c.lastMessage ? (
-                        c.lastMessage.length > 40 ? c.lastMessage.slice(0, 40) + '…' : c.lastMessage
+                        <span
+                          className="truncate twemoji-inline"
+                          dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(c.lastMessage.length > 40 ? c.lastMessage.slice(0, 40) + '…' : c.lastMessage) }}
+                        />
                       ) : (
                         <span className="italic">Start a conversation</span>
                       )}
@@ -512,29 +534,45 @@ export default function Messages({ currentUser, unreadCounts }) {
       {/* Input */}
       <form onSubmit={handleSend} className="px-4 pt-3 pb-20 md:pb-3 border-t border-white/6 flex-shrink-0">
         <div className="flex items-end gap-2">
-          <textarea
-            ref={textareaRef}
-            value={newMsg}
-            onChange={e => { handleTyping(e); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'; }}
-            placeholder={`Message @${activeConv.username}...`}
-            className="discord-input flex-1 resize-none overflow-hidden"
-            rows={1}
-            style={{ minHeight: '42px', maxHeight: '160px', lineHeight: '1.5' }}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                const start = e.target.selectionStart;
-                const end = e.target.selectionEnd;
-                setNewMsg(prev => prev.slice(0, start) + '\n' + prev.slice(end));
-                setTimeout(() => {
-                  const el = e.target;
-                  el.selectionStart = el.selectionEnd = start + 1;
-                  el.style.height = 'auto';
-                  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
-                }, 0);
-              }
-            }}
-          />
+          <div className="relative flex-1">
+            <textarea
+              ref={textareaRef}
+              value={newMsg}
+              onChange={e => { handleTyping(e); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'; }}
+              placeholder={`Message @${activeConv.username}...`}
+              className="discord-input w-full resize-none overflow-hidden pr-10"
+              rows={1}
+              style={{ minHeight: '42px', maxHeight: '160px', lineHeight: '1.5' }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  const start = e.target.selectionStart;
+                  const end = e.target.selectionEnd;
+                  setNewMsg(prev => prev.slice(0, start) + '\n' + prev.slice(end));
+                  setTimeout(() => {
+                    const el = e.target;
+                    el.selectionStart = el.selectionEnd = start + 1;
+                    el.style.height = 'auto';
+                    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+                  }, 0);
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="absolute right-2 bottom-2 text-discord-muted hover:text-discord-brand transition-colors p-1"
+              onClick={e => { e.stopPropagation(); setShowEmojiPicker(p => !p); }}
+            >
+              <FiSmile size={18} />
+            </button>
+            {showEmojiPicker && (
+              <EmojiPicker
+                onSelect={emoji => { insertEmoji(emoji); setShowEmojiPicker(false); }}
+                onClose={() => setShowEmojiPicker(false)}
+                anchor="top"
+              />
+            )}
+          </div>
           <button
             type="submit"
             disabled={!newMsg.trim() || sending}
@@ -588,6 +626,17 @@ export default function Messages({ currentUser, unreadCounts }) {
           >
             <FiCopy size={13} /> Copy Text
           </button>
+          {activeConv && contextMenu.msg.senderId !== (currentUser?._id || currentUser?.id) && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-orange-400 hover:bg-orange-400/10 transition-colors"
+              onClick={() => {
+                setReportTarget({ type: 'user', id: activeConv.userId || contextMenu.msg.senderId, name: activeConv.name });
+                setContextMenu(null);
+              }}
+            >
+              <FiFlag size={13} /> Report User
+            </button>
+          )}
         </div>
       )}
 
@@ -608,6 +657,15 @@ export default function Messages({ currentUser, unreadCounts }) {
             View Profile
           </button>
           <button
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-orange-400 hover:bg-orange-400/10 transition-colors"
+            onClick={() => {
+              setReportTarget({ type: 'user', id: convMenu.userId, name: convMenu.name });
+              setConvMenu(null);
+            }}
+          >
+            <FiFlag size={13} /> Report User
+          </button>
+          <button
             className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-red hover:bg-discord-red/10 transition-colors"
             onClick={() => {
               setConversations(prev => prev.filter(c => c.username !== convMenu.username));
@@ -618,6 +676,15 @@ export default function Messages({ currentUser, unreadCounts }) {
             <FiTrash2 size={13} /> Remove from list
           </button>
         </div>
+      )}
+
+      {reportTarget && (
+        <ReportModal
+          type={reportTarget.type}
+          targetId={reportTarget.id}
+          targetName={reportTarget.name}
+          onClose={() => setReportTarget(null)}
+        />
       )}
 
       {/* Copied toast */}

@@ -36,9 +36,18 @@ class SocketManager {
     });
 
     this.socket.on('newGroupMessage', (data) => {
-      if (data.sender?._id === this.userId) return;
+      if (data.message?.senderId?._id === this.userId || data.message?.senderId === this.userId) return;
       window.dispatchEvent(new CustomEvent('newGroupMessage', { detail: data }));
       this._updateCount('groups', 1);
+    });
+
+    this.socket.on('groupMessage', (data) => {
+      const senderId = data.message?.senderId?._id || data.message?.senderId;
+      const isSystem = data.message?.type === 'system';
+      window.dispatchEvent(new CustomEvent('newGroupMessage', { detail: data }));
+      if (!isSystem && senderId !== this.userId) {
+        this._updateCount('groups', 1);
+      }
     });
 
     this.socket.on('userTyping', (data) => {

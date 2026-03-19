@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../utils/api';
+import { parseEmojisToHtml } from '../utils/emoji';
 
 let toastTimeout = null;
 
@@ -38,6 +39,16 @@ function showGlobalToast(message) {
     toast.style.transform = 'translateY(8px) scale(0.95)';
     setTimeout(() => { if (container.contains(toast)) container.removeChild(toast); }, 200);
   }, 3000);
+}
+
+function EmojiSpan({ text }) {
+  const html = parseEmojisToHtml(text);
+  return (
+    <span
+      dangerouslySetInnerHTML={{ __html: html }}
+      style={{ wordBreak: 'break-word' }}
+    />
+  );
 }
 
 export default function FormattedText({ text, className = '' }) {
@@ -124,7 +135,7 @@ export default function FormattedText({ text, className = '' }) {
             </a>
           );
         }
-        return <span key={i}>{part.value}</span>;
+        return <EmojiSpan key={i} text={part.value} />;
       })}
     </span>
   );

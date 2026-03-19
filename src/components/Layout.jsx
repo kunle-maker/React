@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { FiHome, FiMessageSquare, FiUsers, FiBell, FiSearch, FiUser, FiSettings, FiLogOut, FiZap, FiPlusSquare } from 'react-icons/fi';
+import { FiHome, FiMessageSquare, FiUsers, FiSearch, FiUser, FiSettings, FiLogOut, FiZap, FiPlusSquare, FiBell } from 'react-icons/fi';
 import { HiHome, HiChatAlt2, HiUsers, HiBell } from 'react-icons/hi';
 import Avatar from './Avatar';
-import API from '../utils/api';
 
 function VLogo({ size = 32 }) {
   return (
@@ -18,12 +17,13 @@ const NAV_ITEMS = [
   { path: '/', icon: FiHome, activeIcon: HiHome, label: 'Home' },
   { path: '/search', icon: FiSearch, label: 'Search' },
   { path: '/create', icon: FiPlusSquare, label: 'Create' },
-  { path: '/messages', icon: FiMessageSquare, activeIcon: HiChatAlt2, label: 'Messages' },
-  { path: '/groups', icon: FiUsers, activeIcon: HiUsers, label: 'Groups' },
+  { path: '/notifications', icon: FiBell, activeIcon: HiBell, label: 'Notifications', badgeKey: 'notifications' },
+  { path: '/messages', icon: FiMessageSquare, activeIcon: HiChatAlt2, label: 'Messages', badgeKey: 'messages' },
+  { path: '/groups', icon: FiUsers, activeIcon: HiUsers, label: 'Groups', badgeKey: 'groups' },
   { path: '/ai', icon: FiZap, label: 'AI' },
 ];
 
-export default function Layout({ children, currentUser, unreadCounts = {} }) {
+export default function Layout({ children, currentUser, unreadCounts = {}, contentClass = '' }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -41,7 +41,7 @@ export default function Layout({ children, currentUser, unreadCounts = {} }) {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="app-shell flex h-screen overflow-hidden">
       {/* Desktop Sidebar */}
       <nav className="desktop-sidebar flex-col items-center py-3 gap-2 discord-sidebar border-r border-discord-darker z-20">
         <Link to="/" className="mb-2">
@@ -53,7 +53,7 @@ export default function Layout({ children, currentUser, unreadCounts = {} }) {
         {NAV_ITEMS.map(item => {
           const Icon = isActive(item.path) && item.activeIcon ? item.activeIcon : item.icon;
           const active = isActive(item.path);
-          const badge = item.path === '/messages' ? unreadCounts.messages : item.path === '/groups' ? unreadCounts.groups : 0;
+          const badge = item.badgeKey ? (unreadCounts[item.badgeKey] || 0) : 0;
           return (
             <div key={item.path} className="relative tooltip" data-tip={item.label}>
               <Link
@@ -106,27 +106,28 @@ export default function Layout({ children, currentUser, unreadCounts = {} }) {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden discord-main">
-        <div className="flex-1 overflow-y-auto scrollable">
+        <div className={`flex-1 overflow-hidden ${contentClass || 'overflow-y-auto scrollable mobile-content-pad'}`}>
           {children}
         </div>
       </main>
 
-      {/* Mobile Bottom Nav */}
-      <nav className="mobile-nav fixed bottom-0 left-0 right-0 flex items-center justify-around px-2 py-2 z-30">
-        {NAV_ITEMS.slice(0, 5).map(item => {
+      {/* Mobile Floating Pill Nav */}
+      <nav className="mobile-pill-nav">
+        {NAV_ITEMS.map(item => {
           const Icon = isActive(item.path) && item.activeIcon ? item.activeIcon : item.icon;
           const active = isActive(item.path);
-          const badge = item.path === '/messages' ? unreadCounts.messages : item.path === '/groups' ? unreadCounts.groups : 0;
+          const badge = item.badgeKey ? (unreadCounts[item.badgeKey] || 0) : 0;
           return (
             <Link
               key={item.path}
               to={item.path}
-              className={`relative flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${active ? 'text-discord-brand' : 'text-discord-muted'}`}
+              className={`mobile-pill-item ${active ? 'active' : ''}`}
+              aria-label={item.label}
             >
-              <Icon size={22} />
-              <span className="text-[10px]">{item.label}</span>
+              <Icon size={active ? 22 : 21} />
+              {active && <span className="mobile-pill-label">{item.label}</span>}
               {badge > 0 && (
-                <span className="badge absolute -top-1 right-0 text-[9px] min-w-[14px] h-3.5 flex items-center justify-center">
+                <span className="badge absolute -top-1 -right-0.5 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
                   {badge > 99 ? '99+' : badge}
                 </span>
               )}
@@ -136,10 +137,11 @@ export default function Layout({ children, currentUser, unreadCounts = {} }) {
         {currentUser && (
           <Link
             to={`/profile/${currentUser.username}`}
-            className={`relative flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${isActive(`/profile/${currentUser.username}`) ? 'text-discord-brand' : 'text-discord-muted'}`}
+            className={`mobile-pill-item ${isActive(`/profile/${currentUser.username}`) ? 'active' : ''}`}
+            aria-label="Profile"
           >
             <Avatar user={currentUser} size={22} />
-            <span className="text-[10px]">You</span>
+            {isActive(`/profile/${currentUser.username}`) && <span className="mobile-pill-label">Profile</span>}
           </Link>
         )}
       </nav>

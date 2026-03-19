@@ -1,12 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiHeart, FiMessageCircle, FiShare2, FiBookmark, FiMoreHorizontal, FiTrash2, FiCopy, FiExternalLink, FiSend, FiX } from 'react-icons/fi';
+import { FiHeart, FiMessageCircle, FiShare2, FiBookmark, FiMoreHorizontal, FiTrash2, FiCopy, FiExternalLink, FiSend, FiX, FiFlag } from 'react-icons/fi';
 import { HiHeart } from 'react-icons/hi';
 import { formatDistanceToNow } from 'date-fns';
 import Avatar from './Avatar';
 import FormattedText from './FormattedText';
 import LinkPreview from './LinkPreview';
+import ReportModal from './ReportModal';
 import API from '../utils/api';
+import { playVideo, pauseVideo } from '../utils/videoPlayer';
+import { parseEmojisToHtml } from '../utils/emoji';
+
+function TwemojiIcon({ emoji, size = '1.4em' }) {
+  return (
+    <span
+      style={{ fontSize: size, lineHeight: 1 }}
+      dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(emoji) }}
+    />
+  );
+}
 
 const REACTIONS = ['❤️', '🔥', '😂', '😮', '😢', '👍'];
 
@@ -25,6 +37,7 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
   const [userReaction, setUserReaction] = useState(post.userReaction || null);
   const [showReactions, setShowReactions] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [mediaIndex, setMediaIndex] = useState(0);
 
   const [showComments, setShowComments] = useState(false);
@@ -36,6 +49,7 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
   const [commentCount, setCommentCount] = useState(post.commentCount || post.comments?.length || 0);
 
   const menuRef = useRef(null);
+  const videoRef = useRef(null);
 
   const author = post.userId || { username: post.username };
   const isOwn = currentUser && (author._id === currentUser._id || author.username === currentUser.username || post.username === currentUser.username);
@@ -56,6 +70,24 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
       }).catch(() => {});
     }
   }, [post._id]);
+
+  // Auto-play/pause video based on visibility (shared "one video at a time" rule)
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.intersectionRatio >= 0.5) {
+          playVideo(el);
+        } else if (entry.intersectionRatio < 0.2) {
+          pauseVideo(el);
+        }
+      },
+      { threshold: [0.2, 0.5] }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [mediaIndex]);
 
   const handleLike = async (e) => {
     e.stopPropagation();
@@ -140,7 +172,7 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
   return (
     <article
       className="post-card px-4 py-3 cursor-pointer animate-fade-in"
-      onClick={() => navigate(`/post/${post._id}`)}
+      onClick={() => navigate(`/post/${post._id}`, { state: { post } })}
     >
       <div className="flex gap-3">
         <div className="flex-shrink-0">
@@ -162,9 +194,8 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
               <span
                 className="font-bold text-discord-text hover:underline cursor-pointer truncate"
                 onClick={e => { e.stopPropagation(); navigate(`/profile/${author.username || post.username}`); }}
-              >
-                {author.name || author.username || post.username}
-              </span>
+                dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(author.name || author.username || post.username || '') }}
+              />
               {(author.isVerified || post.isVerified) && (
                 <span className="supa-verified-tick" title="Verified">
                   <svg viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg" style={{width:9,height:9,stroke:'white',strokeWidth:2.5,fill:'none'}}>
@@ -204,11 +235,15 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
             <div className="mt-2 mb-2 rounded-xl overflow-hidden bg-discord-dark">
               {currentMedia?.type === 'video' ? (
                 <video
+                  ref={videoRef}
                   src={API.getMediaUrl(currentMedia.url)}
                   controls
                   playsInline
+                  muted
                   className="w-full max-h-96 object-contain"
                   onClick={e => e.stopPropagation()}
+                  onPlay={e => { e.stopPropagation(); playVideo(videoRef.current); }}
+                  onPause={e => { e.stopPropagation(); pauseVideo(videoRef.current); }}
                 />
               ) : (
                 <img
@@ -269,7 +304,7 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-all ${userReaction ? 'text-discord-brand bg-discord-brand/10' : 'text-discord-muted hover:text-discord-brand hover:bg-discord-brand/10'}`}
                 onClick={e => { e.stopPropagation(); setShowReactions(!showReactions); }}
               >
-                {userReaction || '😊'} {userReaction && 'Reacted'}
+                <TwemojiIcon emoji={userReaction || '😊'} size="1.1em" /> {userReaction && 'Reacted'}
               </button>
               {showReactions && (
                 <div
@@ -279,10 +314,10 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
                   {REACTIONS.map(emoji => (
                     <button
                       key={emoji}
-                      className={`text-xl p-1.5 rounded-lg hover:bg-discord-hover transition-all hover:scale-125 ${userReaction === emoji ? 'bg-discord-hover' : ''}`}
+                      className={`p-1.5 rounded-lg hover:bg-discord-hover transition-all hover:scale-125 ${userReaction === emoji ? 'bg-discord-hover' : ''}`}
                       onClick={e => handleReact(e, emoji)}
                     >
-                      {emoji}
+                      <TwemojiIcon emoji={emoji} size="1.4em" />
                     </button>
                   ))}
                 </div>
@@ -346,9 +381,8 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
                               <span
                                 className="font-semibold text-discord-text text-xs cursor-pointer hover:underline"
                                 onClick={e => { e.stopPropagation(); navigate(`/profile/${cAuthor.username}`); }}
-                              >
-                                {cAuthor.name || cAuthor.username}
-                              </span>
+                                dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(cAuthor.name || cAuthor.username || '') }}
+                              />
                               {cAuthor.isSupa && <span className="supa-badge" style={{fontSize:8,padding:'1px 5px'}}>SUPA</span>}
                               {cAuthor.isVerified && (
                                 <span className="supa-verified-tick" title="Verified" style={{width:14,height:14}}>
@@ -373,7 +407,7 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
               {commentCount > 3 && commentsLoaded && (
                 <button
                   className="text-discord-brand text-xs mt-2 hover:underline flex items-center gap-1"
-                  onClick={e => { e.stopPropagation(); navigate(`/post/${post._id}`); }}
+                  onClick={e => { e.stopPropagation(); navigate(`/post/${post._id}`, { state: { post } }); }}
                 >
                   View all {commentCount} replies →
                 </button>
@@ -401,10 +435,18 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
             </button>
             <button
               className="flex items-center gap-2 w-full px-3 py-2 text-sm text-discord-text hover:bg-discord-hover transition-colors"
-              onClick={e => { e.stopPropagation(); setShowMenu(false); navigate(`/post/${post._id}`); }}
+              onClick={e => { e.stopPropagation(); setShowMenu(false); navigate(`/post/${post._id}`, { state: { post } }); }}
             >
               <FiExternalLink size={14} /> Open post
             </button>
+            {!isOwn && (
+              <button
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-orange-400 hover:bg-orange-400/10 transition-colors"
+                onClick={e => { e.stopPropagation(); setShowMenu(false); setShowReport(true); }}
+              >
+                <FiFlag size={14} /> Report post
+              </button>
+            )}
             {isOwn && (
               <button
                 className="flex items-center gap-2 w-full px-3 py-2 text-sm text-discord-red hover:bg-discord-red/10 transition-colors"
@@ -415,6 +457,15 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
             )}
           </div>
         </div>
+      )}
+
+      {showReport && (
+        <ReportModal
+          type="post"
+          targetId={post._id}
+          targetName={author.name || author.username}
+          onClose={() => setShowReport(false)}
+        />
       )}
     </article>
   );

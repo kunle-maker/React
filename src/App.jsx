@@ -18,8 +18,53 @@ import AIAssistant from './pages/AIAssistant';
 import Settings from './pages/Settings';
 import FullPostView from './pages/FullPostView';
 import JoinGroup from './pages/JoinGroup';
+import AdminPanel from './pages/AdminPanel';
+import ModeratorBot from './pages/ModeratorBot';
 import API from './utils/api';
 import socket from './utils/socket';
+import InstallPrompt from './components/InstallPrompt';
+
+async function registerPushNotifications() {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) {
+      await API.subscribePush(existing.toJSON());
+      return;
+    }
+
+    let vapidKey;
+    try {
+      const res = await API.getVapidPublicKey();
+      vapidKey = res.publicKey || res.vapidPublicKey || res.key;
+    } catch { return; }
+
+    if (!vapidKey) return;
+
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey)
+    });
+
+    await API.subscribePush(sub.toJSON());
+  } catch (err) {
+    console.warn('Push registration failed:', err.message);
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
 
 function ProtectedRoute({ children, token }) {
   return token ? children : <Navigate to="/login" replace />;
@@ -42,6 +87,7 @@ export default function App() {
         setCurrentUser(user);
         localStorage.setItem('user', JSON.stringify(user));
         socket.connect(user._id || user.id, t);
+        registerPushNotifications().catch(() => {});
       }
     } catch (err) {
       if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
@@ -88,10 +134,39 @@ export default function App() {
     return () => window.removeEventListener('unreadCountUpdate', handler);
   }, []);
 
+  useEffect(() => {
+    if (!token) return;
+    const fetchNotifCount = async () => {
+      try {
+        API.clearCache('/api/notifications');
+        const data = await API.getNotificationUnreadCount();
+        const count = data?.count ?? 0;
+        setUnreadCounts(prev => ({ ...prev, notifications: count }));
+      } catch { }
+    };
+    fetchNotifCount();
+    const interval = setInterval(fetchNotifCount, 10 * 1000);
+    const reset = () => setUnreadCounts(prev => ({ ...prev, notifications: 0 }));
+    window.addEventListener('resetNotifications', reset);
+    return () => { clearInterval(interval); window.removeEventListener('resetNotifications', reset); };
+  }, [token]);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const handler = (event) => {
+      if (event.data?.type === 'NAVIGATE' && event.data?.url) {
+        window.location.hash = event.data.url;
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handler);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
+  }, []);
+
   const sharedProps = { currentUser, unreadCounts };
 
   return (
     <HashRouter>
+      <InstallPrompt />
       <Routes>
         <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login />} />
         <Route path="/register" element={token ? <Navigate to="/" replace /> : <Register />} />
@@ -112,6 +187,8 @@ export default function App() {
         <Route path="/post/:postId" element={<ProtectedRoute token={token}><FullPostView {...sharedProps} /></ProtectedRoute>} />
         <Route path="/ai" element={<ProtectedRoute token={token}><AIAssistant {...sharedProps} /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute token={token}><Settings {...sharedProps} /></ProtectedRoute>} />
+        <Route path="/vx-admin" element={<ProtectedRoute token={token}><AdminPanel {...sharedProps} /></ProtectedRoute>} />
+        <Route path="/mod-bot" element={<ProtectedRoute token={token}><ModeratorBot {...sharedProps} /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>

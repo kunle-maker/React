@@ -102,6 +102,8 @@ class API {
   static async followUser(username) {
     const data = await this.request(`/api/users/${username}/follow`, { method: 'POST' });
     this.clearCache(`/api/users/${username}`);
+    this.clearCache(`/api/users/${username}/followers`);
+    this.clearCache(`/api/users/${username}/following`);
     this.clearCache('/api/feed');
     return data;
   }
@@ -177,11 +179,24 @@ class API {
   }
   static async getInterests() { return this.request('/api/feed/interests'); }
 
-  static async getNotifications() { return this.request('/api/notifications'); }
-  static async markNotificationsRead() {
-    const data = await this.request('/api/notifications/read', { method: 'POST' });
+  static async getNotifications(page = 1, limit = 20) {
+    return this.request(`/api/notifications?page=${page}&limit=${limit}`);
+  }
+  static async getNotificationUnreadCount() {
+    return this.request('/api/notifications/unread-count');
+  }
+  static async markAllNotificationsRead() {
+    const data = await this.request('/api/notifications/mark-all-read', { method: 'PUT' });
     this.clearCache('/api/notifications');
     return data;
+  }
+  static async markNotificationRead(id) {
+    const data = await this.request(`/api/notifications/${id}/read`, { method: 'PUT' });
+    this.clearCache('/api/notifications');
+    return data;
+  }
+  static async markNotificationsRead() {
+    return this.markAllNotificationsRead();
   }
 
   static async getConversations() { return this.request('/api/conversations'); }
@@ -254,8 +269,49 @@ class API {
 
   static async getSupaStatus() { return this.request('/api/supa/status'); }
   static async getSupaFeatures() { return this.request('/api/supa/features'); }
+  static async getSupaPlans() { return this.request('/api/supa/plans'); }
+  static async subscribeToSupa(data) {
+    const result = await this.request('/api/supa/subscribe', { method: 'POST', body: JSON.stringify(data) });
+    this.clearCache('/api/supa');
+    this.clearCache('/api/profile');
+    return result;
+  }
+  static async getSupaPaymentHistory() { return this.request('/api/supa/payment-history'); }
   static async updateSupaSettings(settings) {
     return this.request('/api/supa/settings', { method: 'PUT', body: JSON.stringify(settings) });
+  }
+  static async grantSupa(username, durationDays = 30) {
+    const data = await this.request('/api/supa/grant', { method: 'POST', body: JSON.stringify({ username, durationDays }) });
+    this.clearCache('/api/supa/users');
+    return data;
+  }
+  static async revokeSupa(username) {
+    const data = await this.request('/api/supa/revoke', { method: 'POST', body: JSON.stringify({ username }) });
+    this.clearCache('/api/supa/users');
+    return data;
+  }
+  static async getSupaUsers() { return this.request('/api/supa/users'); }
+
+  static async reportPost(postId, reason, details = '') {
+    return this.request(`/api/moderation/report/post/${postId}`, { method: 'POST', body: JSON.stringify({ reason, details }) });
+  }
+  static async reportUser(userId, reason, details = '') {
+    return this.request(`/api/moderation/report/user/${userId}`, { method: 'POST', body: JSON.stringify({ reason, details }) });
+  }
+  static async reportGroup(groupId, reason, details = '') {
+    return this.request(`/api/moderation/report/group/${groupId}`, { method: 'POST', body: JSON.stringify({ reason, details }) });
+  }
+  static async getModeratorBotStatus() { return this.request('/api/moderation/moderator-bot/status'); }
+  static async chatWithModeratorBot(action) {
+    return this.request('/api/moderation/moderator-bot/chat', { method: 'POST', body: JSON.stringify({ action }) });
+  }
+
+  static async getVapidPublicKey() { return this.request('/api/push/vapid-key'); }
+  static async subscribePush(subscription) {
+    return this.request('/api/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription }) });
+  }
+  static async unsubscribePush(endpoint) {
+    return this.request('/api/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) });
   }
 
   static getMediaUrl(url) {
