@@ -23,6 +23,7 @@ import ModeratorBot from './pages/ModeratorBot';
 import API from './utils/api';
 import socket from './utils/socket';
 import InstallPrompt from './components/InstallPrompt';
+import DigitalPlatAd from './components/DigitalPlatAd';
 import { I18nProvider, useI18n } from './contexts/I18nContext';
 
 async function registerPushNotifications() {
@@ -192,6 +193,7 @@ function AppInner() {
   return (
     <HashRouter>
       <InstallPrompt />
+      <DigitalPlatAd currentUser={currentUser} />
       <Routes>
         <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login />} />
         <Route path="/register" element={token ? <Navigate to="/" replace /> : <Register />} />
