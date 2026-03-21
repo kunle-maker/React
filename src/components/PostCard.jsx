@@ -7,6 +7,8 @@ import Avatar from './Avatar';
 import FormattedText from './FormattedText';
 import LinkPreview from './LinkPreview';
 import ReportModal from './ReportModal';
+import { AnimatedBadge, VerifiedBadge, SupaBadge } from './UserBadge';
+import { getBadgeById } from '../data/badges';
 import API from '../utils/api';
 import { playVideo, pauseVideo } from '../utils/videoPlayer';
 import { parseEmojisToHtml } from '../utils/emoji';
@@ -196,15 +198,10 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
                 onClick={e => { e.stopPropagation(); navigate(`/profile/${author.username || post.username}`); }}
                 dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(author.name || author.username || post.username || '') }}
               />
-              {(author.isVerified || post.isVerified) && (
-                <span className="supa-verified-tick" title="Verified">
-                  <svg viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg" style={{width:9,height:9,stroke:'white',strokeWidth:2.5,fill:'none'}}>
-                    <polyline points="2,6 5,9 10,3" />
-                  </svg>
-                </span>
-              )}
-              {(author.isSupa || post.isSupa) && (
-                <span className="supa-badge">SUPA</span>
+              {(author.isVerified || post.isVerified) && <VerifiedBadge size={15} />}
+              {(author.isSupa || post.isSupa) && <SupaBadge size={15} username={author.username || post.username} />}
+              {(author.badge || post.badge) && getBadgeById(author.badge || post.badge) && (
+                <AnimatedBadge badgeId={author.badge || post.badge} size="1em" />
               )}
               <span
                 className="text-discord-muted text-sm truncate cursor-pointer hover:underline"
@@ -383,14 +380,8 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
                                 onClick={e => { e.stopPropagation(); navigate(`/profile/${cAuthor.username}`); }}
                                 dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(cAuthor.name || cAuthor.username || '') }}
                               />
-                              {cAuthor.isSupa && <span className="supa-badge" style={{fontSize:8,padding:'1px 5px'}}>SUPA</span>}
-                              {cAuthor.isVerified && (
-                                <span className="supa-verified-tick" title="Verified" style={{width:14,height:14}}>
-                                  <svg viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg" style={{width:9,height:9,stroke:'white',strokeWidth:2.5,fill:'none'}}>
-                                    <polyline points="2,6 5,9 10,3" />
-                                  </svg>
-                                </span>
-                              )}
+                              {cAuthor.isSupa && <SupaBadge size={13} username={cAuthor.username} />}
+                              {cAuthor.isVerified && <VerifiedBadge size={13} />}
                             </div>
                             <p className="text-discord-text text-sm break-words leading-snug">{c.text || c.content}</p>
                           </div>

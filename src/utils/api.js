@@ -67,8 +67,9 @@ class API {
   static async forgotPassword(email) {
     return this.request('/api/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
   }
-  static async resetPassword(token, newPassword) {
-    return this.request('/api/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) });
+  static async resetPassword({ token, code, password }) {
+    const body = token ? { token, password } : { code, password };
+    return this.request('/api/reset-password', { method: 'POST', body: JSON.stringify(body) });
   }
 
   static async getProfile() {
@@ -204,6 +205,9 @@ class API {
   static async markConversationRead(username) {
     return this.request(`/api/conversations/${username}/read`, { method: 'POST' });
   }
+  static async uploadMessageMedia(formData) {
+    return this.request('/api/messages/upload', { method: 'POST', body: formData });
+  }
   static async sendMessage(data) {
     const res = await this.request('/api/messages', { method: 'POST', body: JSON.stringify(data) });
     this.clearCache('/api/conversations');
@@ -270,12 +274,12 @@ class API {
   static async getSupaStatus() { return this.request('/api/supa/status'); }
   static async getSupaFeatures() { return this.request('/api/supa/features'); }
   static async getSupaPlans() { return this.request('/api/supa/plans'); }
-  static async subscribeToSupa(data) {
-    const result = await this.request('/api/supa/subscribe', { method: 'POST', body: JSON.stringify(data) });
+  static async initiateSupaPayment(plan) {
+    const data = await this.request('/api/supa/initiate', { method: 'POST', body: JSON.stringify({ plan }) });
     this.clearCache('/api/supa');
-    this.clearCache('/api/profile');
-    return result;
+    return data;
   }
+  static async getSupaPaymentAccount() { return this.request('/api/supa/payment-account'); }
   static async getSupaPaymentHistory() { return this.request('/api/supa/payment-history'); }
   static async updateSupaSettings(settings) {
     return this.request('/api/supa/settings', { method: 'PUT', body: JSON.stringify(settings) });
@@ -291,6 +295,14 @@ class API {
     return data;
   }
   static async getSupaUsers() { return this.request('/api/supa/users'); }
+
+  static async getLanguages() { return this.request('/api/i18n/languages'); }
+  static async getTranslations(lang) { return this.request(`/api/i18n/${lang}`); }
+  static async updateLanguage(language) {
+    const data = await this.request('/api/settings/language', { method: 'PUT', body: JSON.stringify({ language }) });
+    this.clearCache('/api/profile');
+    return data;
+  }
 
   static async reportPost(postId, reason, details = '') {
     return this.request(`/api/moderation/report/post/${postId}`, { method: 'POST', body: JSON.stringify({ reason, details }) });

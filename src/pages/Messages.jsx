@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiSend, FiArrowLeft, FiMessageSquare, FiSearch, FiCheck, FiCheckCircle, FiTrash2, FiCopy, FiX, FiMoreHorizontal, FiFlag, FiSmile } from 'react-icons/fi';
+import { FiSend, FiArrowLeft, FiMessageSquare, FiSearch, FiCheck, FiCheckCircle, FiTrash2, FiCopy, FiX, FiMoreHorizontal, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiPlay, FiShare2, FiSave } from 'react-icons/fi';
+import ImageCropModal from '../components/ImageCropModal';
 import ReportModal from '../components/ReportModal';
 import { formatDistanceToNow, format, isToday, isYesterday, differenceInMinutes } from 'date-fns';
 import Layout from '../components/Layout';
@@ -11,6 +12,340 @@ import EmojiPicker from '../components/EmojiPicker';
 import { parseEmojisToHtml } from '../utils/emoji';
 import API from '../utils/api';
 import socket from '../utils/socket';
+
+function VideoFullscreenModal({ src, onClose }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (el) el.play().catch(() => {});
+    return () => { if (el) el.pause(); };
+  }, []);
+
+  const handleSave = () => {
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = 'video.mp4';
+    a.click();
+    setShowMenu(false);
+  };
+
+  const handleShare = async () => {
+    setShowMenu(false);
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Video', url: src });
+      } catch {}
+    } else {
+      navigator.clipboard?.writeText(src);
+      alert('Video link copied!');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black flex flex-col" onClick={onClose}>
+      <div className="flex items-center justify-between px-4 py-3 flex-shrink-0" onClick={e => e.stopPropagation()}>
+        <button onClick={onClose} className="text-white/70 hover:text-white transition-colors p-1">
+          <FiX size={24} />
+        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowMenu(v => !v)}
+            className="text-white/70 hover:text-white transition-colors p-1"
+          >
+            <FiMoreHorizontal size={24} />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 top-full mt-1 bg-[#1e2030] border border-white/10 rounded-xl shadow-2xl py-1 min-w-[160px] z-10">
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-white hover:bg-white/8 transition-colors"
+              >
+                <FiShare2 size={16} /> Share
+              </button>
+              <button
+                onClick={handleSave}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-white hover:bg-white/8 transition-colors"
+              >
+                <FiSave size={16} /> Save to device
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="flex-1 flex items-center justify-center" onClick={e => e.stopPropagation()}>
+        <video
+          ref={videoRef}
+          src={src}
+          controls
+          playsInline
+          className="max-w-full max-h-full w-full"
+          style={{ maxHeight: 'calc(100vh - 120px)' }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ImageFullscreenModal({ src, onClose }) {
+  const [showMenu, setShowMenu] = useState(false);
+
+  const handleSave = () => {
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = 'image.jpg';
+    a.click();
+    setShowMenu(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black flex flex-col" onClick={onClose}>
+      <div className="flex items-center justify-between px-4 py-3 flex-shrink-0" onClick={e => e.stopPropagation()}>
+        <button onClick={onClose} className="text-white/70 hover:text-white transition-colors p-1">
+          <FiX size={24} />
+        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowMenu(v => !v)}
+            className="text-white/70 hover:text-white transition-colors p-1"
+          >
+            <FiMoreHorizontal size={24} />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 top-full mt-1 bg-[#1e2030] border border-white/10 rounded-xl shadow-2xl py-1 min-w-[160px] z-10">
+              <button
+                onClick={handleSave}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-white hover:bg-white/8 transition-colors"
+              >
+                <FiSave size={16} /> Save to device
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="flex-1 flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
+        <img
+          src={src}
+          alt="Full view"
+          className="max-w-full max-h-full object-contain"
+          style={{ maxHeight: 'calc(100vh - 100px)' }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function VideoMessage({ src }) {
+  const [showFullscreen, setShowFullscreen] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [duration, setDuration] = useState(null);
+  const videoRef = useRef(null);
+
+  const handleSave = () => {
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = 'video.mp4';
+    a.click();
+    setShowMenu(false);
+  };
+
+  const handleShare = async () => {
+    setShowMenu(false);
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Video', url: src });
+      } catch {}
+    } else {
+      navigator.clipboard?.writeText(src);
+      alert('Video link copied!');
+    }
+  };
+
+  const formatDuration = (secs) => {
+    if (!secs || !isFinite(secs)) return null;
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <>
+      <div className="relative rounded-xl overflow-hidden bg-black cursor-pointer" style={{ width: 220, maxWidth: '100%' }}>
+        <video
+          ref={videoRef}
+          src={src}
+          className="w-full object-cover"
+          style={{ height: 160, opacity: 0.7 }}
+          muted
+          playsInline
+          preload="metadata"
+          onLoadedMetadata={e => setDuration(e.target.duration)}
+          onClick={() => setShowFullscreen(true)}
+        />
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          onClick={() => setShowFullscreen(true)}
+        >
+          <div className="w-12 h-12 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm border border-white/20">
+            <FiPlay size={20} className="text-white ml-1" />
+          </div>
+        </div>
+        <div className="absolute bottom-2 left-2 flex items-center gap-1 text-white text-xs font-semibold drop-shadow">
+          <FiVideo size={12} />
+          {duration && <span>{formatDuration(duration)}</span>}
+        </div>
+        <div className="absolute top-2 right-2">
+          <button
+            onClick={e => { e.stopPropagation(); setShowMenu(v => !v); }}
+            className="w-7 h-7 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+          >
+            <FiMoreHorizontal size={16} />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 top-full mt-1 bg-[#1e2030] border border-white/10 rounded-xl shadow-2xl py-1 min-w-[150px] z-10">
+              <button
+                onClick={e => { e.stopPropagation(); handleShare(); }}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-white hover:bg-white/8 transition-colors"
+              >
+                <FiShare2 size={14} /> Share
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); handleSave(); }}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-white hover:bg-white/8 transition-colors"
+              >
+                <FiSave size={14} /> Save to device
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      {showFullscreen && <VideoFullscreenModal src={src} onClose={() => setShowFullscreen(false)} />}
+    </>
+  );
+}
+
+async function compressImage(file, maxW = 1280, quality = 0.82) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function MessageContent({ msg, onOpenImage }) {
+  const text = msg.text || '';
+  const imgMatch = text.match(/^\[vx:img:([^\]]+)\](.*)$/s);
+  const audioMatch = text.match(/^\[vx:audio:(data:[^,]+,[^\]]+)\](.*)$/s);
+  const callMatch = text.match(/^\[vx:call:([^\]]+)\](.*)$/s);
+  const fileMatch = text.match(/^\[vx:file:name=([^|]+)\|size=([^|]+)\|type=([^\]]+)\](.*)$/s);
+  const videoMatch = text.match(/^\[vx:video:([^\]]+)\](.*)$/s);
+
+  if (videoMatch) {
+    return (
+      <div>
+        <VideoMessage src={videoMatch[1]} />
+        {videoMatch[2]?.trim() && <div className="mt-1.5 text-sm"><FormattedText text={videoMatch[2].trim()} /></div>}
+      </div>
+    );
+  }
+
+  if (imgMatch) {
+    return (
+      <div>
+        <img
+          src={imgMatch[1]}
+          alt="Image"
+          className="rounded-xl max-w-[260px] max-h-[320px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
+          onClick={() => onOpenImage?.(imgMatch[1])}
+          loading="lazy"
+        />
+        {imgMatch[2]?.trim() && <div className="mt-1.5 text-sm"><FormattedText text={imgMatch[2].trim()} /></div>}
+      </div>
+    );
+  }
+
+  if (audioMatch) {
+    return (
+      <div className="flex flex-col gap-1 min-w-[200px]">
+        <div className="flex items-center gap-2">
+          <FiMic size={14} className="text-discord-brand flex-shrink-0" />
+          <span className="text-xs text-discord-muted">Voice message</span>
+        </div>
+        <audio controls src={audioMatch[1]} className="w-full max-w-[240px]" style={{ height: '36px' }} />
+        {audioMatch[2]?.trim() && <div className="mt-1 text-sm"><FormattedText text={audioMatch[2].trim()} /></div>}
+      </div>
+    );
+  }
+
+  if (callMatch) {
+    const callUrl = callMatch[1];
+    return (
+      <div className="flex flex-col gap-2 min-w-[200px]">
+        <div className="flex items-center gap-2">
+          <FiVideo size={14} className="text-discord-green flex-shrink-0" />
+          <span className="text-xs font-semibold text-discord-green">Video Call</span>
+        </div>
+        <a
+          href={callUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 bg-discord-brand/90 hover:bg-discord-brand text-white px-3 py-2 rounded-xl text-xs font-bold transition-colors"
+          onClick={e => e.stopPropagation()}
+        >
+          <FiVideo size={14} /> Join Call
+        </a>
+        {callMatch[2]?.trim() && <div className="mt-1 text-sm"><FormattedText text={callMatch[2].trim()} /></div>}
+      </div>
+    );
+  }
+
+  if (fileMatch) {
+    const [, name, size, type, rest] = fileMatch;
+    return (
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2 bg-white/6 border border-white/10 rounded-xl px-3 py-2.5">
+          <FiFile size={18} className="text-discord-brand flex-shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-discord-text truncate max-w-[180px]">{name}</p>
+            <p className="text-[11px] text-discord-muted">{(parseInt(size)/1024).toFixed(1)} KB</p>
+          </div>
+        </div>
+        {rest?.trim() && <div className="mt-1 text-sm"><FormattedText text={rest.trim()} /></div>}
+      </div>
+    );
+  }
+
+  return <FormattedText text={text} />;
+}
+
+function JitsiModal({ roomUrl, onClose }) {
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black/90 flex flex-col">
+      <div className="flex items-center justify-between px-4 py-2 bg-discord-dark border-b border-white/10 flex-shrink-0">
+        <span className="text-sm font-bold text-discord-text flex items-center gap-2"><FiVideo size={16} className="text-discord-green" /> Live Call</span>
+        <button onClick={onClose} className="text-discord-muted hover:text-discord-red transition-colors p-1"><FiX size={20} /></button>
+      </div>
+      <iframe
+        src={roomUrl}
+        allow="camera; microphone; fullscreen; display-capture; autoplay"
+        className="flex-1 w-full border-0"
+        title="Video Call"
+      />
+    </div>
+  );
+}
 
 function DateSeparator({ date }) {
   const d = new Date(date);
@@ -30,6 +365,17 @@ function formatConvTime(dateStr) {
   if (isToday(d)) return format(d, 'HH:mm');
   if (isYesterday(d)) return 'Yesterday';
   return format(d, 'MMM d');
+}
+
+function getMessagePreview(text) {
+  if (!text) return '';
+  if (/^\[vx:video:/.test(text)) return '📹 Video';
+  if (/^\[vx:img:/.test(text)) return '📷 Photo';
+  if (/^\[vx:audio:/.test(text)) return '🎤 Voice message';
+  if (/^\[vx:call:/.test(text)) return '📞 Video Call';
+  const fileMatch = text.match(/^\[vx:file:name=([^|]+)\|/);
+  if (fileMatch) return `📎 ${fileMatch[1]}`;
+  return text;
 }
 
 export default function Messages({ currentUser, unreadCounts }) {
@@ -52,11 +398,23 @@ export default function Messages({ currentUser, unreadCounts }) {
   const [convMenu, setConvMenu] = useState(null);
   const [reportTarget, setReportTarget] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [mediaAttachment, setMediaAttachment] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordDuration, setRecordDuration] = useState(0);
+  const [jitsiUrl, setJitsiUrl] = useState(null);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [pendingImageSrc, setPendingImageSrc] = useState(null);
+  const [pendingImageFile, setPendingImageFile] = useState(null);
+  const [fullscreenImg, setFullscreenImg] = useState(null);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const typingTimeout = useRef(null);
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const recordChunksRef = useRef([]);
+  const recordIntervalRef = useRef(null);
   const isMobile = window.innerWidth < 768;
 
   useEffect(() => { fetchConversations(); }, []);
@@ -84,7 +442,7 @@ export default function Messages({ currentUser, unreadCounts }) {
             isOnline: sender.isOnline,
             isSupa: sender.isSupa,
             isVerified: sender.isVerified,
-            lastMessage: message.text,
+            lastMessage: getMessagePreview(message.text),
             lastMessageTime: message.createdAt,
             unreadCount: (existing?.unreadCount || 0) + 1,
           };
@@ -148,7 +506,7 @@ export default function Messages({ currentUser, unreadCounts }) {
             isOnline: c.user.isOnline,
             isSupa: c.user.isSupa,
             isVerified: c.user.isVerified,
-            lastMessage: c.lastMessage?.text || '',
+            lastMessage: getMessagePreview(c.lastMessage?.text || ''),
             lastMessageTime: c.lastMessage?.createdAt || null,
             unreadCount: c.unreadCount || 0,
             isMine: c.lastMessage?.isMine || false,
@@ -178,13 +536,98 @@ export default function Messages({ currentUser, unreadCounts }) {
     finally { setLoading(false); scrollToBottom(true); }
   };
 
+  const handleFileAttach = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        setPendingImageSrc(ev.target.result);
+        setPendingImageFile(file);
+        setShowCropModal(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm' });
+      recordChunksRef.current = [];
+      recorder.ondataavailable = e => { if (e.data.size > 0) recordChunksRef.current.push(e.data); };
+      recorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(recordChunksRef.current, { type: recorder.mimeType });
+        const reader = new FileReader();
+        reader.onload = ev => {
+          setMediaAttachment({ type: 'audio', dataUrl: ev.target.result, filename: 'voice.webm', mimeType: recorder.mimeType, size: blob.size });
+        };
+        reader.readAsDataURL(blob);
+        clearInterval(recordIntervalRef.current);
+        setRecordDuration(0);
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setRecordDuration(0);
+      recordIntervalRef.current = setInterval(() => setRecordDuration(d => d + 1), 1000);
+    } catch { alert('Microphone access denied'); }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+  };
+
+  const sendCallInvite = async (isVideo = true) => {
+    if (!activeConv) return;
+    const roomId = `vesselx-${currentUser.username}-${activeConv.username}-${Date.now()}`;
+    const url = `https://meet.jit.si/${roomId}#config.startWithVideoMuted=${!isVideo}`;
+    setJitsiUrl(url);
+    const text = `[vx:call:${url}]`;
+    const myId = currentUser?._id || currentUser?.id;
+    const tempMsg = { _id: Date.now(), text, senderId: myId, createdAt: new Date().toISOString(), status: 'sent' };
+    setMessages(prev => [...prev, tempMsg]);
+    scrollToBottom();
+    try { await API.sendMessage({ receiverUsername: activeConv.username, text }); } catch {}
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!newMsg.trim() || !activeConv || sending) return;
-    const text = newMsg.trim();
+    if ((!newMsg.trim() && !mediaAttachment) || !activeConv || sending) return;
+    let text = newMsg.trim();
+    const savedAttachment = mediaAttachment;
+    const savedMsg = newMsg;
+    setSending(true);
     setNewMsg('');
     if (textareaRef.current) { textareaRef.current.style.height = '42px'; }
-    setSending(true);
+    if (mediaAttachment) {
+      if (mediaAttachment.type === 'image') {
+        text = `[vx:img:${mediaAttachment.dataUrl}]${text ? '\n' + text : ''}`;
+      } else if (mediaAttachment.type === 'audio') {
+        text = `[vx:audio:${mediaAttachment.dataUrl}]${text ? '\n' + text : ''}`;
+      } else if (mediaAttachment.type === 'video') {
+        try {
+          const formData = new FormData();
+          if (mediaAttachment.file) {
+            formData.append('file', mediaAttachment.file, mediaAttachment.filename);
+          } else {
+            const res = await fetch(mediaAttachment.dataUrl);
+            const blob = await res.blob();
+            formData.append('file', blob, mediaAttachment.filename || 'video.mp4');
+          }
+          const uploadData = await API.uploadMessageMedia(formData);
+          text = `[vx:video:${uploadData.url}]${text ? '\n' + text : ''}`;
+        } catch {
+          text = `[vx:video:${mediaAttachment.dataUrl}]${text ? '\n' + text : ''}`;
+        }
+      } else if (mediaAttachment.type === 'file') {
+        text = `[vx:file:name=${mediaAttachment.filename}|size=${mediaAttachment.size}|type=${mediaAttachment.mimeType}]${text ? '\n' + text : ''}`;
+      }
+      setMediaAttachment(null);
+    }
     const myId = currentUser?._id || currentUser?.id;
     const tempMsg = {
       _id: Date.now(),
@@ -199,7 +642,7 @@ export default function Messages({ currentUser, unreadCounts }) {
       const existing = prev.find(c => c.username === activeConv.username);
       const updated = {
         ...(existing || activeConv),
-        lastMessage: text,
+        lastMessage: getMessagePreview(text),
         lastMessageTime: new Date().toISOString(),
         unreadCount: 0,
         isMine: true,
@@ -208,7 +651,16 @@ export default function Messages({ currentUser, unreadCounts }) {
     });
     try {
       await API.sendMessage({ receiverUsername: activeConv.username, text });
-    } catch { setMessages(prev => prev.filter(m => m._id !== tempMsg._id)); }
+    } catch {
+      setMessages(prev => prev.filter(m => m._id !== tempMsg._id));
+      setMediaAttachment(savedAttachment);
+      setNewMsg(savedMsg);
+      if (textareaRef.current) {
+        textareaRef.current.value = savedMsg;
+        textareaRef.current.style.height = 'auto';
+        textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + 'px';
+      }
+    }
     finally { setSending(false); }
   };
 
@@ -380,12 +832,16 @@ export default function Messages({ currentUser, unreadCounts }) {
                   <div className="flex items-center justify-between gap-1">
                     <p className={`text-xs truncate flex-1 flex items-center gap-1 ${c.unreadCount > 0 ? 'text-discord-text font-medium' : 'text-discord-muted'}`}>
                       {c.isMine && <span className="text-discord-muted flex-shrink-0">You: </span>}
-                      {c.lastMessage ? (
-                        <span
-                          className="truncate twemoji-inline"
-                          dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(c.lastMessage.length > 40 ? c.lastMessage.slice(0, 40) + '…' : c.lastMessage) }}
-                        />
-                      ) : (
+                      {c.lastMessage ? (() => {
+                          const preview = getMessagePreview(c.lastMessage);
+                          const display = preview.length > 40 ? preview.slice(0, 40) + '…' : preview;
+                          return (
+                            <span
+                              className="truncate twemoji-inline"
+                              dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(display) }}
+                            />
+                          );
+                        })() : (
                         <span className="italic">Start a conversation</span>
                       )}
                     </p>
@@ -424,6 +880,22 @@ export default function Messages({ currentUser, unreadCounts }) {
               {activeConv.isOnline ? 'Online' : 'Offline'}
             </p>
           </div>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            className="w-9 h-9 flex items-center justify-center rounded-xl text-discord-muted hover:text-discord-green hover:bg-discord-green/10 transition-colors"
+            onClick={() => sendCallInvite(false)}
+            title="Voice Call"
+          >
+            <FiPhone size={17} />
+          </button>
+          <button
+            className="w-9 h-9 flex items-center justify-center rounded-xl text-discord-muted hover:text-discord-green hover:bg-discord-green/10 transition-colors"
+            onClick={() => sendCallInvite(true)}
+            title="Video Call"
+          >
+            <FiVideo size={17} />
+          </button>
         </div>
       </div>
 
@@ -481,9 +953,9 @@ export default function Messages({ currentUser, unreadCounts }) {
                   }
                   ${grouped ? (mine ? 'rounded-tr-lg' : 'rounded-tl-lg') : ''}
                 `}>
-                  <FormattedText text={msg.text} />
+                  <MessageContent msg={msg} onOpenImage={setFullscreenImg} />
                 </div>
-                {msg.text && <LinkPreview text={msg.text} />}
+                {msg.text && !msg.text.startsWith('[vx:') && <LinkPreview text={msg.text} />}
                 <div className={`flex items-center gap-1.5 mt-1 opacity-0 group-hover:opacity-100 transition-opacity ${mine ? 'flex-row-reverse' : ''}`}>
                   <span className="text-discord-muted text-[10px]">
                     {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
@@ -533,13 +1005,48 @@ export default function Messages({ currentUser, unreadCounts }) {
 
       {/* Input */}
       <form onSubmit={handleSend} className="px-4 pt-3 pb-20 md:pb-3 border-t border-white/6 flex-shrink-0">
+        {/* Media Preview */}
+        {mediaAttachment && (
+          <div className="mb-2 flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+            {mediaAttachment.type === 'image' && (
+              <img src={mediaAttachment.dataUrl} alt="preview" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-discord-text font-medium truncate">{mediaAttachment.filename}</p>
+              <p className="text-[11px] text-discord-muted">{(mediaAttachment.size / 1024).toFixed(1)} KB</p>
+            </div>
+            <button type="button" onClick={() => setMediaAttachment(null)} className="text-discord-muted hover:text-discord-red transition-colors flex-shrink-0">
+              <FiX size={16} />
+            </button>
+          </div>
+        )}
+
         <div className="flex items-end gap-2">
+          {/* Left toolbar: attach + mic */}
+          <div className="flex items-center gap-1 flex-shrink-0 mb-0.5">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileAttach}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-discord-muted hover:text-discord-brand hover:bg-discord-brand/10 transition-colors"
+              title="Attach photo"
+            >
+              <FiPaperclip size={18} />
+            </button>
+          </div>
+
           <div className="relative flex-1">
             <textarea
               ref={textareaRef}
               value={newMsg}
               onChange={e => { handleTyping(e); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'; }}
-              placeholder={`Message @${activeConv.username}...`}
+              placeholder={mediaAttachment ? 'Add a caption...' : `Message @${activeConv.username}...`}
               className="discord-input w-full resize-none overflow-hidden pr-10"
               rows={1}
               style={{ minHeight: '42px', maxHeight: '160px', lineHeight: '1.5' }}
@@ -575,7 +1082,7 @@ export default function Messages({ currentUser, unreadCounts }) {
           </div>
           <button
             type="submit"
-            disabled={!newMsg.trim() || sending}
+            disabled={(!newMsg.trim() && !mediaAttachment) || sending}
             className="discord-btn p-2.5 rounded-xl disabled:opacity-40 flex-shrink-0 mb-0.5"
           >
             <FiSend size={16} />
@@ -693,6 +1200,41 @@ export default function Messages({ currentUser, unreadCounts }) {
           Copied to clipboard
         </div>
       </div>
+
+      {/* Jitsi Meet Call */}
+      {jitsiUrl && <JitsiModal roomUrl={jitsiUrl} onClose={() => setJitsiUrl(null)} />}
+
+      {/* Image Crop Modal */}
+      {showCropModal && pendingImageSrc && (
+        <ImageCropModal
+          src={pendingImageSrc}
+          aspectRatio={4 / 3}
+          onCrop={(croppedFile, previewUrl) => {
+            const reader = new FileReader();
+            reader.onload = ev => {
+              setMediaAttachment({
+                type: 'image',
+                dataUrl: ev.target.result,
+                filename: pendingImageFile?.name || 'image.jpg',
+                mimeType: 'image/jpeg',
+                size: croppedFile.size,
+              });
+            };
+            reader.readAsDataURL(croppedFile);
+            setShowCropModal(false);
+            setPendingImageSrc(null);
+            setPendingImageFile(null);
+          }}
+          onCancel={() => {
+            setShowCropModal(false);
+            setPendingImageSrc(null);
+            setPendingImageFile(null);
+          }}
+        />
+      )}
+
+      {/* Image Fullscreen */}
+      {fullscreenImg && <ImageFullscreenModal src={fullscreenImg} onClose={() => setFullscreenImg(null)} />}
     </Layout>
   );
 }

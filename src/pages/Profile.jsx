@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiSettings, FiMessageSquare, FiUserPlus, FiUserCheck, FiEdit2, FiGrid, FiBookmark, FiUsers, FiCamera, FiFlag } from 'react-icons/fi';
+import { FiSettings, FiMessageSquare, FiUserPlus, FiUserCheck, FiEdit2, FiGrid, FiCamera, FiFlag } from 'react-icons/fi';
 import ReportModal from '../components/ReportModal';
 import ProfilePictureModal from '../components/ProfilePictureModal';
 import { formatDistanceToNow } from 'date-fns';
 import Layout from '../components/Layout';
 import Avatar from '../components/Avatar';
 import PostCard from '../components/PostCard';
+import { AnimatedBadge } from '../components/UserBadge';
+import { VerifiedBadge, SupaBadge, getStoredVerifiedBadgeStyle, setStoredVerifiedBadgeStyle } from '../components/UserBadge';
+import { getBadgeById } from '../data/badges';
+import VerificationBadgePicker, { getStoredSupaBadgeStyle } from '../components/VerificationBadgePicker';
 import API from '../utils/api';
 import ImageCropModal from '../components/ImageCropModal';
 import { parseEmojisToHtml } from '../utils/emoji';
@@ -30,6 +34,10 @@ export default function Profile({ currentUser, unreadCounts }) {
   const [showReport, setShowReport] = useState(false);
   const [showPicModal, setShowPicModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showVerifPicker, setShowVerifPicker] = useState(false);
+  const [showVerifPickerVerified, setShowVerifPickerVerified] = useState(false);
+  const [supaStyleId, setSupaStyleId] = useState('red');
+  const [verifiedStyleId, setVerifiedStyleId] = useState('blue');
   const fileRef = useRef();
 
   const isMyProfile = currentUser?.username === username;
@@ -38,6 +46,8 @@ export default function Profile({ currentUser, unreadCounts }) {
   useEffect(() => {
     fetchUser();
     fetchPosts();
+    setSupaStyleId(getStoredSupaBadgeStyle(username));
+    setVerifiedStyleId(getStoredVerifiedBadgeStyle(username) || 'blue');
   }, [username]);
 
   const fetchUser = async () => {
@@ -164,17 +174,37 @@ export default function Profile({ currentUser, unreadCounts }) {
         <div className={`pt-14 px-4 pb-4 border-b border-discord-hover ${user.isSupa ? 'supa-profile-card' : ''}`}>
           <div className="flex items-start justify-between">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className={`text-xl ${user.isSupa ? 'supa-username supa-name-container supa-sparkle' : 'font-bold text-discord-text'}`} dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(user.name) }} />
                 {user.isVerified && (
-                  <span className="supa-verified-tick" title="Verified">
-                    <svg viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg">
-                      <polyline points="2,6 5,9 10,3" />
-                    </svg>
-                  </span>
+                  isMyProfile ? (
+                    <button
+                      className="focus:outline-none active:scale-90 transition-transform"
+                      onClick={() => setShowVerifPickerVerified(true)}
+                      title="Customize your Verified badge"
+                    >
+                      <VerifiedBadge size={20} username={user.username} styleId={verifiedStyleId} />
+                    </button>
+                  ) : (
+                    <VerifiedBadge size={20} username={user.username} />
+                  )
                 )}
-                {user.isSupa && <span className="supa-badge">SUPA</span>}
-                {user.badge && <span className="text-base" dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(user.badge) }} />}
+                {user.isSupa && (
+                  isMyProfile ? (
+                    <button
+                      className="focus:outline-none active:scale-90 transition-transform"
+                      onClick={() => setShowVerifPicker(true)}
+                      title="Customize your SUPA badge"
+                    >
+                      <SupaBadge size={20} username={user.username} styleId={supaStyleId} />
+                    </button>
+                  ) : (
+                    <SupaBadge size={20} username={user.username} />
+                  )
+                )}
+                {user.badge && getBadgeById(user.badge) && (
+                  <AnimatedBadge badgeId={user.badge} size="1.2em" />
+                )}
               </div>
               <p className="text-discord-muted text-sm">@{user.username}</p>
               {user.bio && (
@@ -363,6 +393,33 @@ export default function Profile({ currentUser, unreadCounts }) {
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[200] bg-discord-dark border border-white/10 text-discord-text text-xs px-4 py-2 rounded-full shadow-xl backdrop-blur-xl pointer-events-none">
           Link copied!
         </div>
+      )}
+
+      {showVerifPicker && user?.isSupa && isMyProfile && (
+        <VerificationBadgePicker
+          username={user.username}
+          badgeType="supa"
+          currentStyleId={supaStyleId}
+          onSelect={(styleId) => {
+            setSupaStyleId(styleId);
+            setShowVerifPicker(false);
+          }}
+          onClose={() => setShowVerifPicker(false)}
+        />
+      )}
+
+      {showVerifPickerVerified && user?.isVerified && isMyProfile && (
+        <VerificationBadgePicker
+          username={user.username}
+          badgeType="verified"
+          currentStyleId={verifiedStyleId}
+          onSelect={(styleId) => {
+            setVerifiedStyleId(styleId);
+            setStoredVerifiedBadgeStyle(user.username, styleId);
+            setShowVerifPickerVerified(false);
+          }}
+          onClose={() => setShowVerifPickerVerified(false)}
+        />
       )}
     </Layout>
   );

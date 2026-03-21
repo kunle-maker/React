@@ -1,158 +1,163 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiLock, FiTrash2, FiLogOut, FiShield, FiZap, FiChevronRight, FiCreditCard, FiCheck, FiX, FiClock } from 'react-icons/fi';
+import {
+  FiUser, FiLock, FiTrash2, FiLogOut, FiShield, FiZap,
+  FiChevronRight, FiCheck, FiX, FiClock, FiCopy, FiGlobe,
+  FiRefreshCw, FiAlertCircle, FiBell, FiChevronDown
+} from 'react-icons/fi';
 import { HiSparkles } from 'react-icons/hi';
-import { formatDistanceToNow, format } from 'date-fns';
+import { format } from 'date-fns';
 import Layout from '../components/Layout';
+import { SupaBadge } from '../components/UserBadge';
 import API from '../utils/api';
+import { useI18n } from '../contexts/I18nContext';
 
-function formatCardNumber(val) {
-  return val.replace(/\D/g, '').slice(0, 19).replace(/(.{4})/g, '$1 ').trim();
-}
-function formatExpiry(val) {
-  const digits = val.replace(/\D/g, '').slice(0, 4);
-  if (digits.length >= 3) return `${digits.slice(0, 2)} / ${digits.slice(2)}`;
-  return digits;
-}
-
-function CardPaymentForm({ plan, onSuccess, onCancel }) {
-  const [form, setForm] = useState({ cardNumber: '', expiryMonth: '', expiryYear: '', cvv: '', cardHolderName: '' });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [expiryDisplay, setExpiryDisplay] = useState('');
-
-  const handleExpiryChange = (e) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
-    if (raw.length >= 3) setExpiryDisplay(`${raw.slice(0, 2)} / ${raw.slice(2)}`);
-    else setExpiryDisplay(raw);
-    setForm(f => ({ ...f, expiryMonth: raw.slice(0, 2), expiryYear: raw.length >= 3 ? `20${raw.slice(2)}` : '' }));
+function CopyButton({ text, label }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
+  return (
+    <button
+      onClick={copy}
+      className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${
+        copied
+          ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+          : 'bg-discord-brand/10 text-discord-brand border border-discord-brand/20 hover:bg-discord-brand/20'
+      }`}
+    >
+      {copied ? <FiCheck size={12} /> : <FiCopy size={12} />}
+      {copied ? 'Copied!' : (label || 'Copy')}
+    </button>
+  );
+}
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      const digits = form.cardNumber.replace(/\s/g, '');
-      const result = await API.subscribeToSupa({
-        plan,
-        cardNumber: digits,
-        cvv: form.cvv,
-        expiryMonth: form.expiryMonth,
-        expiryYear: form.expiryYear,
-        cardHolderName: form.cardHolderName,
-      });
-      onSuccess(result);
-    } catch (err) {
-      setError(err.message || 'Payment failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+function AccountCard({ label, value }) {
+  return (
+    <div className="bg-white/3 rounded-xl p-3.5 border border-white/5">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-discord-muted text-xs font-semibold uppercase tracking-wide mb-0.5">{label}</p>
+          <p className="text-discord-text font-mono text-sm font-bold">{value}</p>
+        </div>
+        <CopyButton text={value} />
+      </div>
+    </div>
+  );
+}
 
-  const digits = form.cardNumber.replace(/\s/g, '');
-  const brand = digits.startsWith('4') ? 'VISA' : digits.startsWith('5') ? 'MC' : digits.startsWith('3') ? 'AMEX' : '';
+function BankTransferScreen({ paymentData, plan, onActivated, onBack }) {
+  const [polling, setPolling] = useState(true);
+  const [activated, setActivated] = useState(false);
+  const [selectedBank, setSelectedBank] = useState(0);
+  const intervalRef = useRef(null);
+
+  const accounts = paymentData?.payment?.allAccounts?.length
+    ? paymentData.payment.allAccounts
+    : paymentData?.payment
+      ? [paymentData.payment]
+      : [];
+
+  const currentAccount = accounts[selectedBank] || {};
+  const amount = paymentData?.amount;
+  const currency = paymentData?.currency || 'NGN';
+  const amountStr = amount ? `${currency === 'NGN' ? '₦' : currency}${Number(amount).toLocaleString()}` : '';
+
+  useEffect(() => {
+    if (!polling) return;
+    intervalRef.current = setInterval(async () => {
+      try {
+        const data = await API.getSupaStatus();
+        if (data?.isSupa) {
+          clearInterval(intervalRef.current);
+          setPolling(false);
+          setActivated(true);
+          setTimeout(() => onActivated(data), 1200);
+        }
+      } catch { }
+    }, 5000);
+    return () => clearInterval(intervalRef.current);
+  }, [polling, onActivated]);
+
+  if (activated) {
+    return (
+      <div className="text-center py-12 px-4 animate-fade-in">
+        <div className="w-20 h-20 rounded-full bg-green-500/15 border border-green-500/30 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-green-500/10">
+          <FiCheck size={36} className="text-green-400" />
+        </div>
+        <h3 className="font-black text-discord-text text-2xl mb-2">You're Supa! 🎉</h3>
+        <p className="text-discord-muted text-sm">Your subscription is now active. Enjoy the full VesselX experience.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
-      <div className="bg-discord-sidebar border border-discord-hover rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-fade-in">
-        <div className="p-5 border-b border-discord-hover flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FiCreditCard size={18} className="text-discord-brand" />
-            <h3 className="font-bold text-discord-text">Card Payment</h3>
-          </div>
-          <button onClick={onCancel} className="text-discord-muted hover:text-discord-text transition-colors p-1">
-            <FiX size={18} />
-          </button>
+    <div className="animate-fade-in">
+      <div className="flex items-center gap-3 mb-5">
+        <button onClick={onBack} className="text-discord-muted hover:text-discord-text transition-colors p-1 rounded-lg hover:bg-white/5">
+          <FiX size={18} />
+        </button>
+        <div>
+          <h3 className="font-bold text-discord-text">Bank Transfer</h3>
+          <p className="text-discord-muted text-xs">Transfer to activate your {plan} plan</p>
         </div>
+      </div>
 
-        {/* Card preview */}
-        <div className="mx-5 mt-4 rounded-xl p-4 bg-gradient-to-br from-discord-brand to-purple-700 text-white shadow-lg">
-          <div className="flex items-center justify-between mb-6">
-            <div className="w-8 h-6 rounded bg-white/30" />
-            {brand && <span className="font-bold text-sm tracking-wider opacity-90">{brand}</span>}
-          </div>
-          <p className="font-mono text-lg tracking-widest mb-2 opacity-90">
-            {form.cardNumber || '•••• •••• •••• ••••'}
-          </p>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-white/50 text-[10px] uppercase">Card Holder</p>
-              <p className="text-sm font-medium truncate max-w-[160px]">{form.cardHolderName || 'YOUR NAME'}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-white/50 text-[10px] uppercase">Expires</p>
-              <p className="text-sm">{expiryDisplay || 'MM / YY'}</p>
-            </div>
+      <div className="bg-gradient-to-br from-discord-brand/20 via-purple-500/10 to-pink-500/10 border border-discord-brand/30 rounded-2xl p-5 mb-4 shadow-lg">
+        <p className="text-discord-muted text-xs font-bold uppercase tracking-wider mb-2">Transfer exactly</p>
+        <p className="text-4xl font-black text-white mb-1">{amountStr}</p>
+        <p className="text-discord-muted text-sm">to activate your Supa subscription</p>
+      </div>
+
+      {accounts.length > 1 && (
+        <div className="mb-4">
+          <p className="text-discord-muted text-xs font-bold uppercase tracking-wide mb-2">Choose your bank</p>
+          <div className="flex gap-2 flex-wrap">
+            {accounts.map((acc, i) => (
+              <button
+                key={i}
+                onClick={() => setSelectedBank(i)}
+                className={`px-3 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                  selectedBank === i
+                    ? 'bg-discord-brand text-white border-discord-brand shadow-md shadow-discord-brand/30'
+                    : 'bg-white/3 text-discord-muted border-white/8 hover:border-white/15 hover:text-discord-text'
+                }`}
+              >
+                {acc.bankName || `Bank ${i + 1}`}
+              </button>
+            ))}
           </div>
         </div>
+      )}
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-3">
-          <div>
-            <label className="text-discord-muted text-xs font-semibold uppercase mb-1 block">Cardholder Name</label>
-            <input
-              className="discord-input w-full text-sm"
-              placeholder="John Doe"
-              value={form.cardHolderName}
-              onChange={e => setForm(f => ({ ...f, cardHolderName: e.target.value.toUpperCase() }))}
-              required
-            />
-          </div>
-          <div>
-            <label className="text-discord-muted text-xs font-semibold uppercase mb-1 block">Card Number</label>
-            <input
-              className="discord-input w-full text-sm font-mono tracking-wider"
-              placeholder="1234 5678 9012 3456"
-              value={form.cardNumber}
-              onChange={e => setForm(f => ({ ...f, cardNumber: formatCardNumber(e.target.value) }))}
-              inputMode="numeric"
-              required
-            />
-          </div>
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-discord-muted text-xs font-semibold uppercase mb-1 block">Expiry</label>
-              <input
-                className="discord-input w-full text-sm font-mono"
-                placeholder="MM / YY"
-                value={expiryDisplay}
-                onChange={handleExpiryChange}
-                inputMode="numeric"
-                required
-              />
-            </div>
-            <div className="w-28">
-              <label className="text-discord-muted text-xs font-semibold uppercase mb-1 block">CVV</label>
-              <input
-                className="discord-input w-full text-sm font-mono"
-                placeholder="•••"
-                value={form.cvv}
-                onChange={e => setForm(f => ({ ...f, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
-                inputMode="numeric"
-                required
-              />
-            </div>
-          </div>
+      <div className="space-y-2.5 mb-5">
+        <AccountCard label="Bank" value={currentAccount.bankName || '—'} />
+        <AccountCard label="Account Number" value={currentAccount.accountNumber || '—'} />
+        <AccountCard label="Account Name" value={currentAccount.accountName || '—'} />
+      </div>
 
-          {error && (
-            <div className="bg-discord-red/10 border border-discord-red/30 text-discord-red text-sm px-3 py-2.5 rounded-lg">
-              {error}
-            </div>
-          )}
+      {paymentData?.instructions && (
+        <div className="bg-white/3 rounded-xl p-4 mb-5 border border-white/5">
+          <p className="text-discord-muted text-xs font-bold uppercase tracking-wide mb-3">How to pay</p>
+          <div className="space-y-2">
+            {paymentData.instructions.map((step, i) => (
+              <p key={i} className="text-discord-text text-sm leading-relaxed">{step}</p>
+            ))}
+          </div>
+        </div>
+      )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="discord-btn w-full py-3 font-bold text-base disabled:opacity-60 flex items-center justify-center gap-2 mt-1"
-          >
-            {loading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <><FiZap size={16} /> Pay & Activate Supa</>
-            )}
-          </button>
-          <p className="text-discord-muted text-[11px] text-center">Your payment is processed securely.</p>
-        </form>
+      <div className="flex items-center gap-3 bg-green-500/8 border border-green-500/20 rounded-xl p-3.5">
+        <div className="w-8 h-8 rounded-full bg-green-500/15 flex items-center justify-center flex-shrink-0">
+          <FiRefreshCw size={14} className="text-green-400 animate-spin" style={{ animationDuration: '3s' }} />
+        </div>
+        <div>
+          <p className="text-green-400 text-sm font-semibold">Checking for payment...</p>
+          <p className="text-green-400/60 text-xs">Supa activates automatically after transfer is received</p>
+        </div>
       </div>
     </div>
   );
@@ -161,11 +166,14 @@ function CardPaymentForm({ plan, onSuccess, onCancel }) {
 function SupaSection({ currentUser }) {
   const [plans, setPlans] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState('monthly');
-  const [showForm, setShowForm] = useState(false);
-  const [payResult, setPayResult] = useState(null);
+  const [paymentData, setPaymentData] = useState(null);
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [initiating, setInitiating] = useState(false);
+  const [initiateError, setInitiateError] = useState('');
   const [history, setHistory] = useState([]);
   const [historyTab, setHistoryTab] = useState('plans');
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [existingAccount, setExistingAccount] = useState(null);
 
   useEffect(() => {
     API.getSupaPlans().then(data => {
@@ -178,6 +186,12 @@ function SupaSection({ currentUser }) {
         { id: 'yearly', label: 'Yearly', price: '₦12,000', period: '/year', badge: 'Save 9%' },
       ]);
     });
+
+    API.getSupaPaymentAccount().then(data => {
+      if (data?.accountNumber || data?.payment?.accountNumber) {
+        setExistingAccount(data?.payment || data);
+      }
+    }).catch(() => { });
   }, []);
 
   const loadHistory = async () => {
@@ -193,9 +207,23 @@ function SupaSection({ currentUser }) {
 
   useEffect(() => { loadHistory(); }, [historyTab]);
 
-  const handleSuccess = (result) => {
-    setShowForm(false);
-    setPayResult(result);
+  const handleInitiate = async () => {
+    setInitiating(true);
+    setInitiateError('');
+    try {
+      const data = await API.initiateSupaPayment(selectedPlan);
+      setPaymentData(data);
+      setShowTransfer(true);
+    } catch (err) {
+      setInitiateError(err.message || 'Failed to initiate payment. Please try again.');
+    } finally {
+      setInitiating(false);
+    }
+  };
+
+  const handleActivated = (statusData) => {
+    setShowTransfer(false);
+    setPaymentData(null);
     const updated = { ...currentUser, isSupa: true };
     localStorage.setItem('user', JSON.stringify(updated));
     window.dispatchEvent(new CustomEvent('profileUpdate', { detail: updated }));
@@ -208,22 +236,17 @@ function SupaSection({ currentUser }) {
     'Priority in search results',
     'Exclusive reactions & emoji sets',
     'Extended video uploads',
+    'Ad-free experience',
   ];
 
-  if (payResult) {
+  if (showTransfer && paymentData) {
     return (
-      <div className="text-center py-8 px-4">
-        <div className="w-16 h-16 rounded-full bg-green-500/15 flex items-center justify-center mx-auto mb-4">
-          <FiCheck size={28} className="text-green-400" />
-        </div>
-        <h3 className="font-bold text-discord-text text-xl mb-1">You're now Supa! 🎉</h3>
-        <p className="text-discord-muted text-sm mb-5">Your subscription is active.</p>
-        <div className="bg-discord-sidebar border border-discord-hover rounded-xl p-4 text-left space-y-2 text-sm">
-          {payResult.cardBrand && <div className="flex justify-between"><span className="text-discord-muted">Card</span><span className="text-discord-text font-medium">{payResult.cardBrand} •••• {payResult.cardLastFour}</span></div>}
-          {payResult.reference && <div className="flex justify-between"><span className="text-discord-muted">Ref</span><span className="text-discord-text font-mono text-xs">{payResult.reference}</span></div>}
-          {payResult.supaExpiresAt && <div className="flex justify-between"><span className="text-discord-muted">Renews</span><span className="text-discord-text">{format(new Date(payResult.supaExpiresAt), 'MMM d, yyyy')}</span></div>}
-        </div>
-      </div>
+      <BankTransferScreen
+        paymentData={paymentData}
+        plan={selectedPlan}
+        onActivated={handleActivated}
+        onBack={() => { setShowTransfer(false); setPaymentData(null); }}
+      />
     );
   }
 
@@ -242,7 +265,6 @@ function SupaSection({ currentUser }) {
         </div>
       )}
 
-      {/* Tab switcher */}
       <div className="flex gap-1 mb-5 bg-discord-hover rounded-xl p-1">
         {['plans', 'history'].map(t => (
           <button key={t} onClick={() => setHistoryTab(t)}
@@ -254,7 +276,6 @@ function SupaSection({ currentUser }) {
 
       {historyTab === 'plans' ? (
         <>
-          {/* Plan cards */}
           <div className="space-y-3 mb-5">
             {plans.map(plan => {
               const pid = plan.id || plan.plan;
@@ -274,13 +295,14 @@ function SupaSection({ currentUser }) {
                     </div>
                     <span className="font-bold text-discord-text">{plan.label || pid}</span>
                   </div>
-                  <p className="text-2xl font-black text-discord-text ml-6">{plan.price} <span className="text-sm font-normal text-discord-muted">{plan.period}</span></p>
+                  <p className="text-2xl font-black text-discord-text ml-6">
+                    {plan.price} <span className="text-sm font-normal text-discord-muted">{plan.period}</span>
+                  </p>
                 </div>
               );
             })}
           </div>
 
-          {/* Features */}
           <div className="bg-discord-sidebar rounded-xl p-4 mb-5">
             <p className="text-discord-muted text-xs font-bold uppercase mb-3">What's included</p>
             <div className="space-y-2">
@@ -292,13 +314,42 @@ function SupaSection({ currentUser }) {
             </div>
           </div>
 
+          <div className="bg-blue-500/8 border border-blue-500/20 rounded-xl p-3.5 mb-4 flex items-start gap-3">
+            <FiAlertCircle size={16} className="text-blue-400 flex-shrink-0 mt-0.5" />
+            <p className="text-blue-400 text-xs leading-relaxed">
+              Pay via bank transfer — no card required. Your Supa access activates automatically once your transfer is confirmed.
+            </p>
+          </div>
+
+          {initiateError && (
+            <div className="bg-discord-red/10 border border-discord-red/30 text-discord-red text-sm px-3 py-2.5 rounded-lg mb-4">
+              {initiateError}
+            </div>
+          )}
+
           <button
-            className="discord-btn w-full py-3 font-bold text-base flex items-center justify-center gap-2"
-            onClick={() => setShowForm(true)}
+            className="discord-btn w-full py-3 font-bold text-base flex items-center justify-center gap-2 disabled:opacity-60"
+            onClick={handleInitiate}
+            disabled={initiating}
           >
-            <FiZap size={16} /> {currentUser?.isSupa ? 'Renew Supa' : 'Upgrade to Supa'}
+            {initiating ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <><FiZap size={16} /> {currentUser?.isSupa ? 'Renew Supa' : 'Upgrade to Supa'}</>
+            )}
           </button>
-          <p className="text-discord-muted text-xs text-center mt-2">Cancel anytime. No hidden fees.</p>
+          <p className="text-discord-muted text-xs text-center mt-2">No hidden fees. Cancel anytime.</p>
+
+          {existingAccount && currentUser?.isSupa && (
+            <div className="mt-6 border-t border-white/5 pt-5">
+              <p className="text-discord-muted text-xs font-bold uppercase tracking-wide mb-3">Your Dedicated Payment Account</p>
+              <div className="space-y-2">
+                <AccountCard label="Bank" value={existingAccount.bankName || '—'} />
+                <AccountCard label="Account Number" value={existingAccount.accountNumber || '—'} />
+                <AccountCard label="Account Name" value={existingAccount.accountName || '—'} />
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <div>
@@ -317,10 +368,10 @@ function SupaSection({ currentUser }) {
                 <div key={h._id || i} className="bg-discord-sidebar rounded-xl p-4">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-semibold text-discord-text text-sm">{h.plan === 'yearly' ? 'Yearly' : 'Monthly'} Plan</span>
-                    <span className="text-discord-brand font-bold text-sm">{h.amount || h.price}</span>
+                    <span className="text-discord-brand font-bold text-sm">{h.amount ? `₦${Number(h.amount).toLocaleString()}` : h.price || '—'}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs text-discord-muted">
-                    <span>{h.cardBrand} •••• {h.cardLastFour}</span>
+                    <span>{h.paymentMethod === 'bank_transfer' ? 'Bank Transfer' : (h.paymentMethod || h.cardBrand || 'Payment')}</span>
                     <span>{h.createdAt ? format(new Date(h.createdAt), 'MMM d, yyyy') : ''}</span>
                   </div>
                   {h.reference && <p className="text-discord-muted text-[10px] mt-1 font-mono">Ref: {h.reference}</p>}
@@ -330,13 +381,193 @@ function SupaSection({ currentUser }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
 
-      {showForm && (
-        <CardPaymentForm
-          plan={selectedPlan}
-          onSuccess={handleSuccess}
-          onCancel={() => setShowForm(false)}
-        />
+const LANGUAGES_FALLBACK = [
+  { code: 'en', name: 'English', nativeName: 'English', dir: 'ltr' },
+  { code: 'yo', name: 'Yoruba', nativeName: 'Yorùbá', dir: 'ltr' },
+  { code: 'ha', name: 'Hausa', nativeName: 'Hausa', dir: 'ltr' },
+  { code: 'ig', name: 'Igbo', nativeName: 'Igbo', dir: 'ltr' },
+  { code: 'fr', name: 'French', nativeName: 'Français', dir: 'ltr' },
+  { code: 'es', name: 'Spanish', nativeName: 'Español', dir: 'ltr' },
+  { code: 'pt', name: 'Portuguese', nativeName: 'Português', dir: 'ltr' },
+  { code: 'ar', name: 'Arabic', nativeName: 'العربية', dir: 'rtl' },
+  { code: 'de', name: 'German', nativeName: 'Deutsch', dir: 'ltr' },
+  { code: 'it', name: 'Italian', nativeName: 'Italiano', dir: 'ltr' },
+  { code: 'ru', name: 'Russian', nativeName: 'Русский', dir: 'ltr' },
+  { code: 'zh', name: 'Chinese', nativeName: '中文', dir: 'ltr' },
+  { code: 'ja', name: 'Japanese', nativeName: '日本語', dir: 'ltr' },
+  { code: 'ko', name: 'Korean', nativeName: '한국어', dir: 'ltr' },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', dir: 'ltr' },
+  { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', dir: 'ltr' },
+  { code: 'pl', name: 'Polish', nativeName: 'Polski', dir: 'ltr' },
+  { code: 'nl', name: 'Dutch', nativeName: 'Nederlands', dir: 'ltr' },
+  { code: 'sv', name: 'Swedish', nativeName: 'Svenska', dir: 'ltr' },
+  { code: 'da', name: 'Danish', nativeName: 'Dansk', dir: 'ltr' },
+  { code: 'fi', name: 'Finnish', nativeName: 'Suomi', dir: 'ltr' },
+  { code: 'no', name: 'Norwegian', nativeName: 'Norsk', dir: 'ltr' },
+  { code: 'cs', name: 'Czech', nativeName: 'Čeština', dir: 'ltr' },
+  { code: 'sk', name: 'Slovak', nativeName: 'Slovenčina', dir: 'ltr' },
+  { code: 'hu', name: 'Hungarian', nativeName: 'Magyar', dir: 'ltr' },
+  { code: 'ro', name: 'Romanian', nativeName: 'Română', dir: 'ltr' },
+  { code: 'bg', name: 'Bulgarian', nativeName: 'Български', dir: 'ltr' },
+  { code: 'uk', name: 'Ukrainian', nativeName: 'Українська', dir: 'ltr' },
+  { code: 'el', name: 'Greek', nativeName: 'Ελληνικά', dir: 'ltr' },
+  { code: 'he', name: 'Hebrew', nativeName: 'עברית', dir: 'rtl' },
+  { code: 'fa', name: 'Persian', nativeName: 'فارسی', dir: 'rtl' },
+  { code: 'ur', name: 'Urdu', nativeName: 'اردو', dir: 'rtl' },
+  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা', dir: 'ltr' },
+  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்', dir: 'ltr' },
+  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు', dir: 'ltr' },
+  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം', dir: 'ltr' },
+  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ', dir: 'ltr' },
+  { code: 'mr', name: 'Marathi', nativeName: 'मराठी', dir: 'ltr' },
+  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', dir: 'ltr' },
+  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ', dir: 'ltr' },
+  { code: 'th', name: 'Thai', nativeName: 'ภาษาไทย', dir: 'ltr' },
+  { code: 'vi', name: 'Vietnamese', nativeName: 'Tiếng Việt', dir: 'ltr' },
+  { code: 'id', name: 'Indonesian', nativeName: 'Bahasa Indonesia', dir: 'ltr' },
+  { code: 'ms', name: 'Malay', nativeName: 'Bahasa Melayu', dir: 'ltr' },
+  { code: 'tl', name: 'Filipino', nativeName: 'Filipino', dir: 'ltr' },
+  { code: 'sw', name: 'Swahili', nativeName: 'Kiswahili', dir: 'ltr' },
+  { code: 'am', name: 'Amharic', nativeName: 'አማርኛ', dir: 'ltr' },
+  { code: 'so', name: 'Somali', nativeName: 'Soomaali', dir: 'ltr' },
+  { code: 'zu', name: 'Zulu', nativeName: 'isiZulu', dir: 'ltr' },
+  { code: 'af', name: 'Afrikaans', nativeName: 'Afrikaans', dir: 'ltr' },
+  { code: 'ca', name: 'Catalan', nativeName: 'Català', dir: 'ltr' },
+];
+
+function LanguageSection({ currentUser }) {
+  const { lang, loadTranslations } = useI18n();
+  const [languages, setLanguages] = useState(LANGUAGES_FALLBACK);
+  const [selected, setSelected] = useState(currentUser?.language || lang || 'en');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
+  const dropRef = useRef(null);
+
+  useEffect(() => {
+    API.getLanguages().then(data => {
+      if (Array.isArray(data) && data.length > 0) setLanguages(data);
+    }).catch(() => { });
+  }, []);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropRef.current && !dropRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    setSaved(false);
+    try {
+      const data = await API.updateLanguage(selected);
+      await loadTranslations(selected);
+      const updated = { ...currentUser, language: selected };
+      localStorage.setItem('user', JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent('profileUpdate', { detail: updated }));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      setError(err.message || 'Failed to update language.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filtered = languages.filter(l =>
+    l.name?.toLowerCase().includes(search.toLowerCase()) ||
+    l.nativeName?.toLowerCase().includes(search.toLowerCase()) ||
+    l.code?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const selectedLang = languages.find(l => l.code === selected);
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1">
+        <FiGlobe size={20} className="text-discord-brand" />
+        <h2 className="text-xl font-bold text-discord-text">Language</h2>
+      </div>
+      <p className="text-discord-muted text-sm mb-6">Choose your preferred language for the VesselX interface.</p>
+
+      <div className="relative mb-4" ref={dropRef}>
+        <button
+          onClick={() => setOpen(v => !v)}
+          className="discord-input w-full flex items-center justify-between cursor-pointer"
+        >
+          <span className="text-discord-text">
+            {selectedLang ? `${selectedLang.nativeName} — ${selectedLang.name}` : selected}
+          </span>
+          <FiChevronDown size={16} className={`text-discord-muted transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {open && (
+          <div className="absolute top-full left-0 right-0 mt-1.5 bg-discord-dark border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+            <div className="p-2 border-b border-white/6">
+              <input
+                className="discord-input w-full text-sm py-2"
+                placeholder="Search languages..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="max-h-60 overflow-y-auto">
+              {filtered.length === 0 ? (
+                <p className="text-discord-muted text-sm text-center py-4">No languages found</p>
+              ) : filtered.map(l => (
+                <button
+                  key={l.code}
+                  onClick={() => { setSelected(l.code); setOpen(false); setSearch(''); }}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between gap-2 ${
+                    selected === l.code
+                      ? 'bg-discord-brand/15 text-discord-brand'
+                      : 'text-discord-text hover:bg-white/5'
+                  }`}
+                >
+                  <span>{l.nativeName} <span className="text-discord-muted">— {l.name}</span></span>
+                  <span className="text-discord-muted text-xs font-mono">{l.code}{l.dir === 'rtl' ? ' RTL' : ''}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div className="bg-discord-red/10 border border-discord-red/30 text-discord-red text-sm px-3 py-2.5 rounded-lg mb-4">
+          {error}
+        </div>
+      )}
+      {saved && (
+        <div className="bg-green-500/10 border border-green-500/30 text-green-400 text-sm px-3 py-2.5 rounded-lg mb-4 flex items-center gap-2">
+          <FiCheck size={14} /> Language updated successfully!
+        </div>
+      )}
+
+      <button
+        onClick={handleSave}
+        disabled={saving || selected === (currentUser?.language || 'en')}
+        className="discord-btn px-6 py-2.5 font-semibold disabled:opacity-50 flex items-center gap-2"
+      >
+        {saving ? (
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <FiCheck size={14} />
+        )}
+        Save Language
+      </button>
+
+      {languages.length > 0 && (
+        <p className="text-discord-muted text-xs mt-3">{languages.length} languages supported</p>
       )}
     </div>
   );
@@ -366,13 +597,13 @@ export default function Settings({ currentUser, unreadCounts }) {
   const SECTIONS = [
     { id: 'account', icon: FiUser, label: 'My Account' },
     { id: 'security', icon: FiShield, label: 'Security' },
+    { id: 'language', icon: FiGlobe, label: 'Language' },
     { id: 'supa', icon: FiZap, label: 'Supa Premium' },
   ];
 
   return (
     <Layout currentUser={currentUser} unreadCounts={unreadCounts}>
       <div className="flex h-full">
-        {/* Sidebar */}
         <div className="w-64 border-r border-discord-hover bg-discord-sidebar p-3 flex flex-col hidden md:flex">
           <p className="text-discord-muted text-xs font-bold uppercase px-2 py-1.5 mb-1">User Settings</p>
           {SECTIONS.map(s => (
@@ -393,7 +624,6 @@ export default function Settings({ currentUser, unreadCounts }) {
           </div>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 max-w-2xl">
           {section === 'account' && (
             <div>
@@ -403,6 +633,9 @@ export default function Settings({ currentUser, unreadCounts }) {
                   <div>
                     <p className="font-bold text-discord-text">{currentUser?.name}</p>
                     <p className="text-discord-muted text-sm">@{currentUser?.username}</p>
+                    {currentUser?.isSupa && (
+                      <span className="mt-1 inline-flex"><SupaBadge size={15} username={currentUser?.username} /></span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -444,6 +677,7 @@ export default function Settings({ currentUser, unreadCounts }) {
               <div className="mt-6 md:hidden space-y-2">
                 <p className="text-discord-muted text-xs font-bold uppercase px-1 mb-2">More Settings</p>
                 <button className="nav-item w-full" onClick={() => setSection('security')}><FiShield size={16} /> Security</button>
+                <button className="nav-item w-full" onClick={() => setSection('language')}><FiGlobe size={16} /> Language</button>
                 <button className="nav-item w-full" onClick={() => setSection('supa')}><FiZap size={16} /> Supa Premium</button>
               </div>
 
@@ -469,6 +703,8 @@ export default function Settings({ currentUser, unreadCounts }) {
               </div>
             </div>
           )}
+
+          {section === 'language' && <LanguageSection currentUser={currentUser} />}
 
           {section === 'supa' && <SupaSection currentUser={currentUser} />}
         </div>

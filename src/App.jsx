@@ -23,6 +23,7 @@ import ModeratorBot from './pages/ModeratorBot';
 import API from './utils/api';
 import socket from './utils/socket';
 import InstallPrompt from './components/InstallPrompt';
+import { I18nProvider, useI18n } from './contexts/I18nContext';
 
 async function registerPushNotifications() {
   try {
@@ -70,7 +71,8 @@ function ProtectedRoute({ children, token }) {
   return token ? children : <Navigate to="/login" replace />;
 }
 
-export default function App() {
+function AppInner() {
+  const { loadTranslations } = useI18n();
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [currentUser, setCurrentUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
@@ -88,6 +90,9 @@ export default function App() {
         localStorage.setItem('user', JSON.stringify(user));
         socket.connect(user._id || user.id, t);
         registerPushNotifications().catch(() => {});
+        if (user.language) {
+          loadTranslations(user.language).catch(() => {});
+        }
       }
     } catch (err) {
       if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
@@ -97,7 +102,7 @@ export default function App() {
         setCurrentUser(null);
       }
     }
-  }, []);
+  }, [loadTranslations]);
 
   useEffect(() => {
     if (token) loadUser();
@@ -133,6 +138,26 @@ export default function App() {
     window.addEventListener('unreadCountUpdate', handler);
     return () => window.removeEventListener('unreadCountUpdate', handler);
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    const pollSupaStatus = async () => {
+      try {
+        const data = await API.getSupaStatus();
+        const stored = localStorage.getItem('user');
+        if (!stored) return;
+        const user = JSON.parse(stored);
+        if (user.isSupa !== data.isSupa) {
+          const updated = { ...user, isSupa: data.isSupa, supaExpiresAt: data.expiresAt };
+          localStorage.setItem('user', JSON.stringify(updated));
+          setCurrentUser(updated);
+          window.dispatchEvent(new CustomEvent('profileUpdate', { detail: updated }));
+        }
+      } catch { }
+    };
+    const interval = setInterval(pollSupaStatus, 30 * 1000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -192,5 +217,23 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>
+  );
+}
+
+function SplashHider() {
+  useEffect(() => {
+    if (typeof window.__hideSplash === 'function') {
+      window.__hideSplash();
+    }
+  }, []);
+  return null;
+}
+
+export default function App() {
+  return (
+    <I18nProvider>
+      <SplashHider />
+      <AppInner />
+    </I18nProvider>
   );
 }

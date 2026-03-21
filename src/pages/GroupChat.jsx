@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiSend, FiArrowLeft, FiUsers, FiInfo, FiTrash2, FiCopy, FiMoreVertical, FiLogOut, FiFlag, FiSmile } from 'react-icons/fi';
+import { FiSend, FiArrowLeft, FiUsers, FiInfo, FiTrash2, FiCopy, FiMoreVertical, FiLogOut, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiX, FiMoreHorizontal, FiSave } from 'react-icons/fi';
+import ImageCropModal from '../components/ImageCropModal';
 import ReportModal from '../components/ReportModal';
 import { format, isToday, isYesterday } from 'date-fns';
 import Layout from '../components/Layout';
@@ -8,6 +9,8 @@ import Avatar from '../components/Avatar';
 import FormattedText from '../components/FormattedText';
 import LinkPreview from '../components/LinkPreview';
 import EmojiPicker from '../components/EmojiPicker';
+import { AnimatedBadge, VerifiedBadge, SupaBadge } from '../components/UserBadge';
+import { getBadgeById } from '../data/badges';
 import API from '../utils/api';
 import socket from '../utils/socket';
 
@@ -49,10 +52,16 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   const [reportTarget, setReportTarget] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [mediaAttachment, setMediaAttachment] = useState(null);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [pendingImageSrc, setPendingImageSrc] = useState(null);
+  const [pendingImageFile, setPendingImageFile] = useState(null);
+  const [fullscreenImg, setFullscreenImg] = useState(null);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
   const myId = currentUser?._id || currentUser?.id;
   const isAdmin = group?.admin?._id === myId || group?.admin === myId;
 
@@ -114,7 +123,6 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   const fetchMessages = async () => {
     setLoading(true);
     try {
-      API.clearCache(`/api/groups/${groupId}/messages`);
       const data = await API.getGroupMessages(groupId);
       const msgs = Array.isArray(data) ? data : (data.messages || data.data || []);
       setMessages(msgs);
@@ -123,13 +131,51 @@ export default function GroupChat({ currentUser, unreadCounts }) {
     finally { setLoading(false); }
   };
 
+  const handleFileAttach = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        setPendingImageSrc(ev.target.result);
+        setPendingImageFile(file);
+        setShowCropModal(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const sendCallInvite = (isVideo = true) => {
+    const roomId = `vesselx-group-${groupId}-${Date.now()}`;
+    const url = `https://meet.jit.si/${roomId}#config.startWithVideoMuted=${!isVideo}`;
+    const text = `[vx:call:${url}]`;
+    const tempId = Date.now();
+    const tempMsg = {
+      _id: tempId,
+      text,
+      senderId: { _id: myId, username: currentUser?.username, name: currentUser?.name, profilePicture: currentUser?.profilePicture },
+      senderUsername: currentUser?.username,
+      createdAt: new Date().toISOString()
+    };
+    setMessages(prev => [...prev, tempMsg]);
+    scrollToBottom();
+    API.sendGroupMessage(groupId, text).catch(() => {});
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!newMsg.trim() || sending) return;
-    const text = newMsg.trim();
+    if ((!newMsg.trim() && !mediaAttachment) || sending) return;
+    let text = newMsg.trim();
+    const savedAttachment = mediaAttachment;
+    const savedMsg = newMsg;
+    setSending(true);
     setNewMsg('');
     if (textareaRef.current) { textareaRef.current.style.height = '42px'; }
-    setSending(true);
+    if (mediaAttachment?.type === 'image') {
+      text = `[vx:img:${mediaAttachment.dataUrl}]${text ? '\n' + text : ''}`;
+      setMediaAttachment(null);
+    }
     const tempId = Date.now();
     const tempMsg = {
       _id: tempId,
@@ -148,6 +194,8 @@ export default function GroupChat({ currentUser, unreadCounts }) {
       }
     } catch {
       setMessages(prev => prev.filter(m => m._id !== tempId));
+      setMediaAttachment(savedAttachment);
+      setNewMsg(savedMsg);
     }
     finally { setSending(false); }
   };
@@ -248,6 +296,20 @@ export default function GroupChat({ currentUser, unreadCounts }) {
             </div>
           </div>
           <div className="flex items-center gap-0.5">
+            <button
+              className="p-2 rounded-lg text-discord-muted hover:text-discord-green hover:bg-discord-green/10 transition-colors"
+              onClick={() => sendCallInvite(false)}
+              title="Voice call"
+            >
+              <FiPhone size={18} />
+            </button>
+            <button
+              className="p-2 rounded-lg text-discord-muted hover:text-discord-brand hover:bg-discord-brand/10 transition-colors"
+              onClick={() => sendCallInvite(true)}
+              title="Video call"
+            >
+              <FiVideo size={18} />
+            </button>
             <button
               className="p-2 rounded-lg text-discord-muted hover:text-discord-text hover:bg-white/5 transition-colors"
               onClick={() => navigate(`/groups/${groupId}/members`)}
@@ -353,25 +415,70 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                 )}
                 <div className={`max-w-[75%] flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
                   {!mine && isFirstInGroup && (
-                    <span
-                      className={`text-xs font-semibold mb-1 cursor-pointer hover:underline ${sender.isSupa ? 'supa-chat-name' : ''}`}
-                      style={sender.isSupa ? {} : { color: stringToColor(sender.username || '') }}
-                      onClick={() => navigate(`/profile/${sender.username}`)}
-                    >
-                      {sender.name || sender.username}
+                    <span className="flex items-center gap-1 mb-1 flex-wrap">
+                      <span
+                        className={`text-xs font-semibold cursor-pointer hover:underline ${sender.isSupa ? 'supa-chat-name' : ''}`}
+                        style={sender.isSupa ? {} : { color: stringToColor(sender.username || '') }}
+                        onClick={() => navigate(`/profile/${sender.username}`)}
+                      >
+                        {sender.name || sender.username}
+                      </span>
+                      {sender.isVerified && <VerifiedBadge size={12} />}
+                      {sender.isSupa && <SupaBadge size={12} username={sender.username} />}
+                      {sender.badge && getBadgeById(sender.badge) && <AnimatedBadge badgeId={sender.badge} size="0.85em" />}
                     </span>
                   )}
                   <div
-                    className={`px-3 py-2 text-sm break-words shadow-sm transition-all duration-150
-                      ${mine
-                        ? 'bg-discord-brand text-white rounded-2xl rounded-br-sm'
-                        : 'bg-white/6 border border-white/5 text-discord-text rounded-2xl rounded-bl-sm'}
-                      ${isFirstInGroup ? '' : mine ? 'rounded-tr-lg' : 'rounded-tl-lg'}
+                    className={`text-sm break-words shadow-sm transition-all duration-150
+                      ${(msg.text || '').startsWith('[vx:img:') || (msg.text || '').startsWith('[vx:call:')
+                        ? 'bg-transparent p-0 border-0'
+                        : `px-3 py-2 ${mine
+                          ? 'bg-discord-brand text-white rounded-2xl rounded-br-sm'
+                          : 'bg-white/6 border border-white/5 text-discord-text rounded-2xl rounded-bl-sm'}
+                          ${isFirstInGroup ? '' : mine ? 'rounded-tr-lg' : 'rounded-tl-lg'}`}
                     `}
                   >
-                    <FormattedText text={msg.text || ''} />
+                    {(() => {
+                      const text = msg.text || '';
+                      const imgMatch = text.match(/^\[vx:img:([^\]]+)\](.*)$/s);
+                      const callMatch = text.match(/^\[vx:call:([^\]]+)\](.*)$/s);
+                      if (imgMatch) {
+                        return (
+                          <div>
+                            <img
+                              src={imgMatch[1]}
+                              alt="Image"
+                              className="rounded-xl max-w-[240px] max-h-[300px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => setFullscreenImg(imgMatch[1])}
+                              loading="lazy"
+                            />
+                            {imgMatch[2]?.trim() && <div className="mt-1.5 text-sm text-discord-text"><FormattedText text={imgMatch[2].trim()} /></div>}
+                          </div>
+                        );
+                      }
+                      if (callMatch) {
+                        return (
+                          <div className="flex flex-col gap-2 min-w-[180px] bg-white/6 border border-white/10 rounded-2xl px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <FiVideo size={14} className="text-discord-green flex-shrink-0" />
+                              <span className="text-xs font-semibold text-discord-green">Video Call</span>
+                            </div>
+                            <a
+                              href={callMatch[1]}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 bg-discord-brand/90 hover:bg-discord-brand text-white px-3 py-2 rounded-xl text-xs font-bold transition-colors"
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <FiVideo size={14} /> Join Call
+                            </a>
+                          </div>
+                        );
+                      }
+                      return <FormattedText text={text} />;
+                    })()}
                   </div>
-                  {msg.text && <LinkPreview text={msg.text} />}
+                  {msg.text && !msg.text.startsWith('[vx:') && <LinkPreview text={msg.text} />}
                   {isFirstInGroup && (
                     <span className="text-discord-muted text-[10px] mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
@@ -407,13 +514,37 @@ export default function GroupChat({ currentUser, unreadCounts }) {
 
         {/* Input */}
         <form onSubmit={handleSend} className="px-4 pt-3 pb-20 md:pb-3 border-t border-white/6 flex-shrink-0">
+          {/* Media Preview */}
+          {mediaAttachment && (
+            <div className="mb-2 flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+              <img src={mediaAttachment.dataUrl} alt="preview" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-discord-text font-medium truncate">{mediaAttachment.filename}</p>
+                <p className="text-[11px] text-discord-muted">{(mediaAttachment.size / 1024).toFixed(1)} KB</p>
+              </div>
+              <button type="button" onClick={() => setMediaAttachment(null)} className="text-discord-muted hover:text-discord-red transition-colors flex-shrink-0">
+                <FiX size={16} />
+              </button>
+            </div>
+          )}
           <div className="flex items-end gap-2">
+            <div className="flex items-center gap-1 flex-shrink-0 mb-0.5">
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileAttach} />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-discord-muted hover:text-discord-brand hover:bg-discord-brand/10 transition-colors"
+                title="Attach photo"
+              >
+                <FiPaperclip size={18} />
+              </button>
+            </div>
             <div className="relative flex-1">
               <textarea
                 ref={textareaRef}
                 value={newMsg}
                 onChange={e => { handleTyping(e); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'; }}
-                placeholder={`Message ${group?.name || 'group'}...`}
+                placeholder={mediaAttachment ? 'Add a caption...' : `Message ${group?.name || 'group'}...`}
                 className="discord-input w-full resize-none overflow-hidden pr-10"
                 rows={1}
                 style={{ minHeight: '42px', maxHeight: '160px', lineHeight: '1.5' }}
@@ -455,7 +586,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                 />
               )}
             </div>
-            <button type="submit" disabled={!newMsg.trim() || sending} className="discord-btn p-2.5 rounded-lg disabled:opacity-40 flex-shrink-0 mb-0.5">
+            <button type="submit" disabled={(!newMsg.trim() && !mediaAttachment) || sending} className="discord-btn p-2.5 rounded-lg disabled:opacity-40 flex-shrink-0 mb-0.5">
               <FiSend size={16} />
             </button>
           </div>
@@ -508,6 +639,66 @@ export default function GroupChat({ currentUser, unreadCounts }) {
       )}
 
       <CopiedToast show={showCopied} />
+
+      {/* Image Crop Modal */}
+      {showCropModal && pendingImageSrc && (
+        <ImageCropModal
+          src={pendingImageSrc}
+          aspectRatio={4 / 3}
+          onCrop={(croppedFile, previewUrl) => {
+            const reader = new FileReader();
+            reader.onload = ev => {
+              setMediaAttachment({
+                type: 'image',
+                dataUrl: ev.target.result,
+                filename: pendingImageFile?.name || 'image.jpg',
+                mimeType: 'image/jpeg',
+                size: croppedFile.size,
+              });
+            };
+            reader.readAsDataURL(croppedFile);
+            setShowCropModal(false);
+            setPendingImageSrc(null);
+            setPendingImageFile(null);
+          }}
+          onCancel={() => {
+            setShowCropModal(false);
+            setPendingImageSrc(null);
+            setPendingImageFile(null);
+          }}
+        />
+      )}
+
+      {/* Image Fullscreen */}
+      {fullscreenImg && (
+        <div className="fixed inset-0 z-[9999] bg-black flex flex-col" onClick={() => setFullscreenImg(null)}>
+          <div className="flex items-center justify-between px-4 py-3 flex-shrink-0" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setFullscreenImg(null)} className="text-white/70 hover:text-white transition-colors p-1">
+              <FiX size={24} />
+            </button>
+            <button
+              onClick={() => {
+                const a = document.createElement('a');
+                a.href = fullscreenImg;
+                a.download = 'image.jpg';
+                a.click();
+              }}
+              className="text-white/70 hover:text-white transition-colors p-1"
+              title="Save to device"
+            >
+              <FiSave size={22} />
+            </button>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
+            <img
+              src={fullscreenImg}
+              alt="Full view"
+              className="max-w-full max-h-full object-contain"
+              style={{ maxHeight: 'calc(100vh - 100px)' }}
+            />
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

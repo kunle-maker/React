@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { FiHome, FiMessageSquare, FiUsers, FiSearch, FiUser, FiSettings, FiLogOut, FiZap, FiPlusSquare, FiBell } from 'react-icons/fi';
 import { HiHome, HiChatAlt2, HiUsers, HiBell } from 'react-icons/hi';
 import Avatar from './Avatar';
+import { useI18n } from '../contexts/I18nContext';
 
 function VLogo({ size = 32 }) {
   return (
@@ -13,20 +14,22 @@ function VLogo({ size = 32 }) {
   );
 }
 
-const NAV_ITEMS = [
-  { path: '/', icon: FiHome, activeIcon: HiHome, label: 'Home' },
-  { path: '/search', icon: FiSearch, label: 'Search' },
-  { path: '/create', icon: FiPlusSquare, label: 'Create' },
-  { path: '/notifications', icon: FiBell, activeIcon: HiBell, label: 'Notifications', badgeKey: 'notifications' },
-  { path: '/messages', icon: FiMessageSquare, activeIcon: HiChatAlt2, label: 'Messages', badgeKey: 'messages' },
-  { path: '/groups', icon: FiUsers, activeIcon: HiUsers, label: 'Groups', badgeKey: 'groups' },
-  { path: '/ai', icon: FiZap, label: 'AI' },
-];
 
 export default function Layout({ children, currentUser, unreadCounts = {}, contentClass = '' }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const { t } = useI18n();
+
+  const NAV_ITEMS_TRANSLATED = [
+    { path: '/', icon: FiHome, activeIcon: HiHome, label: t.home || 'Home' },
+    { path: '/search', icon: FiSearch, label: t.search || 'Search' },
+    { path: '/create', icon: FiPlusSquare, label: t.post || 'Create' },
+    { path: '/notifications', icon: FiBell, activeIcon: HiBell, label: t.notifications || 'Notifications', badgeKey: 'notifications' },
+    { path: '/messages', icon: FiMessageSquare, activeIcon: HiChatAlt2, label: t.messages || 'Messages', badgeKey: 'messages' },
+    { path: '/groups', icon: FiUsers, activeIcon: HiUsers, label: t.group || 'Groups', badgeKey: 'groups' },
+    { path: '/ai', icon: FiZap, label: t.ai || 'AI' },
+  ];
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -50,7 +53,7 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
           </div>
         </Link>
         <div className="w-8 h-0.5 bg-discord-hover my-1 rounded" />
-        {NAV_ITEMS.map(item => {
+        {NAV_ITEMS_TRANSLATED.map(item => {
           const Icon = isActive(item.path) && item.activeIcon ? item.activeIcon : item.icon;
           const active = isActive(item.path);
           const badge = item.badgeKey ? (unreadCounts[item.badgeKey] || 0) : 0;
@@ -89,13 +92,13 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
                     <div className="text-discord-muted text-xs">@{currentUser.username}</div>
                   </div>
                   <Link to={`/profile/${currentUser.username}`} className="flex items-center gap-2 px-3 py-2 text-sm text-discord-text hover:bg-discord-hover transition-colors" onClick={() => setShowUserMenu(false)}>
-                    <FiUser size={14} /> Profile
+                    <FiUser size={14} /> {t.profile || 'Profile'}
                   </Link>
                   <Link to="/settings" className="flex items-center gap-2 px-3 py-2 text-sm text-discord-text hover:bg-discord-hover transition-colors" onClick={() => setShowUserMenu(false)}>
-                    <FiSettings size={14} /> Settings
+                    <FiSettings size={14} /> {t.settings || 'Settings'}
                   </Link>
                   <button className="flex items-center gap-2 w-full px-3 py-2 text-sm text-discord-red hover:bg-discord-red/10 transition-colors" onClick={handleLogout}>
-                    <FiLogOut size={14} /> Log Out
+                    <FiLogOut size={14} /> {t.logout || 'Log Out'}
                   </button>
                 </div>
               )}
@@ -113,7 +116,7 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
 
       {/* Mobile Floating Pill Nav */}
       <nav className="mobile-pill-nav">
-        {NAV_ITEMS.map(item => {
+        {NAV_ITEMS_TRANSLATED.map(item => {
           const Icon = isActive(item.path) && item.activeIcon ? item.activeIcon : item.icon;
           const active = isActive(item.path);
           const badge = item.badgeKey ? (unreadCounts[item.badgeKey] || 0) : 0;

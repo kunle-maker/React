@@ -4,6 +4,7 @@ import { FiShield, FiUser, FiCheck, FiX, FiClock, FiSearch, FiArrowLeft } from '
 import { formatDistanceToNow } from 'date-fns';
 import Layout from '../components/Layout';
 import Avatar from '../components/Avatar';
+import { SupaBadge } from '../components/UserBadge';
 import API from '../utils/api';
 
 const DURATION_OPTIONS = [
@@ -256,7 +257,7 @@ export default function AdminPanel({ currentUser, unreadCounts }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="font-semibold text-discord-text text-sm truncate">{u.name || u.username}</span>
-                        <span className="supa-badge" style={{ fontSize: 9, padding: '1px 5px' }}>SUPA</span>
+                        <SupaBadge size={13} username={u.username} />
                       </div>
                       <span className="text-discord-muted text-xs">@{u.username}</span>
                       {u.supaExpiresAt && (

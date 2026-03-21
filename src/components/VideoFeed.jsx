@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { FiHeart, FiMessageCircle, FiBookmark, FiVolume2, FiVolumeX, FiShare2, FiPlay } from 'react-icons/fi';
 import { HiHeart } from 'react-icons/hi';
 import Avatar from './Avatar';
+import { AnimatedBadge, VerifiedBadge, SupaBadge } from './UserBadge';
+import { getBadgeById } from '../data/badges';
 import API from '../utils/api';
 import { activeVideo, playVideo, pauseVideo } from '../utils/videoPlayer';
 import { parseEmojisToHtml } from '../utils/emoji';
@@ -192,15 +194,10 @@ function VideoCard({ post, currentUser, isActive, onLike, onBookmark }) {
           <span className="font-bold text-white text-sm drop-shadow-sm leading-tight">
             @{author.username || post.username}
           </span>
-          {author.isVerified && (
-            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-discord-brand flex-shrink-0">
-              <svg viewBox="0 0 12 12" style={{ width: 8, height: 8, stroke: 'white', strokeWidth: 2.5, fill: 'none' }}>
-                <polyline points="2,6 5,9 10,3" />
-              </svg>
-            </span>
-          )}
-          {author.isSupa && (
-            <span className="text-[9px] bg-discord-brand/80 text-white px-1 py-0.5 rounded font-bold flex-shrink-0">SUPA</span>
+          {author.isVerified && <VerifiedBadge size={14} />}
+          {author.isSupa && <SupaBadge size={14} username={author.username || post.username} />}
+          {author.badge && getBadgeById(author.badge) && (
+            <AnimatedBadge badgeId={author.badge} size="0.9em" />
           )}
         </button>
 

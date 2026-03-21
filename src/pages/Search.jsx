@@ -4,6 +4,7 @@ import { FiSearch } from 'react-icons/fi';
 import Layout from '../components/Layout';
 import Avatar from '../components/Avatar';
 import PostCard from '../components/PostCard';
+import { VerifiedBadge, SupaBadge } from '../components/UserBadge';
 import API from '../utils/api';
 
 export default function Search({ currentUser, unreadCounts }) {
@@ -93,8 +94,8 @@ export default function Search({ currentUser, unreadCounts }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="font-semibold text-discord-text truncate">{u.name}</span>
-                    {u.isVerified && <span className="text-discord-brand text-xs">✓</span>}
-                    {u.isSupa && <span className="supa-badge">SUPA</span>}
+                    {u.isVerified && <VerifiedBadge size={14} />}
+                    {u.isSupa && <SupaBadge size={14} username={u.username} />}
                   </div>
                   <p className="text-discord-muted text-sm truncate">@{u.username}</p>
                   {u.bio && <p className="text-discord-muted text-xs truncate mt-0.5">{u.bio}</p>}
