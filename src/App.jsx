@@ -30,8 +30,7 @@ async function registerPushNotifications() {
   try {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
-    const reg = await navigator.serviceWorker.register('/sw.js');
-    await navigator.serviceWorker.ready;
+    const reg = await navigator.serviceWorker.ready;
 
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return;
@@ -59,6 +58,23 @@ async function registerPushNotifications() {
   } catch (err) {
     console.warn('Push registration failed:', err.message);
   }
+}
+
+async function registerBackgroundSync(token) {
+  try {
+    if (!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.ready;
+
+    // Send token to SW for background operations
+    if (reg.active && token) {
+      reg.active.postMessage({ type: 'STORE_TOKEN', token });
+    }
+
+    // Register background sync tags
+    if ('sync' in reg) {
+      await reg.sync.register('sync-notifications').catch(() => {});
+    }
+  } catch {}
 }
 
 function urlBase64ToUint8Array(base64String) {
