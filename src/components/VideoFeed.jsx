@@ -257,7 +257,9 @@ export default function VideoFeed({ currentUser }) {
     finally { setLoading(false); fetchingRef.current = false; }
   }, [currentUser]);
 
-  useEffect(() => { fetchVideos(1, true); }, []);
+  const currentUserId = currentUser?._id || currentUser?.id;
+
+  useEffect(() => { fetchVideos(1, true); }, [currentUserId]);
 
   useEffect(() => {
     if (page === 1) return;

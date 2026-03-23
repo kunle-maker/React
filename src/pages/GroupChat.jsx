@@ -57,11 +57,16 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   const [pendingImageSrc, setPendingImageSrc] = useState(null);
   const [pendingImageFile, setPendingImageFile] = useState(null);
   const [fullscreenImg, setFullscreenImg] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [mentionQuery, setMentionQuery] = useState(null);
+  const [swipingMsgId, setSwipingMsgId] = useState(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
+  const swipeTouchRef = useRef({ x: 0, y: 0, msgId: null, direction: null });
   const myId = currentUser?._id || currentUser?.id;
   const isAdmin = group?.admin?._id === myId || group?.admin === myId;
 
@@ -167,6 +172,12 @@ export default function GroupChat({ currentUser, unreadCounts }) {
     e.preventDefault();
     if ((!newMsg.trim() && !mediaAttachment) || sending) return;
     let text = newMsg.trim();
+    if (replyingTo) {
+      const rawPreview = (replyingTo.text || '').replace(/^\[vx:[^\]]+\]\n?/, '').trim().slice(0, 60);
+      const senderName = replyingTo.senderId?.username || replyingTo.senderUsername || 'someone';
+      text = `↩ @${senderName}: ${rawPreview || '📷 Photo'}\n${text}`;
+      setReplyingTo(null);
+    }
     const savedAttachment = mediaAttachment;
     const savedMsg = newMsg;
     setSending(true);
@@ -201,8 +212,78 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   };
 
   const handleTyping = (e) => {
-    setNewMsg(e.target.value);
+    const val = e.target.value;
+    setNewMsg(val);
     socket.setGroupTyping({ groupId, username: currentUser?.username });
+    const cursor = e.target.selectionStart;
+    const textBefore = val.slice(0, cursor);
+    const atMatch = textBefore.match(/@(\w*)$/);
+    if (atMatch) {
+      setMentionQuery(atMatch[1].toLowerCase());
+    } else {
+      setMentionQuery(null);
+    }
+  };
+
+  const handleMentionSelect = (username) => {
+    const ta = textareaRef.current;
+    if (!ta) {
+      setNewMsg(prev => {
+        const atMatch = prev.match(/@(\w*)$/);
+        if (atMatch) return prev.slice(0, prev.length - atMatch[0].length) + `@${username} `;
+        return prev + `@${username} `;
+      });
+      setMentionQuery(null);
+      return;
+    }
+    const cursor = ta.selectionStart;
+    const textBefore = newMsg.slice(0, cursor);
+    const atMatch = textBefore.match(/@(\w*)$/);
+    if (atMatch) {
+      const before = textBefore.slice(0, textBefore.length - atMatch[0].length);
+      const after = newMsg.slice(cursor);
+      const newVal = before + `@${username} ` + after;
+      setNewMsg(newVal);
+      const newCursor = before.length + username.length + 2;
+      setTimeout(() => { ta.selectionStart = ta.selectionEnd = newCursor; ta.focus(); }, 0);
+    }
+    setMentionQuery(null);
+  };
+
+  const mentionMembers = mentionQuery !== null
+    ? (group?.members || []).filter(m => {
+        const u = (m.username || m.user?.username || '').toLowerCase();
+        const n = (m.name || m.user?.name || '').toLowerCase();
+        return (u.includes(mentionQuery) || n.includes(mentionQuery)) && u !== currentUser?.username;
+      }).slice(0, 6)
+    : [];
+
+  const handleMsgTouchStart = (e, msgId) => {
+    swipeTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, msgId, direction: null };
+  };
+
+  const handleMsgTouchMove = (e, msgId) => {
+    const dx = e.touches[0].clientX - swipeTouchRef.current.x;
+    const dy = e.touches[0].clientY - swipeTouchRef.current.y;
+    if (swipeTouchRef.current.direction === null) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        swipeTouchRef.current.direction = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+      }
+    }
+    if (swipeTouchRef.current.direction === 'h' && dx > 0) {
+      setSwipingMsgId(msgId);
+      setSwipeOffset(Math.min(dx, 72));
+    }
+  };
+
+  const handleMsgTouchEnd = (msg) => {
+    if (swipeOffset > 50) {
+      setReplyingTo(msg);
+      setTimeout(() => textareaRef.current?.focus(), 100);
+    }
+    setSwipingMsgId(null);
+    setSwipeOffset(0);
+    swipeTouchRef.current = { x: 0, y: 0, msgId: null, direction: null };
   };
 
   const scrollToBottom = (instant = false) => {
@@ -394,12 +475,23 @@ export default function GroupChat({ currentUser, unreadCounts }) {
 
             const mine = isSentByMe(msg);
             const sender = msg.senderId || { username: msg.senderUsername };
+            const msgKey = msg._id;
+            const isSwiping = swipingMsgId === msgKey;
             return (
               <div
                 key={item.key}
-                className={`flex items-end gap-2 ${mine ? 'flex-row-reverse' : ''} ${isFirstInGroup ? 'mt-3' : 'mt-0.5'} group`}
+                className={`flex items-end gap-2 ${mine ? 'flex-row-reverse' : ''} ${isFirstInGroup ? 'mt-3' : 'mt-0.5'} group relative`}
                 onContextMenu={e => handleMessageContextMenu(e, msg)}
+                onTouchStart={e => handleMsgTouchStart(e, msgKey)}
+                onTouchMove={e => handleMsgTouchMove(e, msgKey)}
+                onTouchEnd={() => handleMsgTouchEnd(msg)}
+                style={isSwiping ? { transform: `translateX(${swipeOffset}px)`, transition: 'none' } : { transition: 'transform 0.2s ease' }}
               >
+                {isSwiping && swipeOffset > 20 && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-8 text-discord-brand opacity-80 pointer-events-none">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg>
+                  </div>
+                )}
                 {!mine && (
                   <div className="w-8 flex-shrink-0 self-end">
                     {isFirstInGroup ? (
@@ -440,6 +532,17 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                   >
                     {(() => {
                       const text = msg.text || '';
+                      const replyMatch = text.match(/^↩ (@[^\n]+)\n([\s\S]*)$/);
+                      if (replyMatch) {
+                        return (
+                          <div>
+                            <div className={`text-xs px-2 py-1 rounded mb-1.5 border-l-2 ${mine ? 'border-white/50 bg-white/10 text-white/70' : 'border-discord-brand bg-discord-brand/10 text-discord-muted'}`}>
+                              {replyMatch[1]}
+                            </div>
+                            <FormattedText text={replyMatch[2].trim()} />
+                          </div>
+                        );
+                      }
                       const imgMatch = text.match(/^\[vx:img:([^\]]+)\](.*)$/s);
                       const callMatch = text.match(/^\[vx:call:([^\]]+)\](.*)$/s);
                       if (imgMatch) {
@@ -513,7 +616,48 @@ export default function GroupChat({ currentUser, unreadCounts }) {
         )}
 
         {/* Input */}
-        <form onSubmit={handleSend} className="px-4 pt-3 pb-20 md:pb-3 border-t border-white/6 flex-shrink-0">
+        <form onSubmit={handleSend} className="px-4 pt-3 pb-20 md:pb-3 border-t border-white/6 flex-shrink-0 relative">
+          {/* Reply Preview */}
+          {replyingTo && (
+            <div className="mb-2 flex items-center gap-2 bg-discord-brand/10 border border-discord-brand/30 rounded-xl px-3 py-2">
+              <div className="w-0.5 h-full bg-discord-brand rounded-full self-stretch flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-discord-brand text-[11px] font-semibold mb-0.5">
+                  Replying to @{replyingTo.senderId?.username || replyingTo.senderUsername || 'someone'}
+                </p>
+                <p className="text-discord-muted text-xs truncate">
+                  {(replyingTo.text || '').replace(/^\[vx:[^\]]+\]\n?/, '').trim().slice(0, 80) || '📷 Photo'}
+                </p>
+              </div>
+              <button type="button" onClick={() => setReplyingTo(null)} className="text-discord-muted hover:text-discord-red transition-colors flex-shrink-0">
+                <FiX size={14} />
+              </button>
+            </div>
+          )}
+          {/* Mention Dropdown */}
+          {mentionQuery !== null && mentionMembers.length > 0 && (
+            <div className="absolute bottom-full left-4 right-4 mb-1 bg-discord-dark border border-white/10 rounded-xl shadow-2xl py-1 z-50 backdrop-blur-xl max-h-52 overflow-y-auto">
+              {mentionMembers.map((m) => {
+                const username = m.username || m.user?.username || '';
+                const name = m.name || m.user?.name || username;
+                const profilePicture = m.profilePicture || m.user?.profilePicture;
+                return (
+                  <button
+                    key={username}
+                    type="button"
+                    className="flex items-center gap-3 w-full px-3 py-2 hover:bg-white/8 transition-colors text-left"
+                    onMouseDown={e => { e.preventDefault(); handleMentionSelect(username); }}
+                  >
+                    <Avatar user={{ username, name, profilePicture }} size={28} />
+                    <div className="min-w-0">
+                      <p className="text-discord-text text-sm font-semibold truncate">{name}</p>
+                      <p className="text-discord-muted text-xs">@{username}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {/* Media Preview */}
           {mediaAttachment && (
             <div className="mb-2 flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
