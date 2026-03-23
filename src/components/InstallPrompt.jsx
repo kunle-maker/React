@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiDownload } from 'react-icons/fi';
 
-const APP_DOWNLOAD_URL = 'https://kunle.shorty.gy/VesselX';
+const APP_DOWNLOAD_URL = 'https://files.catbox.moe/1z0g67.apk';
 
 export default function InstallPrompt() {
   const [show, setShow] = useState(false);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiUsers, FiLink, FiLogOut, FiTrash2, FiEdit2, FiCamera, FiX, FiCheck } from 'react-icons/fi';
+import { FiArrowLeft, FiUsers, FiLink, FiLogOut, FiTrash2, FiEdit2, FiCamera, FiX, FiCheck, FiShare2 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import Layout from '../components/Layout';
 import API from '../utils/api';
@@ -67,9 +67,28 @@ export default function GroupInfo({ currentUser, unreadCounts }) {
     setCropSrc(null);
   };
 
+  const getInviteText = () => {
+    if (!group?.inviteCode) return '';
+    const link = `${window.location.origin}/#/join/${group.inviteCode}`;
+    return `The invite link of your group "${group.name}" is ${link}\nYour invite code is: ${group.inviteCode}\n\nJoin us on VesselX! 🚀`;
+  };
+
   const copyInvite = () => {
     if (group?.inviteCode) {
-      navigator.clipboard?.writeText(`${window.location.origin}/#/join/${group.inviteCode}`);
+      navigator.clipboard?.writeText(getInviteText());
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 2000);
+    }
+  };
+
+  const shareInvite = async () => {
+    const text = getInviteText();
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `Join ${group.name} on VesselX`, text });
+      } catch {}
+    } else {
+      navigator.clipboard?.writeText(text);
       setShowCopied(true);
       setTimeout(() => setShowCopied(false), 2000);
     }
@@ -219,13 +238,22 @@ export default function GroupInfo({ currentUser, unreadCounts }) {
             <div className="mx-4 mt-4 rounded-xl overflow-hidden border border-white/6">
               <div className="px-4 py-3 border-b border-white/6 flex items-center justify-between">
                 <span className="text-discord-muted text-sm">Invite Link</span>
-                <button
-                  className="text-discord-brand text-sm font-semibold flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-                  onClick={copyInvite}
-                >
-                  <FiLink size={13} />
-                  {showCopied ? 'Copied!' : 'Copy'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="text-discord-brand text-sm font-semibold flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                    onClick={copyInvite}
+                  >
+                    <FiLink size={13} />
+                    {showCopied ? 'Copied!' : 'Copy'}
+                  </button>
+                  <button
+                    className="text-discord-muted hover:text-discord-brand transition-colors flex items-center gap-1"
+                    onClick={shareInvite}
+                    title="Share invite"
+                  >
+                    <FiShare2 size={14} />
+                  </button>
+                </div>
               </div>
               {group?.createdAt && (
                 <div className="px-4 py-3 flex items-center justify-between">

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiSend, FiArrowLeft, FiUsers, FiInfo, FiTrash2, FiCopy, FiMoreVertical, FiLogOut, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiX, FiMoreHorizontal, FiSave } from 'react-icons/fi';
+import { FiSend, FiArrowLeft, FiUsers, FiInfo, FiTrash2, FiCopy, FiMoreVertical, FiLogOut, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiX, FiMoreHorizontal, FiSave, FiGlobe } from 'react-icons/fi';
 import ImageCropModal from '../components/ImageCropModal';
 import ReportModal from '../components/ReportModal';
+import TranslateModal from '../components/TranslateModal';
 import { format, isToday, isYesterday } from 'date-fns';
 import Layout from '../components/Layout';
 import Avatar from '../components/Avatar';
@@ -13,6 +14,49 @@ import { AnimatedBadge, VerifiedBadge, SupaBadge } from '../components/UserBadge
 import { getBadgeById } from '../data/badges';
 import API from '../utils/api';
 import socket from '../utils/socket';
+
+async function compressImage(file, maxW = 1280, quality = 0.82) {
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const canvas = document.createElement('canvas');
+    let w = bitmap.width, h = bitmap.height;
+    if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
+    bitmap.close();
+    return await new Promise(resolve => canvas.toBlob(blob => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.readAsDataURL(blob);
+    }, 'image/jpeg', quality));
+  } catch {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let w = img.width, h = img.height;
+          if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+}
+
+function dataURLToBlob(dataURL) {
+  const [header, b64] = dataURL.split(',');
+  const mime = (header.match(/:(.*?);/) || [])[1] || 'image/jpeg';
+  const binary = atob(b64);
+  const arr = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
 
 function DateSeparator({ date }) {
   const d = new Date(date);
@@ -57,6 +101,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   const [pendingImageSrc, setPendingImageSrc] = useState(null);
   const [pendingImageFile, setPendingImageFile] = useState(null);
   const [fullscreenImg, setFullscreenImg] = useState(null);
+  const [translateMsg, setTranslateMsg] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null);
   const [mentionQuery, setMentionQuery] = useState(null);
   const [swipingMsgId, setSwipingMsgId] = useState(null);
@@ -136,18 +181,20 @@ export default function GroupChat({ currentUser, unreadCounts }) {
     finally { setLoading(false); }
   };
 
-  const handleFileAttach = (e) => {
+  const handleFileAttach = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
     if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = ev => {
-        setPendingImageSrc(ev.target.result);
-        setPendingImageFile(file);
-        setShowCropModal(true);
-      };
-      reader.readAsDataURL(file);
+      const compressed = await compressImage(file);
+      setPendingImageFile(file);
+      setMediaAttachment({
+        type: 'image',
+        dataUrl: compressed,
+        filename: file.name || 'image.jpg',
+        mimeType: 'image/jpeg',
+        size: file.size,
+      });
     }
   };
 
@@ -180,13 +227,29 @@ export default function GroupChat({ currentUser, unreadCounts }) {
     }
     const savedAttachment = mediaAttachment;
     const savedMsg = newMsg;
+
+    if (mediaAttachment?.type === 'image') {
+      setSending(true);
+      try {
+        const blob = dataURLToBlob(mediaAttachment.dataUrl);
+        const formData = new FormData();
+        formData.append('file', blob, mediaAttachment.filename || 'image.jpg');
+        const uploadData = await API.uploadMessageMedia(formData);
+        const imageUrl = uploadData?.url || uploadData?.imageUrl || uploadData?.secure_url || uploadData?.data?.url;
+        if (!imageUrl) throw new Error('No URL returned from upload');
+        text = `[vx:img:${imageUrl}]${text ? '\n' + text : ''}`;
+        setMediaAttachment(null);
+      } catch (err) {
+        setSending(false);
+        alert('Image upload failed. Please try again.');
+        return;
+      }
+    }
+
     setSending(true);
     setNewMsg('');
     if (textareaRef.current) { textareaRef.current.style.height = '42px'; }
-    if (mediaAttachment?.type === 'image') {
-      text = `[vx:img:${mediaAttachment.dataUrl}]${text ? '\n' + text : ''}`;
-      setMediaAttachment(null);
-    }
+
     const tempId = Date.now();
     const tempMsg = {
       _id: tempId,
@@ -205,7 +268,6 @@ export default function GroupChat({ currentUser, unreadCounts }) {
       }
     } catch {
       setMessages(prev => prev.filter(m => m._id !== tempId));
-      setMediaAttachment(savedAttachment);
       setNewMsg(savedMsg);
     }
     finally { setSending(false); }
@@ -661,10 +723,24 @@ export default function GroupChat({ currentUser, unreadCounts }) {
           {/* Media Preview */}
           {mediaAttachment && (
             <div className="mb-2 flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
-              <img src={mediaAttachment.dataUrl} alt="preview" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+              <div className="relative flex-shrink-0">
+                <img
+                  src={mediaAttachment.dataUrl}
+                  alt="preview"
+                  className="w-12 h-12 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                  title="Tap to crop"
+                  onClick={() => {
+                    setPendingImageSrc(mediaAttachment.dataUrl);
+                    setShowCropModal(true);
+                  }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span className="text-white text-[8px] font-bold bg-black/50 rounded px-1 opacity-0 hover:opacity-100">Crop</span>
+                </div>
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-discord-text font-medium truncate">{mediaAttachment.filename}</p>
-                <p className="text-[11px] text-discord-muted">{(mediaAttachment.size / 1024).toFixed(1)} KB</p>
+                <p className="text-[11px] text-discord-muted">Tap image to crop</p>
               </div>
               <button type="button" onClick={() => setMediaAttachment(null)} className="text-discord-muted hover:text-discord-red transition-colors flex-shrink-0">
                 <FiX size={16} />
@@ -741,7 +817,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
       {contextMenu && (
         <div
           className="fixed z-50 bg-discord-dark border border-white/10 rounded-xl shadow-2xl py-1 min-w-36 backdrop-blur-xl"
-          style={{ top: Math.min(contextMenu.y, window.innerHeight - 120), left: Math.min(contextMenu.x, window.innerWidth - 170) }}
+          style={{ top: Math.min(contextMenu.y, window.innerHeight - 150), left: Math.min(contextMenu.x, window.innerWidth - 170) }}
           onClick={e => e.stopPropagation()}
         >
           <button
@@ -749,6 +825,12 @@ export default function GroupChat({ currentUser, unreadCounts }) {
             onClick={() => copyMessage(contextMenu.msg.text)}
           >
             <FiCopy size={13} /> Copy Text
+          </button>
+          <button
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-brand hover:bg-discord-brand/10 transition-colors"
+            onClick={() => { setTranslateMsg(contextMenu.msg.text); setContextMenu(null); }}
+          >
+            <FiGlobe size={13} /> Translate
           </button>
           {contextMenu.senderUserId && contextMenu.senderUserId !== (currentUser?._id || currentUser?.id) && (
             <button
@@ -784,31 +866,35 @@ export default function GroupChat({ currentUser, unreadCounts }) {
 
       <CopiedToast show={showCopied} />
 
+      {/* Translate Modal */}
+      {translateMsg !== null && (
+        <TranslateModal text={translateMsg} onClose={() => setTranslateMsg(null)} />
+      )}
+
       {/* Image Crop Modal */}
       {showCropModal && pendingImageSrc && (
         <ImageCropModal
           src={pendingImageSrc}
-          aspectRatio={4 / 3}
+          aspectRatio={null}
           onCrop={(croppedFile, previewUrl) => {
             const reader = new FileReader();
             reader.onload = ev => {
-              setMediaAttachment({
+              setMediaAttachment(prev => ({
+                ...prev,
                 type: 'image',
                 dataUrl: ev.target.result,
                 filename: pendingImageFile?.name || 'image.jpg',
                 mimeType: 'image/jpeg',
                 size: croppedFile.size,
-              });
+              }));
             };
             reader.readAsDataURL(croppedFile);
             setShowCropModal(false);
             setPendingImageSrc(null);
-            setPendingImageFile(null);
           }}
           onCancel={() => {
             setShowCropModal(false);
             setPendingImageSrc(null);
-            setPendingImageFile(null);
           }}
         />
       )}
