@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiShield, FiArrowLeft, FiAlertTriangle, FiCheckCircle, FiClock } from 'react-icons/fi';
 import Layout from '../components/Layout';
 import API from '../utils/api';
+import BotMessage from '../components/BotMessage';
 
 const STATUS_CONFIG = {
   active: { icon: FiCheckCircle, color: '#3ba55c', label: 'Good Standing', bg: 'rgba(59,165,92,0.1)' },
@@ -124,8 +125,8 @@ export default function ModeratorBot({ currentUser, unreadCounts }) {
                       <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'linear-gradient(135deg, #5865f2, #eb459e)' }}>
                         <FiShield size={13} className="text-white" />
                       </div>
-                      <div className="bg-discord-dark border border-discord-hover rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[calc(100%-2.5rem)]">
-                        <p className="text-discord-text text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                      <div className="bg-discord-dark border border-discord-hover rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[calc(100%-2.5rem)] text-discord-text">
+                        <BotMessage text={msg.text} />
                       </div>
                     </div>
                   )}

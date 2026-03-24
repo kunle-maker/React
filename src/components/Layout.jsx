@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { FiHome, FiMessageSquare, FiUsers, FiSearch, FiUser, FiSettings, FiLogOut, FiZap, FiPlusSquare, FiBell } from 'react-icons/fi';
+import { FiHome, FiMessageSquare, FiUsers, FiSearch, FiUser, FiSettings, FiLogOut, FiZap, FiPlusSquare, FiBell, FiX } from 'react-icons/fi';
 import { HiHome, HiChatAlt2, HiUsers, HiBell } from 'react-icons/hi';
 import Avatar from './Avatar';
 import { useI18n } from '../contexts/I18nContext';
@@ -14,33 +14,63 @@ function VLogo({ size = 32 }) {
   );
 }
 
+const POPUP_ITEMS = [
+  { path: '/search',        icon: FiSearch,    label: 'Search',        badgeKey: null },
+  { path: '/create',        icon: FiPlusSquare,label: 'Create',        badgeKey: null },
+  { path: '/notifications', icon: FiBell,      label: 'Notifications', badgeKey: 'notifications', activeIcon: HiBell },
+  { path: '/ai',            icon: FiZap,       label: 'AI',            badgeKey: null },
+];
 
 export default function Layout({ children, currentUser, unreadCounts = {}, contentClass = '' }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const { t } = useI18n();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+  const popupRef = useRef(null);
+  const vboxRef = useRef(null);
 
-  const NAV_ITEMS_TRANSLATED = [
-    { path: '/', icon: FiHome, activeIcon: HiHome, label: t.home || 'Home' },
-    { path: '/search', icon: FiSearch, label: t.search || 'Search' },
-    { path: '/create', icon: FiPlusSquare, label: t.post || 'Create' },
-    { path: '/notifications', icon: FiBell, activeIcon: HiBell, label: t.notifications || 'Notifications', badgeKey: 'notifications' },
-    { path: '/messages', icon: FiMessageSquare, activeIcon: HiChatAlt2, label: t.messages || 'Messages', badgeKey: 'messages' },
-    { path: '/groups', icon: FiUsers, activeIcon: HiUsers, label: t.group || 'Groups', badgeKey: 'groups' },
-    { path: '/ai', icon: FiZap, label: t.ai || 'AI' },
+  const ALL_NAV_ITEMS = [
+    { path: '/',             icon: FiHome,          activeIcon: HiHome,    label: t.home || 'Home' },
+    { path: '/search',       icon: FiSearch,                               label: t.search || 'Search' },
+    { path: '/create',       icon: FiPlusSquare,                           label: t.post || 'Create' },
+    { path: '/notifications',icon: FiBell,          activeIcon: HiBell,    label: t.notifications || 'Notifications', badgeKey: 'notifications' },
+    { path: '/messages',     icon: FiMessageSquare, activeIcon: HiChatAlt2,label: t.messages || 'Messages', badgeKey: 'messages' },
+    { path: '/groups',       icon: FiUsers,         activeIcon: HiUsers,   label: t.group || 'Groups', badgeKey: 'groups' },
+    { path: '/ai',           icon: FiZap,                                  label: t.ai || 'AI' },
   ];
+
+  const isActive = (path) => {
+    if (path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(path);
+  };
+
+  const popupBadge = (unreadCounts.notifications || 0);
+  const isPopupRouteActive = POPUP_ITEMS.some(item => isActive(item.path));
+
+  useEffect(() => {
+    if (!showPopup) return;
+    const handleKey = (e) => { if (e.key === 'Escape') setShowPopup(false); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [showPopup]);
+
+  useEffect(() => {
+    if (!showPopup) return;
+    const handleOutside = (e) => {
+      if (popupRef.current?.contains(e.target)) return;
+      if (vboxRef.current?.contains(e.target)) return;
+      setShowPopup(false);
+    };
+    document.addEventListener('pointerdown', handleOutside, { capture: true });
+    return () => document.removeEventListener('pointerdown', handleOutside, { capture: true });
+  }, [showPopup]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     window.dispatchEvent(new Event('authChange'));
     navigate('/login');
-  };
-
-  const isActive = (path) => {
-    if (path === '/') return location.pathname === '/';
-    return location.pathname.startsWith(path);
   };
 
   return (
@@ -53,7 +83,7 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
           </div>
         </Link>
         <div className="w-8 h-0.5 bg-discord-hover my-1 rounded" />
-        {NAV_ITEMS_TRANSLATED.map(item => {
+        {ALL_NAV_ITEMS.map(item => {
           const Icon = isActive(item.path) && item.activeIcon ? item.activeIcon : item.icon;
           const active = isActive(item.path);
           const badge = item.badgeKey ? (unreadCounts[item.badgeKey] || 0) : 0;
@@ -114,36 +144,115 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
         </div>
       </main>
 
-      {/* Mobile Floating Pill Nav */}
+      {/* Mobile: Popup menu */}
+      {showPopup && (
+        <div className="mobile-nav-popup" ref={popupRef}>
+          <div className="mobile-popup-grid">
+            {POPUP_ITEMS.map(item => {
+              const Icon = isActive(item.path) && item.activeIcon ? item.activeIcon : item.icon;
+              const active = isActive(item.path);
+              const badge = item.badgeKey ? (unreadCounts[item.badgeKey] || 0) : 0;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`mobile-popup-item ${active ? 'active' : ''}`}
+                  onClick={() => setShowPopup(false)}
+                >
+                  <div className="mobile-popup-icon">
+                    <Icon size={20} />
+                    {badge > 0 && (
+                      <span className="badge absolute -top-1 -right-1 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
+                        {badge > 99 ? '99+' : badge}
+                      </span>
+                    )}
+                  </div>
+                  <span className="mobile-popup-label">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Floating Pill Nav — 5 items: Home | Messages | V | Groups | Profile */}
       <nav className="mobile-pill-nav">
-        {NAV_ITEMS_TRANSLATED.map(item => {
-          const Icon = isActive(item.path) && item.activeIcon ? item.activeIcon : item.icon;
-          const active = isActive(item.path);
-          const badge = item.badgeKey ? (unreadCounts[item.badgeKey] || 0) : 0;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`mobile-pill-item ${active ? 'active' : ''}`}
-              aria-label={item.label}
-            >
-              <Icon size={active ? 22 : 21} />
-              {active && <span className="mobile-pill-label">{item.label}</span>}
-              {badge > 0 && (
-                <span className="badge absolute -top-1 -right-0.5 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
-                  {badge > 99 ? '99+' : badge}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+        {/* Home */}
+        <Link
+          to="/"
+          className={`mobile-pill-item ${location.pathname === '/' ? 'active' : ''}`}
+          aria-label="Home"
+        >
+          {location.pathname === '/' ? <HiHome size={23} /> : <FiHome size={22} />}
+          {location.pathname === '/' && <span className="mobile-pill-label">Home</span>}
+        </Link>
+
+        {/* Messages */}
+        <Link
+          to="/messages"
+          className={`mobile-pill-item ${isActive('/messages') ? 'active' : ''}`}
+          aria-label="Messages"
+        >
+          {isActive('/messages') ? <HiChatAlt2 size={23} /> : <FiMessageSquare size={22} />}
+          {isActive('/messages') && <span className="mobile-pill-label">Messages</span>}
+          {(unreadCounts.messages || 0) > 0 && (
+            <span className="badge absolute -top-1 -right-0.5 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
+              {unreadCounts.messages > 99 ? '99+' : unreadCounts.messages}
+            </span>
+          )}
+        </Link>
+
+        {/* VesselX Blue Box — center action hub */}
+        <div className="mobile-pill-vbox-wrap">
+          <button
+            ref={vboxRef}
+            className={`mobile-pill-vbox ${showPopup ? 'open' : ''} ${isPopupRouteActive && !showPopup ? 'route-active' : ''}`}
+            onClick={() => {
+              setShowPopup(p => !p);
+              if (navigator.vibrate) navigator.vibrate(10);
+            }}
+            aria-label="More"
+          >
+            {showPopup ? (
+              <FiX size={17} className="text-white" />
+            ) : (
+              <>
+                <svg width="18" height="18" viewBox="0 0 100 100" fill="none">
+                  <text x="50" y="72" fontFamily="Arial Black, Arial" fontWeight="900" fontSize="62" textAnchor="middle" fill="white">V</text>
+                </svg>
+                {popupBadge > 0 && (
+                  <span className="badge absolute -top-1 -right-1 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
+                    {popupBadge > 99 ? '99+' : popupBadge}
+                  </span>
+                )}
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Groups */}
+        <Link
+          to="/groups"
+          className={`mobile-pill-item ${isActive('/groups') ? 'active' : ''}`}
+          aria-label="Groups"
+        >
+          {isActive('/groups') ? <HiUsers size={23} /> : <FiUsers size={22} />}
+          {isActive('/groups') && <span className="mobile-pill-label">Groups</span>}
+          {(unreadCounts.groups || 0) > 0 && (
+            <span className="badge absolute -top-1 -right-0.5 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
+              {unreadCounts.groups > 99 ? '99+' : unreadCounts.groups}
+            </span>
+          )}
+        </Link>
+
+        {/* Profile */}
         {currentUser && (
           <Link
             to={`/profile/${currentUser.username}`}
             className={`mobile-pill-item ${isActive(`/profile/${currentUser.username}`) ? 'active' : ''}`}
             aria-label="Profile"
           >
-            <Avatar user={currentUser} size={22} />
+            <Avatar user={currentUser} size={23} />
             {isActive(`/profile/${currentUser.username}`) && <span className="mobile-pill-label">Profile</span>}
           </Link>
         )}

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const CACHE_NAME = `vesselx-dynamic-${CACHE_VERSION}`;
 const STATIC_CACHE = `vesselx-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `vesselx-images-${CACHE_VERSION}`;

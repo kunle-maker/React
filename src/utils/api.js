@@ -91,6 +91,10 @@ class API {
       return { username, name: username, profilePicture: null };
     }
   }
+  static async checkUser(username) {
+    const data = await this.request(`/api/users/${username}`);
+    return data.user || data;
+  }
   static async updateProfile(formData) {
     const data = await this.request('/api/profile', { method: 'PUT', body: formData });
     this.clearCache('/api/profile');

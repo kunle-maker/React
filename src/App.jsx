@@ -1,30 +1,59 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import VerifyEmail from './pages/VerifyEmail';
-import ForgotPassword from './pages/ForgotPassword';
-import Feed from './pages/Feed';
-import Profile from './pages/Profile';
-import Messages from './pages/Messages';
-import Groups from './pages/Groups';
-import GroupChat from './pages/GroupChat';
-import GroupMembers from './pages/GroupMembers';
-import GroupInfo from './pages/GroupInfo';
-import Notifications from './pages/Notifications';
-import CreatePostPage from './pages/CreatePostPage';
-import Search from './pages/Search';
-import AIAssistant from './pages/AIAssistant';
-import Settings from './pages/Settings';
-import FullPostView from './pages/FullPostView';
-import JoinGroup from './pages/JoinGroup';
-import AdminPanel from './pages/AdminPanel';
-import ModeratorBot from './pages/ModeratorBot';
 import API from './utils/api';
 import socket from './utils/socket';
 import InstallPrompt from './components/InstallPrompt';
 import DigitalPlatAd from './components/DigitalPlatAd';
 import { I18nProvider, useI18n } from './contexts/I18nContext';
+import Search         from './pages/Search';
+import Notifications  from './pages/Notifications';
+import CreatePostPage from './pages/CreatePostPage';
+
+const Login          = lazy(() => import('./pages/Login'));
+const Register       = lazy(() => import('./pages/Register'));
+const VerifyEmail    = lazy(() => import('./pages/VerifyEmail'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const Feed           = lazy(() => import('./pages/Feed'));
+const Profile        = lazy(() => import('./pages/Profile'));
+const Messages       = lazy(() => import('./pages/Messages'));
+const Groups         = lazy(() => import('./pages/Groups'));
+const GroupChat      = lazy(() => import('./pages/GroupChat'));
+const GroupMembers   = lazy(() => import('./pages/GroupMembers'));
+const GroupInfo      = lazy(() => import('./pages/GroupInfo'));
+const AIAssistant    = lazy(() => import('./pages/AIAssistant'));
+const Settings       = lazy(() => import('./pages/Settings'));
+const FullPostView   = lazy(() => import('./pages/FullPostView'));
+const JoinGroup      = lazy(() => import('./pages/JoinGroup'));
+const AdminPanel     = lazy(() => import('./pages/AdminPanel'));
+const ModeratorBot   = lazy(() => import('./pages/ModeratorBot'));
+const Reels          = lazy(() => import('./pages/Reels'));
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0d0f14', color: '#e2e5ea', gap: 12 }}>
+          <div style={{ fontSize: 32 }}>⚠️</div>
+          <p style={{ fontWeight: 700, fontSize: 16 }}>Something went wrong</p>
+          <button onClick={() => { this.setState({ hasError: false }); window.location.hash = '/'; }} style={{ padding: '8px 20px', background: '#5865f2', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14 }}>
+            Go Home
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-screen bg-discord-bg">
+      <div className="w-8 h-8 border-2 border-discord-brand border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
 
 async function registerPushNotifications() {
   try {
@@ -210,30 +239,35 @@ function AppInner() {
     <HashRouter>
       <InstallPrompt />
       <DigitalPlatAd currentUser={currentUser} />
-      <Routes>
-        <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login />} />
-        <Route path="/register" element={token ? <Navigate to="/" replace /> : <Register />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/join/:code" element={token ? <JoinGroup /> : <Navigate to="/login" replace />} />
-        <Route path="/" element={<ProtectedRoute token={token}><Feed {...sharedProps} /></ProtectedRoute>} />
-        <Route path="/search" element={<ProtectedRoute token={token}><Search {...sharedProps} /></ProtectedRoute>} />
-        <Route path="/notifications" element={<ProtectedRoute token={token}><Notifications {...sharedProps} /></ProtectedRoute>} />
-        <Route path="/create" element={<ProtectedRoute token={token}><CreatePostPage {...sharedProps} /></ProtectedRoute>} />
-        <Route path="/messages" element={<ProtectedRoute token={token}><Messages {...sharedProps} /></ProtectedRoute>} />
-        <Route path="/messages/:username" element={<ProtectedRoute token={token}><Messages {...sharedProps} /></ProtectedRoute>} />
-        <Route path="/groups" element={<ProtectedRoute token={token}><Groups {...sharedProps} /></ProtectedRoute>} />
-        <Route path="/groups/:groupId" element={<ProtectedRoute token={token}><GroupChat {...sharedProps} /></ProtectedRoute>} />
-        <Route path="/groups/:groupId/members" element={<ProtectedRoute token={token}><GroupMembers {...sharedProps} /></ProtectedRoute>} />
-        <Route path="/groups/:groupId/info" element={<ProtectedRoute token={token}><GroupInfo {...sharedProps} /></ProtectedRoute>} />
-        <Route path="/profile/:username" element={<ProtectedRoute token={token}><Profile {...sharedProps} /></ProtectedRoute>} />
-        <Route path="/post/:postId" element={<ProtectedRoute token={token}><FullPostView {...sharedProps} /></ProtectedRoute>} />
-        <Route path="/ai" element={<ProtectedRoute token={token}><AIAssistant {...sharedProps} /></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute token={token}><Settings {...sharedProps} /></ProtectedRoute>} />
-        <Route path="/vx-admin" element={<ProtectedRoute token={token}><AdminPanel {...sharedProps} /></ProtectedRoute>} />
-        <Route path="/mod-bot" element={<ProtectedRoute token={token}><ModeratorBot {...sharedProps} /></ProtectedRoute>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <ErrorBoundary>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login />} />
+          <Route path="/register" element={token ? <Navigate to="/" replace /> : <Register />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/join/:code" element={token ? <JoinGroup /> : <Navigate to="/login" replace />} />
+          <Route path="/" element={<ProtectedRoute token={token}><Feed {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/reels" element={<ProtectedRoute token={token}><Reels {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/search" element={<ProtectedRoute token={token}><Search {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute token={token}><Notifications {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/create" element={<ProtectedRoute token={token}><CreatePostPage {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/messages" element={<ProtectedRoute token={token}><Messages {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/messages/:username" element={<ProtectedRoute token={token}><Messages {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/groups" element={<ProtectedRoute token={token}><Groups {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/groups/:groupId" element={<ProtectedRoute token={token}><GroupChat {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/groups/:groupId/members" element={<ProtectedRoute token={token}><GroupMembers {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/groups/:groupId/info" element={<ProtectedRoute token={token}><GroupInfo {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/profile/:username" element={<ProtectedRoute token={token}><Profile {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/post/:postId" element={<ProtectedRoute token={token}><FullPostView {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/ai" element={<ProtectedRoute token={token}><AIAssistant {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute token={token}><Settings {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/vx-admin" element={<ProtectedRoute token={token}><AdminPanel {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/mod-bot" element={<ProtectedRoute token={token}><ModeratorBot {...sharedProps} /></ProtectedRoute>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+      </ErrorBoundary>
     </HashRouter>
   );
 }

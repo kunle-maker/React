@@ -12,5 +12,17 @@ export default defineConfig({
     port: 5000,
     host: true,
     allowedHosts: true
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-icons': ['react-icons'],
+          'vendor-date': ['date-fns'],
+        }
+      }
+    },
+    chunkSizeWarningLimit: 800
   }
 })
