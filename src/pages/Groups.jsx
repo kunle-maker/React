@@ -167,8 +167,11 @@ export default function Groups({ currentUser, unreadCounts }) {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-discord-text truncate">{g.name}</span>
+                    {g.isChannel && (
+                      <span className="text-[10px] font-bold text-discord-brand bg-discord-brand/15 px-1.5 py-0.5 rounded-full border border-discord-brand/30 flex-shrink-0">📢 Channel</span>
+                    )}
                     {g.unreadCount > 0 && <span className="badge">{g.unreadCount}</span>}
                   </div>
                   <p className="text-discord-muted text-xs truncate">{g.description || `${g.members?.length || 0} members`}</p>

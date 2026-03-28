@@ -139,6 +139,7 @@ function AppInner() {
         if (user.language) {
           loadTranslations(user.language).catch(() => {});
         }
+        API.getVesselXDomainGroup().catch(() => {});
       }
     } catch (err) {
       if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {

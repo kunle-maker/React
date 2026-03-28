@@ -117,6 +117,30 @@ class API {
   }
   static async getFollowers(username) { return this.request(`/api/users/${username}/followers`); }
   static async getFollowing(username) { return this.request(`/api/users/${username}/following`); }
+  static async blockUser(username) {
+    const data = await this.request(`/api/users/${username}/block`, { method: 'POST' });
+    this.clearCache(`/api/users/${username}`);
+    this.clearCache('/api/users/me/blocked');
+    return data;
+  }
+  static async unblockUser(username) {
+    const data = await this.request(`/api/users/${username}/unblock`, { method: 'POST' });
+    this.clearCache(`/api/users/${username}`);
+    this.clearCache('/api/users/me/blocked');
+    return data;
+  }
+  static async getBlockedUsers() {
+    try { return this.request('/api/users/me/blocked'); } catch { return []; }
+  }
+  static async getFriends() {
+    try { return this.request('/api/users/me/friends'); } catch { return []; }
+  }
+  static async getUserFriends(username) {
+    try { return this.request(`/api/users/${username}/friends`); } catch { return []; }
+  }
+  static async getLoginStreak() {
+    try { return this.request('/api/users/me/streak'); } catch { return null; }
+  }
 
   static async getPosts(page = 1, limit = 10) {
     try {
@@ -218,8 +242,24 @@ class API {
     return res;
   }
   static async getUserOnlineStatus(username) { return this.request(`/api/conversations/${username}/status`); }
+  static async reactToDM(messageId, emoji) {
+    return this.request(`/api/messages/${messageId}/react`, { method: 'POST', body: JSON.stringify({ emoji }) });
+  }
+  static async editDM(messageId, text) {
+    const data = await this.request(`/api/messages/${messageId}`, { method: 'PUT', body: JSON.stringify({ text }) });
+    this.clearCache('/api/conversations');
+    return data;
+  }
+  static async unsendDM(messageId) {
+    const data = await this.request(`/api/messages/${messageId}`, { method: 'DELETE' });
+    this.clearCache('/api/conversations');
+    return data;
+  }
 
   static async getGroups() { return this.request('/api/groups'); }
+  static async getVesselXDomainGroup() {
+    try { return this.request('/api/groups/vesselx-domain'); } catch { return null; }
+  }
   static async getGroup(groupId) { return this.request(`/api/groups/${groupId}`); }
   static async searchGroups(query) { return this.request(`/api/groups/search?q=${encodeURIComponent(query)}`); }
   static async createGroup(formData) {
@@ -250,8 +290,23 @@ class API {
   static async getGroupMessages(groupId, page = 1, limit = 50) {
     return this.request(`/api/groups/${groupId}/messages?page=${page}&limit=${limit}`);
   }
-  static async sendGroupMessage(groupId, text) {
-    const data = await this.request(`/api/groups/${groupId}/messages`, { method: 'POST', body: JSON.stringify({ text }) });
+  static async sendGroupMessage(groupId, text, replyToMessageId = null) {
+    const body = { text };
+    if (replyToMessageId) body.replyToMessageId = replyToMessageId;
+    const data = await this.request(`/api/groups/${groupId}/messages`, { method: 'POST', body: JSON.stringify(body) });
+    this.clearCache(`/api/groups/${groupId}/messages`);
+    return data;
+  }
+  static async reactToGroupMessage(groupId, messageId, emoji) {
+    return this.request(`/api/groups/${groupId}/messages/${messageId}/react`, { method: 'POST', body: JSON.stringify({ emoji }) });
+  }
+  static async editGroupMessage(groupId, messageId, text) {
+    const data = await this.request(`/api/groups/${groupId}/messages/${messageId}`, { method: 'PUT', body: JSON.stringify({ text }) });
+    this.clearCache(`/api/groups/${groupId}/messages`);
+    return data;
+  }
+  static async unsendGroupMessage(groupId, messageId) {
+    const data = await this.request(`/api/groups/${groupId}/messages/${messageId}`, { method: 'DELETE' });
     this.clearCache(`/api/groups/${groupId}/messages`);
     return data;
   }

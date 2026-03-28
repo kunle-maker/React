@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiSettings, FiMessageSquare, FiUserPlus, FiUserCheck, FiEdit2, FiGrid, FiCamera, FiFlag } from 'react-icons/fi';
+import { FiSettings, FiMessageSquare, FiUserPlus, FiUserCheck, FiEdit2, FiGrid, FiCamera, FiFlag, FiSlash, FiUsers, FiZap } from 'react-icons/fi';
 import ReportModal from '../components/ReportModal';
 import ProfilePictureModal from '../components/ProfilePictureModal';
 import { formatDistanceToNow } from 'date-fns';
@@ -38,6 +38,11 @@ export default function Profile({ currentUser, unreadCounts }) {
   const [showVerifPickerVerified, setShowVerifPickerVerified] = useState(false);
   const [supaStyleId, setSupaStyleId] = useState('red');
   const [verifiedStyleId, setVerifiedStyleId] = useState('blue');
+  const [blocked, setBlocked] = useState(false);
+  const [isFriend, setIsFriend] = useState(false);
+  const [streak, setStreak] = useState(null);
+  const [friends, setFriends] = useState([]);
+  const [friendsLoading, setFriendsLoading] = useState(false);
   const fileRef = useRef();
 
   const isMyProfile = currentUser?.username === username;
@@ -48,7 +53,47 @@ export default function Profile({ currentUser, unreadCounts }) {
     fetchPosts();
     setSupaStyleId(getStoredSupaBadgeStyle(username));
     setVerifiedStyleId(getStoredVerifiedBadgeStyle(username) || 'blue');
+    if (!isMyProfile) {
+      API.getBlockedUsers().then(list => {
+        const arr = Array.isArray(list) ? list : list?.blocked || [];
+        setBlocked(arr.some(u => (u.username === username) || (u === username)));
+      }).catch(() => {});
+      API.getUserFriends(username).then(data => {
+        const arr = Array.isArray(data) ? data : data?.friends || [];
+        setFriends(arr);
+      }).catch(() => {});
+    } else {
+      API.getLoginStreak().then(data => {
+        if (data) setStreak(data.streak || data.currentStreak || data.count || null);
+      }).catch(() => {});
+      API.getFriends().then(data => {
+        const arr = Array.isArray(data) ? data : data?.friends || [];
+        setFriends(arr);
+      }).catch(() => {});
+    }
   }, [username]);
+
+  const handleBlock = async () => {
+    try {
+      if (blocked) {
+        await API.unblockUser(username);
+        setBlocked(false);
+      } else {
+        await API.blockUser(username);
+        setBlocked(true);
+      }
+    } catch (err) { alert(err.message); }
+  };
+
+  const loadFriends = async () => {
+    setFriendsLoading(true);
+    try {
+      const data = isMyProfile ? await API.getFriends() : await API.getUserFriends(username);
+      const arr = Array.isArray(data) ? data : data?.friends || [];
+      setFriends(arr);
+    } catch { setFriends([]); }
+    finally { setFriendsLoading(false); }
+  };
 
   const fetchUser = async () => {
     setLoading(true);
@@ -213,16 +258,26 @@ export default function Profile({ currentUser, unreadCounts }) {
                   dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(user.bio) }}
                 />
               )}
-              <div className="flex items-center gap-4 mt-2">
+              <div className="flex items-center gap-4 mt-2 flex-wrap">
                 <button className="text-discord-muted text-sm hover:underline" onClick={loadFollowers}>
                   <span className="text-discord-text font-bold">{user.followers?.length || 0}</span> Followers
                 </button>
                 <button className="text-discord-muted text-sm hover:underline" onClick={loadFollowing}>
                   <span className="text-discord-text font-bold">{user.following?.length || 0}</span> Following
                 </button>
+                {friends.length > 0 && (
+                  <button className="text-discord-muted text-sm hover:underline" onClick={() => setTab('friends')}>
+                    <span className="text-discord-text font-bold">{friends.length}</span> Friends
+                  </button>
+                )}
                 <span className="text-discord-muted text-xs">
                   Joined {user.createdAt ? formatDistanceToNow(new Date(user.createdAt), { addSuffix: true }) : ''}
                 </span>
+                {isMyProfile && streak && (
+                  <span className="flex items-center gap-1 text-xs font-bold text-orange-400 bg-orange-400/10 border border-orange-400/30 px-2 py-0.5 rounded-full">
+                    <FiZap size={11} /> {streak} day streak
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex gap-2 mt-1">
@@ -240,11 +295,20 @@ export default function Profile({ currentUser, unreadCounts }) {
                   <button className="discord-btn-ghost flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-discord-hover text-sm font-semibold" onClick={() => navigate(`/messages/${username}`)}>
                     <FiMessageSquare size={13} />
                   </button>
+                  {!blocked && (
+                    <button
+                      className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold transition-colors ${following ? 'border border-discord-hover text-discord-text hover:bg-discord-red/10 hover:text-discord-red hover:border-discord-red' : 'discord-btn'}`}
+                      onClick={handleFollow}
+                    >
+                      {following ? <><FiUserCheck size={13} /> Following</> : <><FiUserPlus size={13} /> Follow</>}
+                    </button>
+                  )}
                   <button
-                    className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold transition-colors ${following ? 'border border-discord-hover text-discord-text hover:bg-discord-red/10 hover:text-discord-red hover:border-discord-red' : 'discord-btn'}`}
-                    onClick={handleFollow}
+                    className={`p-2 rounded-full border transition-all ${blocked ? 'border-discord-red text-discord-red bg-discord-red/10 hover:bg-discord-red/20' : 'border-discord-hover text-discord-muted hover:text-discord-red hover:border-discord-red/50 hover:bg-discord-red/10'}`}
+                    title={blocked ? 'Unblock user' : 'Block user'}
+                    onClick={handleBlock}
                   >
-                    {following ? <><FiUserCheck size={13} /> Following</> : <><FiUserPlus size={13} /> Follow</>}
+                    <FiSlash size={14} />
                   </button>
                   <button
                     className="p-2 rounded-full border border-discord-hover text-discord-muted hover:text-orange-400 hover:border-orange-400/50 hover:bg-orange-400/10 transition-all"
@@ -312,22 +376,63 @@ export default function Profile({ currentUser, unreadCounts }) {
 
         {/* Tabs */}
         <div className="flex border-b border-discord-hover">
-          {[{ id: 'posts', icon: FiGrid, label: 'Posts' }].map(t => (
-            <button key={t.id} className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-semibold border-b-2 transition-colors ${tab === t.id ? 'border-discord-brand text-discord-brand' : 'border-transparent text-discord-muted hover:text-discord-text'}`} onClick={() => setTab(t.id)}>
+          {[
+            { id: 'posts', icon: FiGrid, label: 'Posts' },
+            { id: 'friends', icon: FiUsers, label: 'Friends' },
+          ].map(t => (
+            <button key={t.id} className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-semibold border-b-2 transition-colors ${tab === t.id ? 'border-discord-brand text-discord-brand' : 'border-transparent text-discord-muted hover:text-discord-text'}`} onClick={() => { setTab(t.id); if (t.id === 'friends') loadFriends(); }}>
               <t.icon size={15} /> {t.label} {t.id === 'posts' && <span className="text-xs text-discord-muted">({posts.length})</span>}
+              {t.id === 'friends' && <span className="text-xs text-discord-muted">({friends.length})</span>}
             </button>
           ))}
         </div>
 
         {/* Posts */}
-        {posts.length === 0 ? (
+        {tab === 'posts' && (posts.length === 0 ? (
           <div className="text-center py-12 text-discord-muted">
             <FiGrid size={32} className="mx-auto mb-2 opacity-30" />
             <p>No posts yet</p>
           </div>
         ) : posts.map(post => (
           <PostCard key={post._id} post={post} currentUser={currentUser} onDelete={id => setPosts(p => p.filter(x => x._id !== id))} />
-        ))}
+        )))}
+
+        {/* Friends */}
+        {tab === 'friends' && (
+          <div className="py-2">
+            {friendsLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="w-6 h-6 border-2 border-discord-brand border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : friends.length === 0 ? (
+              <div className="text-center py-12 text-discord-muted">
+                <FiUsers size={32} className="mx-auto mb-2 opacity-30" />
+                <p>No mutual friends yet</p>
+              </div>
+            ) : friends.map(f => {
+              const u = f.user || f;
+              return (
+                <div
+                  key={u._id || u.username}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-discord-hover cursor-pointer transition-colors"
+                  onClick={() => navigate(`/profile/${u.username}`)}
+                >
+                  <Avatar user={u} size={42} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-discord-text font-semibold text-sm truncate">{u.name}</p>
+                    <p className="text-discord-muted text-xs">@{u.username}</p>
+                  </div>
+                  <button
+                    className="discord-btn-ghost px-3 py-1 rounded-full text-xs border border-discord-hover"
+                    onClick={e => { e.stopPropagation(); navigate(`/messages/${u.username}`); }}
+                  >
+                    Message
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Followers Modal */}
         {(showFollowers || showFollowing) && (

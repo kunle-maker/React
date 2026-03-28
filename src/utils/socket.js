@@ -65,6 +65,74 @@ class SocketManager {
     this.socket.on('userStatusUpdate', (data) => {
       window.dispatchEvent(new CustomEvent('userStatusUpdate', { detail: data }));
     });
+
+    this.socket.on('messageReactionUpdated', (data) => {
+      window.dispatchEvent(new CustomEvent('messageReactionUpdated', { detail: data }));
+    });
+
+    this.socket.on('messageEdited', (data) => {
+      window.dispatchEvent(new CustomEvent('messageEdited', { detail: data }));
+    });
+
+    this.socket.on('messageUnsent', (data) => {
+      window.dispatchEvent(new CustomEvent('messageUnsent', { detail: data }));
+    });
+
+    this.socket.on('groupMessageReactionUpdated', (data) => {
+      window.dispatchEvent(new CustomEvent('groupMessageReactionUpdated', { detail: data }));
+    });
+
+    this.socket.on('groupMessageEdited', (data) => {
+      window.dispatchEvent(new CustomEvent('groupMessageEdited', { detail: data }));
+    });
+
+    this.socket.on('groupMessageUnsent', (data) => {
+      window.dispatchEvent(new CustomEvent('groupMessageUnsent', { detail: data }));
+    });
+
+    this.socket.on('channelPost', (data) => {
+      window.dispatchEvent(new CustomEvent('channelPost', { detail: data }));
+    });
+
+    this.socket.on('incomingCall', (data) => {
+      window.dispatchEvent(new CustomEvent('incomingCall', { detail: data }));
+    });
+
+    this.socket.on('callAccepted', (data) => {
+      window.dispatchEvent(new CustomEvent('callAccepted', { detail: data }));
+    });
+
+    this.socket.on('callRejected', (data) => {
+      window.dispatchEvent(new CustomEvent('callRejected', { detail: data }));
+    });
+
+    this.socket.on('callEnded', (data) => {
+      window.dispatchEvent(new CustomEvent('callEnded', { detail: data }));
+    });
+
+    this.socket.on('callCancelled', (data) => {
+      window.dispatchEvent(new CustomEvent('callCancelled', { detail: data }));
+    });
+
+    this.socket.on('iceCandidate', (data) => {
+      window.dispatchEvent(new CustomEvent('iceCandidate', { detail: data }));
+    });
+
+    this.socket.on('groupCallIncoming', (data) => {
+      window.dispatchEvent(new CustomEvent('groupCallIncoming', { detail: data }));
+    });
+
+    this.socket.on('groupCallOffer', (data) => {
+      window.dispatchEvent(new CustomEvent('groupCallOffer', { detail: data }));
+    });
+
+    this.socket.on('groupCallAnswer', (data) => {
+      window.dispatchEvent(new CustomEvent('groupCallAnswer', { detail: data }));
+    });
+
+    this.socket.on('groupCallEnded', (data) => {
+      window.dispatchEvent(new CustomEvent('groupCallEnded', { detail: data }));
+    });
   }
 
   _updateCount(type, inc) {
@@ -84,6 +152,18 @@ class SocketManager {
   markMessageRead(data) { this.socket?.emit('messageRead', data); }
   joinGroup(groupId) { this.socket?.emit('joinGroup', groupId); }
   leaveGroup(groupId) { this.socket?.emit('leaveGroup', groupId); }
+
+  initiateCall(data) { this.socket?.emit('initiateCall', data); }
+  acceptCall(data) { this.socket?.emit('acceptCall', data); }
+  rejectCall(data) { this.socket?.emit('rejectCall', data); }
+  endCall(data) { this.socket?.emit('endCall', data); }
+  cancelCall(data) { this.socket?.emit('cancelCall', data); }
+  sendIceCandidate(data) { this.socket?.emit('iceCandidate', data); }
+
+  initiateGroupCall(data) { this.socket?.emit('initiateGroupCall', data); }
+  sendGroupCallOffer(data) { this.socket?.emit('groupCallOffer', data); }
+  sendGroupCallAnswer(data) { this.socket?.emit('groupCallAnswer', data); }
+  leaveGroupCall(data) { this.socket?.emit('leaveGroupCall', data); }
 
   disconnect() {
     if (this._timeout) clearTimeout(this._timeout);

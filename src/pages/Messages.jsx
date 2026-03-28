@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiSend, FiArrowLeft, FiMessageSquare, FiSearch, FiCheck, FiCheckCircle, FiTrash2, FiCopy, FiX, FiMoreHorizontal, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiPlay, FiShare2, FiSave, FiGlobe } from 'react-icons/fi';
+import { FiSend, FiArrowLeft, FiMessageSquare, FiSearch, FiCheck, FiCheckCircle, FiTrash2, FiCopy, FiX, FiMoreHorizontal, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiPlay, FiShare2, FiSave, FiGlobe, FiEdit2 } from 'react-icons/fi';
 import ImageCropModal from '../components/ImageCropModal';
 import ReportModal from '../components/ReportModal';
 import TranslateModal from '../components/TranslateModal';
@@ -10,7 +10,7 @@ import Avatar from '../components/Avatar';
 import FormattedText from '../components/FormattedText';
 import LinkPreview from '../components/LinkPreview';
 import EmojiPicker from '../components/EmojiPicker';
-import { parseEmojisToHtml } from '../utils/emoji';
+import { parseEmojisToHtml, getTwemojiUrl } from '../utils/emoji';
 import API from '../utils/api';
 import socket from '../utils/socket';
 
@@ -432,6 +432,10 @@ export default function Messages({ currentUser, unreadCounts }) {
   const [pendingImageFile, setPendingImageFile] = useState(null);
   const [fullscreenImg, setFullscreenImg] = useState(null);
   const [translateMsg, setTranslateMsg] = useState(null);
+  const [editingMsgId, setEditingMsgId] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [reactPickerMsgId, setReactPickerMsgId] = useState(null);
+  const [blockedByMe, setBlockedByMe] = useState(false);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -497,10 +501,81 @@ export default function Messages({ currentUser, unreadCounts }) {
   }, [activeConv]);
 
   useEffect(() => {
-    const handleClickOutside = () => { setContextMenu(null); setConvMenu(null); };
+    const handleClickOutside = () => { setContextMenu(null); setConvMenu(null); setReactPickerMsgId(null); };
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const onReaction = (e) => {
+      const { messageId, reactions } = e.detail;
+      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, reactions } : m));
+    };
+    const onEdited = (e) => {
+      const { messageId, text } = e.detail;
+      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, text, edited: true } : m));
+    };
+    const onUnsent = (e) => {
+      const { messageId } = e.detail;
+      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, text: '', unsent: true } : m));
+    };
+    window.addEventListener('messageReactionUpdated', onReaction);
+    window.addEventListener('messageEdited', onEdited);
+    window.addEventListener('messageUnsent', onUnsent);
+    return () => {
+      window.removeEventListener('messageReactionUpdated', onReaction);
+      window.removeEventListener('messageEdited', onEdited);
+      window.removeEventListener('messageUnsent', onUnsent);
+    };
+  }, []);
+
+  const handleReact = async (messageId, emoji) => {
+    setReactPickerMsgId(null);
+    setContextMenu(null);
+    const myId = currentUser?._id || currentUser?.id;
+    setMessages(prev => prev.map(m => {
+      if (m._id !== messageId) return m;
+      const existing = { ...(m.reactions || {}) };
+      const users = Array.isArray(existing[emoji]) ? [...existing[emoji]] : [];
+      if (users.includes(myId)) {
+        existing[emoji] = users.filter(id => id !== myId);
+        if (existing[emoji].length === 0) delete existing[emoji];
+      } else {
+        existing[emoji] = [...users, myId];
+      }
+      return { ...m, reactions: existing };
+    }));
+    try {
+      const data = await API.reactToDM(messageId, emoji);
+      const reactions =
+        data.reactions ??
+        data.message?.reactions ??
+        data.data?.reactions ??
+        data.updatedMessage?.reactions;
+      if (reactions !== undefined) {
+        setMessages(prev => prev.map(m => m._id === messageId ? { ...m, reactions } : m));
+      }
+    } catch {}
+  };
+
+  const handleEditSave = async (messageId) => {
+    if (!editText.trim()) return;
+    try {
+      const data = await API.editDM(messageId, editText.trim());
+      const updated = data.message || data;
+      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, text: updated.text || editText.trim(), edited: true } : m));
+    } catch {}
+    setEditingMsgId(null);
+    setEditText('');
+  };
+
+  const handleUnsend = async (messageId) => {
+    setContextMenu(null);
+    try {
+      await API.unsendDM(messageId);
+      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, text: '', unsent: true } : m));
+    } catch {}
+  };
 
   const insertEmoji = (emoji) => {
     const ta = textareaRef.current;
@@ -549,10 +624,19 @@ export default function Messages({ currentUser, unreadCounts }) {
     setLoading(true);
     setMessages([]);
     setNewMsgCount(0);
+    setBlockedByMe(false);
     try {
-      const data = await API.getConversation(uname);
+      const [data, blocked] = await Promise.all([
+        API.getConversation(uname),
+        API.getBlockedUsers().catch(() => []),
+      ]);
       setActiveConv(data.targetUser);
       setMessages(data.messages || []);
+      const blockedList = Array.isArray(blocked) ? blocked : [];
+      const targetUser = data.targetUser;
+      const targetId = targetUser?._id || targetUser?.id;
+      const targetUsername = targetUser?.username;
+      setBlockedByMe(blockedList.some(u => (u._id || u.id) === targetId || u.username === targetUsername));
       setConversations(prev => prev.map(c => c.username === uname ? { ...c, unreadCount: 0 } : c));
       await API.markConversationRead(uname).catch(() => {});
       if (!conversations.find(c => c.username === uname)) {
@@ -634,9 +718,13 @@ export default function Messages({ currentUser, unreadCounts }) {
       try {
         const blob = dataURLToBlob(mediaAttachment.dataUrl);
         const formData = new FormData();
-        formData.append('file', blob, mediaAttachment.filename || 'image.jpg');
+        formData.append('image', blob, mediaAttachment.filename || 'image.jpg');
         const uploadData = await API.uploadMessageMedia(formData);
-        const imageUrl = uploadData?.url || uploadData?.imageUrl || uploadData?.secure_url || uploadData?.data?.url;
+        const imageUrl =
+          uploadData?.url || uploadData?.imageUrl || uploadData?.secure_url ||
+          uploadData?.mediaUrl || uploadData?.fileUrl || uploadData?.link ||
+          uploadData?.data?.url || uploadData?.data?.secure_url ||
+          (typeof uploadData === 'string' ? uploadData : null);
         if (!imageUrl) throw new Error('No URL returned from upload');
         text = `[vx:img:${imageUrl}]${text ? '\n' + text : ''}`;
         setMediaAttachment(null);
@@ -992,20 +1080,64 @@ export default function Messages({ currentUser, unreadCounts }) {
               )}
               <div className={`max-w-[72%] flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
                 <div className={`px-3.5 py-2.5 text-sm shadow-sm
-                  ${mine
-                    ? 'bg-discord-brand text-white rounded-2xl rounded-br-md'
-                    : 'bg-white/6 border border-white/5 text-discord-text rounded-2xl rounded-bl-md'
+                  ${msg.unsent ? 'bg-white/4 border border-white/8 text-discord-muted italic rounded-2xl' :
+                    mine
+                      ? 'bg-discord-brand text-white rounded-2xl rounded-br-md'
+                      : 'bg-white/6 border border-white/5 text-discord-text rounded-2xl rounded-bl-md'
                   }
                   ${grouped ? (mine ? 'rounded-tr-lg' : 'rounded-tl-lg') : ''}
                 `}>
-                  <MessageContent msg={msg} onOpenImage={setFullscreenImg} />
+                  {msg.unsent ? (
+                    <span>This message was unsent</span>
+                  ) : editingMsgId === msg._id ? (
+                    <div className="flex flex-col gap-1.5 min-w-[180px]">
+                      <textarea
+                        className="discord-input text-sm resize-none w-full"
+                        rows={2}
+                        value={editText}
+                        onChange={e => setEditText(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleEditSave(msg._id); }
+                          if (e.key === 'Escape') { setEditingMsgId(null); setEditText(''); }
+                        }}
+                        autoFocus
+                      />
+                      <div className="flex gap-1.5 justify-end">
+                        <button type="button" onClick={() => { setEditingMsgId(null); setEditText(''); }} className="text-[11px] text-discord-muted hover:text-discord-text px-2 py-0.5 rounded">Cancel</button>
+                        <button type="button" onClick={() => handleEditSave(msg._id)} className="text-[11px] bg-discord-brand text-white px-2 py-0.5 rounded hover:bg-discord-brand/80">Save</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <MessageContent msg={msg} onOpenImage={setFullscreenImg} />
+                  )}
                 </div>
-                {msg.text && !msg.text.startsWith('[vx:') && <LinkPreview text={msg.text} />}
+                {!msg.unsent && msg.text && !msg.text.startsWith('[vx:') && <LinkPreview text={msg.text} />}
+                {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                  <div className={`flex flex-wrap gap-1 -mt-2 mb-0.5 relative z-10 ${mine ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
+                    {Object.entries(msg.reactions).map(([emoji, users]) => {
+                      const myId = currentUser?._id || currentUser?.id;
+                      return Array.isArray(users) && users.length > 0 ? (
+                        <button
+                          key={emoji}
+                          onClick={() => handleReact(msg._id, emoji)}
+                          className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border shadow-md transition-colors
+                            ${users.includes(myId)
+                              ? 'bg-discord-brand/30 border-discord-brand/60 text-white'
+                              : 'bg-discord-dark border-white/20 text-discord-text hover:bg-white/10'}`}
+                        >
+                          <img src={getTwemojiUrl(emoji)} alt={emoji} width={14} height={14} className="object-contain select-none" draggable={false} />
+                          {users.length > 1 && <span className="font-semibold text-[10px]">{users.length}</span>}
+                        </button>
+                      ) : null;
+                    })}
+                  </div>
+                )}
                 <div className={`flex items-center gap-1.5 mt-1 opacity-0 group-hover:opacity-100 transition-opacity ${mine ? 'flex-row-reverse' : ''}`}>
                   <span className="text-discord-muted text-[10px]">
                     {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
+                    {msg.edited && !msg.unsent && <span className="ml-1 opacity-60">(edited)</span>}
                   </span>
-                  {mine && (
+                  {mine && !msg.unsent && (
                     <span>
                       {msg.status === 'read'
                         ? <FiCheckCircle size={10} className="text-discord-brand" />
@@ -1048,8 +1180,29 @@ export default function Messages({ currentUser, unreadCounts }) {
         </button>
       )}
 
+      {/* Blocked notice (replaces input) */}
+      {blockedByMe && (
+        <div className="px-4 py-4 border-t border-white/6 flex-shrink-0 bg-discord-sidebar/50">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <p className="text-discord-muted text-sm">You blocked <span className="font-semibold text-discord-text">@{activeConv?.username}</span>. You can't send messages.</p>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await API.unblockUser(activeConv.username);
+                  setBlockedByMe(false);
+                } catch {}
+              }}
+              className="text-xs font-bold text-discord-brand hover:underline"
+            >
+              Unblock
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Input */}
-      <form onSubmit={handleSend} className="px-4 pt-3 pb-20 md:pb-3 border-t border-white/6 flex-shrink-0">
+      {!blockedByMe && <form onSubmit={handleSend} className="px-4 pt-3 pb-20 md:pb-3 border-t border-white/6 flex-shrink-0">
         {/* Media Preview */}
         {mediaAttachment && (
           <div className="mb-2 flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
@@ -1142,7 +1295,7 @@ export default function Messages({ currentUser, unreadCounts }) {
             <FiSend size={16} />
           </button>
         </div>
-      </form>
+      </form>}
     </div>
   ) : (
     <div className="flex flex-col items-center justify-center h-full text-discord-muted gap-3">
@@ -1176,24 +1329,64 @@ export default function Messages({ currentUser, unreadCounts }) {
         <div
           className="fixed z-50 bg-discord-dark border border-white/10 rounded-xl shadow-2xl py-1 min-w-36 backdrop-blur-xl animate-fade-in"
           style={{
-            top: Math.min(contextMenu.y, window.innerHeight - 120),
-            left: Math.min(contextMenu.x, window.innerWidth - 160)
+            top: Math.min(contextMenu.y, window.innerHeight - 200),
+            left: Math.min(contextMenu.x, window.innerWidth - 180)
           }}
           onClick={e => e.stopPropagation()}
         >
-          <button
-            className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
-            onClick={() => copyMessage(contextMenu.msg.text)}
-          >
-            <FiCopy size={13} /> Copy Text
-          </button>
-          <button
-            className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-brand hover:bg-discord-brand/10 transition-colors"
-            onClick={() => { setTranslateMsg(contextMenu.msg.text); setContextMenu(null); }}
-          >
-            <FiGlobe size={13} /> Translate
-          </button>
-          {activeConv && contextMenu.msg.senderId !== (currentUser?._id || currentUser?.id) && (
+          {!contextMenu.msg.unsent && (
+            <div className="px-3 py-2 border-b border-white/6">
+              <p className="text-[10px] text-discord-muted uppercase font-bold mb-1.5">React</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {['❤️','😂','😮','😢','😡','👍'].map(emoji => (
+                  <button
+                    key={emoji}
+                    className="hover:scale-125 transition-transform"
+                    onClick={() => handleReact(contextMenu.msg._id, emoji)}
+                  >
+                    <img src={getTwemojiUrl(emoji)} alt={emoji} width={22} height={22} className="object-contain select-none" draggable={false} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {!contextMenu.msg.unsent && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
+              onClick={() => copyMessage(contextMenu.msg.text)}
+            >
+              <FiCopy size={13} /> Copy Text
+            </button>
+          )}
+          {!contextMenu.msg.unsent && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-brand hover:bg-discord-brand/10 transition-colors"
+              onClick={() => { setTranslateMsg(contextMenu.msg.text); setContextMenu(null); }}
+            >
+              <FiGlobe size={13} /> Translate
+            </button>
+          )}
+          {!contextMenu.msg.unsent && isSentByMe(contextMenu.msg) && !contextMenu.msg.text?.startsWith('[vx:') && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
+              onClick={() => {
+                setEditingMsgId(contextMenu.msg._id);
+                setEditText(contextMenu.msg.text || '');
+                setContextMenu(null);
+              }}
+            >
+              <FiEdit2 size={13} /> Edit Message
+            </button>
+          )}
+          {!contextMenu.msg.unsent && isSentByMe(contextMenu.msg) && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-red hover:bg-discord-red/10 transition-colors"
+              onClick={() => handleUnsend(contextMenu.msg._id)}
+            >
+              <FiTrash2 size={13} /> Unsend
+            </button>
+          )}
+          {activeConv && !isSentByMe(contextMenu.msg) && (
             <button
               className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-orange-400 hover:bg-orange-400/10 transition-colors"
               onClick={() => {

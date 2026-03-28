@@ -17,3 +17,10 @@ export function containsEmoji(text) {
   const emojiRegex = /\p{Emoji}/u;
   return emojiRegex.test(text);
 }
+
+export function getTwemojiUrl(emoji) {
+  const cps = [...emoji]
+    .map(c => c.codePointAt(0).toString(16))
+    .filter(cp => parseInt(cp, 16) !== 0xfe0f);
+  return `https://twemoji.maxcdn.com/v/latest/svg/${cps.join('-')}.svg`;
+}

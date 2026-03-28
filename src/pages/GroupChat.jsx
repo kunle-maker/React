@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiSend, FiArrowLeft, FiUsers, FiInfo, FiTrash2, FiCopy, FiMoreVertical, FiLogOut, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiX, FiMoreHorizontal, FiSave, FiGlobe } from 'react-icons/fi';
+import { FiSend, FiArrowLeft, FiUsers, FiInfo, FiTrash2, FiCopy, FiMoreVertical, FiLogOut, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiX, FiMoreHorizontal, FiSave, FiGlobe, FiEdit2 } from 'react-icons/fi';
 import ImageCropModal from '../components/ImageCropModal';
 import ReportModal from '../components/ReportModal';
 import TranslateModal from '../components/TranslateModal';
@@ -10,6 +10,7 @@ import Avatar from '../components/Avatar';
 import FormattedText from '../components/FormattedText';
 import LinkPreview from '../components/LinkPreview';
 import EmojiPicker from '../components/EmojiPicker';
+import { getTwemojiUrl } from '../utils/emoji';
 import { AnimatedBadge, VerifiedBadge, SupaBadge } from '../components/UserBadge';
 import { getBadgeById } from '../data/badges';
 import API from '../utils/api';
@@ -106,6 +107,8 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   const [mentionQuery, setMentionQuery] = useState(null);
   const [swipingMsgId, setSwipingMsgId] = useState(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
+  const [editingMsgId, setEditingMsgId] = useState(null);
+  const [editText, setEditText] = useState('');
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -114,6 +117,8 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   const swipeTouchRef = useRef({ x: 0, y: 0, msgId: null, direction: null });
   const myId = currentUser?._id || currentUser?.id;
   const isAdmin = group?.admin?._id === myId || group?.admin === myId;
+  const isChannel = group?.isChannel === true;
+  const canPost = !isChannel || isAdmin;
 
   useEffect(() => {
     fetchGroup();
@@ -162,6 +167,76 @@ export default function GroupChat({ currentUser, unreadCounts }) {
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const onReaction = (e) => {
+      const { messageId, reactions } = e.detail;
+      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, reactions } : m));
+    };
+    const onEdited = (e) => {
+      const { messageId, text } = e.detail;
+      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, text, edited: true } : m));
+    };
+    const onUnsent = (e) => {
+      const { messageId } = e.detail;
+      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, text: '', unsent: true } : m));
+    };
+    window.addEventListener('groupMessageReactionUpdated', onReaction);
+    window.addEventListener('groupMessageEdited', onEdited);
+    window.addEventListener('groupMessageUnsent', onUnsent);
+    return () => {
+      window.removeEventListener('groupMessageReactionUpdated', onReaction);
+      window.removeEventListener('groupMessageEdited', onEdited);
+      window.removeEventListener('groupMessageUnsent', onUnsent);
+    };
+  }, []);
+
+  const handleReact = async (messageId, emoji) => {
+    setContextMenu(null);
+    const myId = currentUser?._id || currentUser?.id;
+    setMessages(prev => prev.map(m => {
+      if (m._id !== messageId) return m;
+      const existing = { ...(m.reactions || {}) };
+      const users = Array.isArray(existing[emoji]) ? [...existing[emoji]] : [];
+      if (users.includes(myId)) {
+        existing[emoji] = users.filter(id => id !== myId);
+        if (existing[emoji].length === 0) delete existing[emoji];
+      } else {
+        existing[emoji] = [...users, myId];
+      }
+      return { ...m, reactions: existing };
+    }));
+    try {
+      const data = await API.reactToGroupMessage(groupId, messageId, emoji);
+      const reactions =
+        data.reactions ??
+        data.message?.reactions ??
+        data.data?.reactions ??
+        data.updatedMessage?.reactions;
+      if (reactions !== undefined) {
+        setMessages(prev => prev.map(m => m._id === messageId ? { ...m, reactions } : m));
+      }
+    } catch {}
+  };
+
+  const handleEditSave = async (messageId) => {
+    if (!editText.trim()) return;
+    try {
+      const data = await API.editGroupMessage(groupId, messageId, editText.trim());
+      const updated = data.message || data;
+      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, text: updated.text || editText.trim(), edited: true } : m));
+    } catch {}
+    setEditingMsgId(null);
+    setEditText('');
+  };
+
+  const handleUnsend = async (messageId) => {
+    setContextMenu(null);
+    try {
+      await API.unsendGroupMessage(groupId, messageId);
+      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, text: '', unsent: true } : m));
+    } catch {}
+  };
 
   const fetchGroup = async () => {
     try {
@@ -219,7 +294,9 @@ export default function GroupChat({ currentUser, unreadCounts }) {
     e.preventDefault();
     if ((!newMsg.trim() && !mediaAttachment) || sending) return;
     let text = newMsg.trim();
+    let replyToId = null;
     if (replyingTo) {
+      replyToId = replyingTo._id || null;
       const rawPreview = (replyingTo.text || '').replace(/^\[vx:[^\]]+\]\n?/, '').trim().slice(0, 60);
       const senderName = replyingTo.senderId?.username || replyingTo.senderUsername || 'someone';
       text = `↩ @${senderName}: ${rawPreview || '📷 Photo'}\n${text}`;
@@ -233,9 +310,13 @@ export default function GroupChat({ currentUser, unreadCounts }) {
       try {
         const blob = dataURLToBlob(mediaAttachment.dataUrl);
         const formData = new FormData();
-        formData.append('file', blob, mediaAttachment.filename || 'image.jpg');
+        formData.append('image', blob, mediaAttachment.filename || 'image.jpg');
         const uploadData = await API.uploadMessageMedia(formData);
-        const imageUrl = uploadData?.url || uploadData?.imageUrl || uploadData?.secure_url || uploadData?.data?.url;
+        const imageUrl =
+          uploadData?.url || uploadData?.imageUrl || uploadData?.secure_url ||
+          uploadData?.mediaUrl || uploadData?.fileUrl || uploadData?.link ||
+          uploadData?.data?.url || uploadData?.data?.secure_url ||
+          (typeof uploadData === 'string' ? uploadData : null);
         if (!imageUrl) throw new Error('No URL returned from upload');
         text = `[vx:img:${imageUrl}]${text ? '\n' + text : ''}`;
         setMediaAttachment(null);
@@ -261,7 +342,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
     setMessages(prev => [...prev, tempMsg]);
     scrollToBottom();
     try {
-      const data = await API.sendGroupMessage(groupId, text);
+      const data = await API.sendGroupMessage(groupId, text, replyToId);
       const realMsg = data?.message || data;
       if (realMsg?._id && realMsg._id !== tempId) {
         setMessages(prev => prev.map(m => m._id === tempId ? { ...realMsg } : m));
@@ -434,8 +515,11 @@ export default function GroupChat({ currentUser, unreadCounts }) {
               </div>
             )}
             <div className="min-w-0">
-              <p className="font-bold text-discord-text text-sm truncate">{group?.name}</p>
-              <p className="text-discord-muted text-xs">{group?.members?.length || 0} members</p>
+              <div className="flex items-center gap-1.5">
+                <p className="font-bold text-discord-text text-sm truncate">{group?.name}</p>
+                {isChannel && <span className="text-[10px] font-bold text-discord-brand bg-discord-brand/15 px-1.5 py-0.5 rounded-full border border-discord-brand/30 flex-shrink-0">📢 Channel</span>}
+              </div>
+              <p className="text-discord-muted text-xs">{group?.members?.length || 0} {isChannel ? 'subscribers' : 'members'}</p>
             </div>
           </div>
           <div className="flex items-center gap-0.5">
@@ -584,69 +668,112 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                   )}
                   <div
                     className={`text-sm break-words shadow-sm transition-all duration-150
-                      ${(msg.text || '').startsWith('[vx:img:') || (msg.text || '').startsWith('[vx:call:')
-                        ? 'bg-transparent p-0 border-0'
-                        : `px-3 py-2 ${mine
-                          ? 'bg-discord-brand text-white rounded-2xl rounded-br-sm'
-                          : 'bg-white/6 border border-white/5 text-discord-text rounded-2xl rounded-bl-sm'}
-                          ${isFirstInGroup ? '' : mine ? 'rounded-tr-lg' : 'rounded-tl-lg'}`}
+                      ${msg.unsent ? 'px-3 py-2 bg-white/4 border border-white/8 text-discord-muted italic rounded-2xl' :
+                        (msg.text || '').startsWith('[vx:img:') || (msg.text || '').startsWith('[vx:call:')
+                          ? 'bg-transparent p-0 border-0'
+                          : `px-3 py-2 ${mine
+                            ? 'bg-discord-brand text-white rounded-2xl rounded-br-sm'
+                            : 'bg-white/6 border border-white/5 text-discord-text rounded-2xl rounded-bl-sm'}
+                            ${isFirstInGroup ? '' : mine ? 'rounded-tr-lg' : 'rounded-tl-lg'}`}
                     `}
                   >
-                    {(() => {
-                      const text = msg.text || '';
-                      const replyMatch = text.match(/^↩ (@[^\n]+)\n([\s\S]*)$/);
-                      if (replyMatch) {
-                        return (
-                          <div>
-                            <div className={`text-xs px-2 py-1 rounded mb-1.5 border-l-2 ${mine ? 'border-white/50 bg-white/10 text-white/70' : 'border-discord-brand bg-discord-brand/10 text-discord-muted'}`}>
-                              {replyMatch[1]}
+                    {msg.unsent ? (
+                      <span>This message was unsent</span>
+                    ) : editingMsgId === msg._id ? (
+                      <div className="flex flex-col gap-1.5 min-w-[180px]">
+                        <textarea
+                          className="discord-input text-sm resize-none w-full"
+                          rows={2}
+                          value={editText}
+                          onChange={e => setEditText(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleEditSave(msg._id); }
+                            if (e.key === 'Escape') { setEditingMsgId(null); setEditText(''); }
+                          }}
+                          autoFocus
+                        />
+                        <div className="flex gap-1.5 justify-end">
+                          <button type="button" onClick={() => { setEditingMsgId(null); setEditText(''); }} className="text-[11px] text-discord-muted hover:text-discord-text px-2 py-0.5 rounded">Cancel</button>
+                          <button type="button" onClick={() => handleEditSave(msg._id)} className="text-[11px] bg-discord-brand text-white px-2 py-0.5 rounded hover:bg-discord-brand/80">Save</button>
+                        </div>
+                      </div>
+                    ) : (
+                      (() => {
+                        const text = msg.text || '';
+                        const replyMatch = text.match(/^↩ (@[^\n]+)\n([\s\S]*)$/);
+                        if (replyMatch) {
+                          return (
+                            <div>
+                              <div className={`text-xs px-2 py-1 rounded mb-1.5 border-l-2 ${mine ? 'border-white/50 bg-white/10 text-white/70' : 'border-discord-brand bg-discord-brand/10 text-discord-muted'}`}>
+                                {replyMatch[1]}
+                              </div>
+                              <FormattedText text={replyMatch[2].trim()} />
                             </div>
-                            <FormattedText text={replyMatch[2].trim()} />
-                          </div>
-                        );
-                      }
-                      const imgMatch = text.match(/^\[vx:img:([^\]]+)\](.*)$/s);
-                      const callMatch = text.match(/^\[vx:call:([^\]]+)\](.*)$/s);
-                      if (imgMatch) {
-                        return (
-                          <div>
-                            <img
-                              src={imgMatch[1]}
-                              alt="Image"
-                              className="rounded-xl max-w-[240px] max-h-[300px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={() => setFullscreenImg(imgMatch[1])}
-                              loading="lazy"
-                            />
-                            {imgMatch[2]?.trim() && <div className="mt-1.5 text-sm text-discord-text"><FormattedText text={imgMatch[2].trim()} /></div>}
-                          </div>
-                        );
-                      }
-                      if (callMatch) {
-                        return (
-                          <div className="flex flex-col gap-2 min-w-[180px] bg-white/6 border border-white/10 rounded-2xl px-3 py-2">
-                            <div className="flex items-center gap-2">
-                              <FiVideo size={14} className="text-discord-green flex-shrink-0" />
-                              <span className="text-xs font-semibold text-discord-green">Video Call</span>
+                          );
+                        }
+                        const imgMatch = text.match(/^\[vx:img:([^\]]+)\](.*)$/s);
+                        const callMatch = text.match(/^\[vx:call:([^\]]+)\](.*)$/s);
+                        if (imgMatch) {
+                          return (
+                            <div>
+                              <img
+                                src={imgMatch[1]}
+                                alt="Image"
+                                className="rounded-xl max-w-[240px] max-h-[300px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => setFullscreenImg(imgMatch[1])}
+                                loading="lazy"
+                              />
+                              {imgMatch[2]?.trim() && <div className="mt-1.5 text-sm text-discord-text"><FormattedText text={imgMatch[2].trim()} /></div>}
                             </div>
-                            <a
-                              href={callMatch[1]}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 bg-discord-brand/90 hover:bg-discord-brand text-white px-3 py-2 rounded-xl text-xs font-bold transition-colors"
-                              onClick={e => e.stopPropagation()}
-                            >
-                              <FiVideo size={14} /> Join Call
-                            </a>
-                          </div>
-                        );
-                      }
-                      return <FormattedText text={text} />;
-                    })()}
+                          );
+                        }
+                        if (callMatch) {
+                          return (
+                            <div className="flex flex-col gap-2 min-w-[180px] bg-white/6 border border-white/10 rounded-2xl px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <FiVideo size={14} className="text-discord-green flex-shrink-0" />
+                                <span className="text-xs font-semibold text-discord-green">Video Call</span>
+                              </div>
+                              <a
+                                href={callMatch[1]}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 bg-discord-brand/90 hover:bg-discord-brand text-white px-3 py-2 rounded-xl text-xs font-bold transition-colors"
+                                onClick={e => e.stopPropagation()}
+                              >
+                                <FiVideo size={14} /> Join Call
+                              </a>
+                            </div>
+                          );
+                        }
+                        return <FormattedText text={text} />;
+                      })()
+                    )}
                   </div>
-                  {msg.text && !msg.text.startsWith('[vx:') && <LinkPreview text={msg.text} />}
+                  {!msg.unsent && msg.text && !msg.text.startsWith('[vx:') && <LinkPreview text={msg.text} />}
+                  {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                    <div className={`flex flex-wrap gap-1 -mt-2 mb-0.5 relative z-10 ${mine ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
+                      {Object.entries(msg.reactions).map(([emoji, users]) =>
+                        Array.isArray(users) && users.length > 0 ? (
+                          <button
+                            key={emoji}
+                            onClick={() => handleReact(msg._id, emoji)}
+                            className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border shadow-md transition-colors
+                              ${users.includes(myId)
+                                ? 'bg-discord-brand/30 border-discord-brand/60 text-white'
+                                : 'bg-discord-dark border-white/20 text-discord-text hover:bg-white/10'}`}
+                          >
+                            <img src={getTwemojiUrl(emoji)} alt={emoji} width={14} height={14} className="object-contain select-none" draggable={false} />
+                            {users.length > 1 && <span className="font-semibold text-[10px]">{users.length}</span>}
+                          </button>
+                        ) : null
+                      )}
+                    </div>
+                  )}
                   {isFirstInGroup && (
                     <span className="text-discord-muted text-[10px] mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
+                      {msg.edited && !msg.unsent && <span className="ml-1 opacity-60">(edited)</span>}
                     </span>
                   )}
                 </div>
@@ -677,8 +804,18 @@ export default function GroupChat({ currentUser, unreadCounts }) {
           </button>
         )}
 
+        {/* Channel read-only notice */}
+        {isChannel && !canPost && (
+          <div className="px-4 py-3 border-t border-white/6 flex-shrink-0 bg-discord-sidebar/50">
+            <div className="flex items-center justify-center gap-2 text-discord-muted text-sm">
+              <span className="text-lg">📢</span>
+              <span>This is a broadcast channel. Only the owner can post.</span>
+            </div>
+          </div>
+        )}
+
         {/* Input */}
-        <form onSubmit={handleSend} className="px-4 pt-3 pb-20 md:pb-3 border-t border-white/6 flex-shrink-0 relative">
+        {canPost && <form onSubmit={handleSend} className="px-4 pt-3 pb-20 md:pb-3 border-t border-white/6 flex-shrink-0 relative">
           {/* Reply Preview */}
           {replyingTo && (
             <div className="mb-2 flex items-center gap-2 bg-discord-brand/10 border border-discord-brand/30 rounded-xl px-3 py-2">
@@ -748,6 +885,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
             </div>
           )}
           <div className="flex items-end gap-2">
+            {!group?.textOnly && (
             <div className="flex items-center gap-1 flex-shrink-0 mb-0.5">
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileAttach} />
               <button
@@ -759,6 +897,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                 <FiPaperclip size={18} />
               </button>
             </div>
+            )}
             <div className="relative flex-1">
               <textarea
                 ref={textareaRef}
@@ -810,29 +949,77 @@ export default function GroupChat({ currentUser, unreadCounts }) {
               <FiSend size={16} />
             </button>
           </div>
-        </form>
+        </form>}
       </div>
 
       {/* Context Menu */}
       {contextMenu && (
         <div
           className="fixed z-50 bg-discord-dark border border-white/10 rounded-xl shadow-2xl py-1 min-w-36 backdrop-blur-xl"
-          style={{ top: Math.min(contextMenu.y, window.innerHeight - 150), left: Math.min(contextMenu.x, window.innerWidth - 170) }}
+          style={{ top: Math.min(contextMenu.y, window.innerHeight - 250), left: Math.min(contextMenu.x, window.innerWidth - 180) }}
           onClick={e => e.stopPropagation()}
         >
-          <button
-            className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
-            onClick={() => copyMessage(contextMenu.msg.text)}
-          >
-            <FiCopy size={13} /> Copy Text
-          </button>
-          <button
-            className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-brand hover:bg-discord-brand/10 transition-colors"
-            onClick={() => { setTranslateMsg(contextMenu.msg.text); setContextMenu(null); }}
-          >
-            <FiGlobe size={13} /> Translate
-          </button>
-          {contextMenu.senderUserId && contextMenu.senderUserId !== (currentUser?._id || currentUser?.id) && (
+          {!contextMenu.msg.unsent && (
+            <div className="px-3 py-2 border-b border-white/6">
+              <p className="text-[10px] text-discord-muted uppercase font-bold mb-1.5">React</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {['❤️','😂','😮','😢','😡','👍'].map(emoji => (
+                  <button
+                    key={emoji}
+                    className="hover:scale-125 transition-transform"
+                    onClick={() => handleReact(contextMenu.msg._id, emoji)}
+                  >
+                    <img src={getTwemojiUrl(emoji)} alt={emoji} width={22} height={22} className="object-contain select-none" draggable={false} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {!contextMenu.msg.unsent && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
+              onClick={() => { setReplyingTo(contextMenu.msg); setContextMenu(null); setTimeout(() => textareaRef.current?.focus(), 100); }}
+            >
+              ↩ Reply
+            </button>
+          )}
+          {!contextMenu.msg.unsent && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
+              onClick={() => copyMessage(contextMenu.msg.text)}
+            >
+              <FiCopy size={13} /> Copy Text
+            </button>
+          )}
+          {!contextMenu.msg.unsent && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-brand hover:bg-discord-brand/10 transition-colors"
+              onClick={() => { setTranslateMsg(contextMenu.msg.text); setContextMenu(null); }}
+            >
+              <FiGlobe size={13} /> Translate
+            </button>
+          )}
+          {!contextMenu.msg.unsent && contextMenu.senderUserId === myId && !contextMenu.msg.text?.startsWith('[vx:') && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
+              onClick={() => {
+                setEditingMsgId(contextMenu.msg._id);
+                setEditText(contextMenu.msg.text || '');
+                setContextMenu(null);
+              }}
+            >
+              <FiEdit2 size={13} /> Edit Message
+            </button>
+          )}
+          {!contextMenu.msg.unsent && contextMenu.senderUserId === myId && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-red hover:bg-discord-red/10 transition-colors"
+              onClick={() => handleUnsend(contextMenu.msg._id)}
+            >
+              <FiTrash2 size={13} /> Unsend
+            </button>
+          )}
+          {contextMenu.senderUserId && contextMenu.senderUserId !== myId && (
             <button
               className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-orange-400 hover:bg-orange-400/10 transition-colors"
               onClick={() => {
