@@ -24,3 +24,13 @@ export function getTwemojiUrl(emoji) {
     .filter(cp => parseInt(cp, 16) !== 0xfe0f);
   return `https://twemoji.maxcdn.com/v/latest/svg/${cps.join('-')}.svg`;
 }
+
+export function getNotoUrl(emoji) {
+  const cps = [...emoji]
+    .map(c => c.codePointAt(0).toString(16).toLowerCase());
+  return `https://fonts.gstatic.com/s/e/notoemoji/latest/${cps.join('_')}/512.webp`;
+}
+
+export function getEmojiUrl(emoji, isPremium = false) {
+  return isPremium ? getNotoUrl(emoji) : getTwemojiUrl(emoji);
+}

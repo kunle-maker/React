@@ -10,6 +10,7 @@ import Avatar from '../components/Avatar';
 import FormattedText from '../components/FormattedText';
 import LinkPreview from '../components/LinkPreview';
 import EmojiPicker from '../components/EmojiPicker';
+import ReactionsModal from '../components/ReactionsModal';
 import { parseEmojisToHtml, getTwemojiUrl } from '../utils/emoji';
 import API from '../utils/api';
 import socket from '../utils/socket';
@@ -436,6 +437,7 @@ export default function Messages({ currentUser, unreadCounts }) {
   const [editText, setEditText] = useState('');
   const [reactPickerMsgId, setReactPickerMsgId] = useState(null);
   const [blockedByMe, setBlockedByMe] = useState(false);
+  const [reactionsModal, setReactionsModal] = useState(null);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -533,8 +535,10 @@ export default function Messages({ currentUser, unreadCounts }) {
     setReactPickerMsgId(null);
     setContextMenu(null);
     const myId = currentUser?._id || currentUser?.id;
+    let prevReactions;
     setMessages(prev => prev.map(m => {
       if (m._id !== messageId) return m;
+      prevReactions = m.reactions;
       const existing = { ...(m.reactions || {}) };
       const users = Array.isArray(existing[emoji]) ? [...existing[emoji]] : [];
       if (users.includes(myId)) {
@@ -546,16 +550,10 @@ export default function Messages({ currentUser, unreadCounts }) {
       return { ...m, reactions: existing };
     }));
     try {
-      const data = await API.reactToDM(messageId, emoji);
-      const reactions =
-        data.reactions ??
-        data.message?.reactions ??
-        data.data?.reactions ??
-        data.updatedMessage?.reactions;
-      if (reactions !== undefined) {
-        setMessages(prev => prev.map(m => m._id === messageId ? { ...m, reactions } : m));
-      }
-    } catch {}
+      await API.reactToDM(messageId, emoji);
+    } catch {
+      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, reactions: prevReactions } : m));
+    }
   };
 
   const handleEditSave = async (messageId) => {
@@ -1119,8 +1117,8 @@ export default function Messages({ currentUser, unreadCounts }) {
                       return Array.isArray(users) && users.length > 0 ? (
                         <button
                           key={emoji}
-                          onClick={() => handleReact(msg._id, emoji)}
-                          className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border shadow-md transition-colors
+                          onClick={e => { e.stopPropagation(); setReactionsModal({ msg, activeEmoji: emoji }); }}
+                          className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border shadow-md transition-colors active:scale-95
                             ${users.includes(myId)
                               ? 'bg-discord-brand/30 border-discord-brand/60 text-white'
                               : 'bg-discord-dark border-white/20 text-discord-text hover:bg-white/10'}`}
@@ -1296,6 +1294,17 @@ export default function Messages({ currentUser, unreadCounts }) {
           </button>
         </div>
       </form>}
+
+      {reactionsModal && (
+        <ReactionsModal
+          reactions={reactionsModal.msg.reactions}
+          currentUser={currentUser}
+          knownUsers={[currentUser, activeConv].filter(Boolean)}
+          onReact={(emoji) => handleReact(reactionsModal.msg._id, emoji)}
+          onClose={() => setReactionsModal(null)}
+          initialEmoji={reactionsModal.activeEmoji}
+        />
+      )}
     </div>
   ) : (
     <div className="flex flex-col items-center justify-center h-full text-discord-muted gap-3">

@@ -385,6 +385,23 @@ class API {
     return this.request('/api/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) });
   }
 
+  static async getStoriesFeed() { return this.request('/api/stories/feed'); }
+  static async getMyStories() { return this.request('/api/stories/my'); }
+  static async createStory(formData) {
+    this.clearCache('/api/stories');
+    return this.request('/api/stories', { method: 'POST', body: formData });
+  }
+  static async viewStory(storyId) {
+    return this.request(`/api/stories/${storyId}/view`, { method: 'POST' });
+  }
+  static async reactToStory(storyId, emoji) {
+    return this.request(`/api/stories/${storyId}/react`, { method: 'POST', body: JSON.stringify({ emoji }) });
+  }
+  static async deleteStory(storyId) {
+    this.clearCache('/api/stories');
+    return this.request(`/api/stories/${storyId}`, { method: 'DELETE' });
+  }
+
   static getMediaUrl(url) {
     if (!url) return null;
     if (url.startsWith('http') && url.includes('cloudinary.com')) {

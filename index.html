@@ -29,17 +29,26 @@
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap');
 
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
       #vx-splash {
         position: fixed;
         inset: 0;
         z-index: 99999;
         background: #0d0f14;
+        background-image: radial-gradient(ellipse 80% 50% at 20% -10%, rgba(88, 101, 242, 0.15) 0%, transparent 60%),
+                          radial-gradient(ellipse 60% 40% at 80% 100%, rgba(235, 69, 158, 0.08) 0%, transparent 60%);
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         gap: 20px;
-        transition: opacity 0.35s ease, visibility 0.35s ease;
+        transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(0px);
       }
       #vx-splash.hide {
         opacity: 0;
@@ -56,10 +65,15 @@
         font-size: 26px;
         color: #ffffff;
         letter-spacing: 1px;
+        background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
       }
       #vx-splash-dots {
         display: flex;
-        gap: 6px;
+        gap: 8px;
+        margin-top: 8px;
       }
       #vx-splash-dots span {
         width: 6px;
@@ -71,38 +85,200 @@
       #vx-splash-dots span:nth-child(2) { animation-delay: 0.15s; }
       #vx-splash-dots span:nth-child(3) { animation-delay: 0.3s; }
       @keyframes vx-pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.06); }
+        0%, 100% { transform: scale(1); opacity: 0.9; }
+        50% { transform: scale(1.06); opacity: 1; }
       }
       @keyframes vx-bounce {
         0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-        40% { transform: translateY(-6px); opacity: 1; }
+        40% { transform: translateY(-8px); opacity: 1; }
+      }
+      .vx-splash-footer {
+        position: absolute;
+        bottom: 32px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 11px;
+        color: rgba(255,255,255,0.3);
+        font-family: 'Noto Sans', sans-serif;
+        letter-spacing: 0.3px;
+      }
+      .vx-powered {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255,255,255,0.03);
+        backdrop-filter: blur(8px);
+        padding: 6px 12px;
+        border-radius: 40px;
+        border: 1px solid rgba(255,255,255,0.06);
+        font-size: 10px;
+        font-weight: 500;
+        color: rgba(255,255,255,0.5);
+        text-decoration: none;
+        transition: all 0.2s;
+      }
+      .vx-powered:hover {
+        background: rgba(88,101,242,0.12);
+        border-color: rgba(88,101,242,0.3);
+        color: #a5b4fc;
+      }
+      .vx-powered span:first-child {
+        background: #1e293b;
+        padding: 2px 8px;
+        border-radius: 30px;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: #93c5fd;
+      }
+      .vx-loader-bg {
+        position: absolute;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 120px;
+        height: 2px;
+        background: rgba(255,255,255,0.08);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .vx-loader-fill {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #5865f2, #eb459e);
+        border-radius: 4px;
+        transition: width 0.15s linear;
       }
     </style>
   </head>
   <body>
     <div id="vx-splash">
-          <a href="https://dash.domain.digitalplat.org/signup?ref=konuimkeoF" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid #1e293b;border-radius:12px;background:#0f172a;color:#f8fafc;text-decoration:none;font:500 13px/1.25 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;box-shadow:0 1px 2px rgba(15,23,42,0.22);"><span style="display:inline-flex;align-items:center;justify-content:center;padding:4px 8px;border-radius:9999px;background:#1e293b;color:#93c5fd;font:600 11px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:0.02em;text-transform:uppercase;">DigitalPlat</span><span style="display:flex;flex-direction:column;gap:2px;"><span style="font-weight:600;">This Website is Powered by DigitalPlat FreeDomain</span><span style="color:#cbd5e1;">Get a free domain from DigitalPlat.</span></span></a>
       <svg width="80" height="80" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect width="100" height="100" rx="22" fill="#5865f2"/>
         <text x="50" y="72" font-family="Arial Black, Arial" font-weight="900" font-size="62" text-anchor="middle" fill="white">V</text>
       </svg>
       <div id="vx-splash-name">VesselX</div>
       <div id="vx-splash-dots"><span></span><span></span><span></span></div>
+      <div class="vx-loader-bg"><div class="vx-loader-fill" id="vx-loader-fill"></div></div>
+      <div class="vx-splash-footer">
+        <a href="https://dash.domain.digitalplat.org/signup?ref=konuimkeoF" target="_blank" rel="noopener noreferrer" class="vx-powered">
+          <span>DigitalPlat</span> Free domain by DigitalPlat
+        </a>
+      </div>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
       (function() {
         var splash = document.getElementById('vx-splash');
+        var loaderFill = document.getElementById('vx-loader-fill');
+        var rootEl = document.getElementById('root');
+        var splashHidden = false;
+        var reactReady = false;
+        var minDisplayTime = 800;
+        var startTime = Date.now();
+
+        function updateLoader(percent) {
+          if (loaderFill) loaderFill.style.width = Math.min(100, percent) + '%';
+        }
+
         function hideSplash() {
+          if (splashHidden) return;
+          splashHidden = true;
           if (splash) {
             splash.classList.add('hide');
-            setTimeout(function() { if (splash) splash.remove(); }, 400);
+            setTimeout(function() { 
+              if (splash && splash.parentNode) splash.remove(); 
+            }, 500);
           }
         }
-        window.__hideSplash = hideSplash;
-        setTimeout(hideSplash, 2500);
+
+        function tryHide() {
+          if (reactReady) {
+            var elapsed = Date.now() - startTime;
+            var remaining = Math.max(0, minDisplayTime - elapsed);
+            if (remaining > 0) {
+              setTimeout(hideSplash, remaining);
+            } else {
+              hideSplash();
+            }
+          }
+        }
+
+        var observer = new MutationObserver(function(mutations) {
+          for (var i = 0; i < mutations.length; i++) {
+            var added = mutations[i].addedNodes;
+            for (var j = 0; j < added.length; j++) {
+              var node = added[j];
+              if (node.nodeType === 1) {
+                if (node.id === 'root' && node.children.length > 0) {
+                  reactReady = true;
+                  observer.disconnect();
+                  tryHide();
+                  return;
+                }
+                if (node.classList && (node.classList.contains('discord-sidebar') || node.classList.contains('discord-channels') || node.querySelector('.discord-sidebar'))) {
+                  reactReady = true;
+                  observer.disconnect();
+                  tryHide();
+                  return;
+                }
+              }
+            }
+          }
+        });
+
+        observer.observe(rootEl, { childList: true, subtree: true });
+
+        var fakeProgress = 0;
+        var progressInterval = setInterval(function() {
+          if (!reactReady && fakeProgress < 85) {
+            fakeProgress += Math.random() * 8;
+            if (fakeProgress > 85) fakeProgress = 85;
+            updateLoader(fakeProgress);
+          } else if (reactReady) {
+            updateLoader(100);
+            clearInterval(progressInterval);
+          }
+        }, 180);
+
+        window.__forceHideSplash = function() {
+          reactReady = true;
+          clearInterval(progressInterval);
+          updateLoader(100);
+          tryHide();
+        };
+
+        window.__updateSplashProgress = function(percent) {
+          if (!reactReady && percent > fakeProgress) {
+            fakeProgress = Math.min(percent, 85);
+            updateLoader(fakeProgress);
+          }
+        };
+
+        setTimeout(function() {
+          if (!reactReady) {
+            var checkRoot = setInterval(function() {
+              if (rootEl && rootEl.children.length > 0) {
+                reactReady = true;
+                clearInterval(checkRoot);
+                clearInterval(progressInterval);
+                updateLoader(100);
+                tryHide();
+              }
+            }, 50);
+            setTimeout(function() {
+              clearInterval(checkRoot);
+              if (!reactReady) {
+                reactReady = true;
+                clearInterval(progressInterval);
+                updateLoader(100);
+                tryHide();
+              }
+            }, 5000);
+          }
+        }, 200);
       })();
     </script>
   </body>
