@@ -11,6 +11,7 @@ import { AnimatedBadge } from '../components/UserBadge';
 import { VerifiedBadge, SupaBadge, getStoredVerifiedBadgeStyle, setStoredVerifiedBadgeStyle } from '../components/UserBadge';
 import { getBadgeById } from '../data/badges';
 import VerificationBadgePicker, { getStoredSupaBadgeStyle } from '../components/VerificationBadgePicker';
+import BadgePicker from '../components/BadgePicker';
 import API from '../utils/api';
 import ImageCropModal from '../components/ImageCropModal';
 import { parseEmojisToHtml } from '../utils/emoji';
@@ -36,6 +37,7 @@ export default function Profile({ currentUser, unreadCounts }) {
   const [copiedLink, setCopiedLink] = useState(false);
   const [showVerifPicker, setShowVerifPicker] = useState(false);
   const [showVerifPickerVerified, setShowVerifPickerVerified] = useState(false);
+  const [showBadgePicker, setShowBadgePicker] = useState(false);
   const [supaStyleId, setSupaStyleId] = useState('red');
   const [verifiedStyleId, setVerifiedStyleId] = useState('blue');
   const [blocked, setBlocked] = useState(false);
@@ -142,6 +144,21 @@ export default function Profile({ currentUser, unreadCounts }) {
     return () => clearInterval(interval);
   }, [username]);
 
+  const handleBadgeSelect = async (badgeId) => {
+    setShowBadgePicker(false);
+    try {
+      const fd = new FormData();
+      fd.append('badge', badgeId || '');
+      const data = await API.updateProfile(fd);
+      const updated = data.user || data;
+      setUser(updated);
+      localStorage.setItem('user', JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent('profileUpdate', { detail: updated }));
+    } catch (err) {
+      alert(err.message || 'Failed to save badge');
+    }
+  };
+
   const handleEditSave = async (e) => {
     e.preventDefault();
     setEditLoading(true);
@@ -247,8 +264,21 @@ export default function Profile({ currentUser, unreadCounts }) {
                     <SupaBadge size={20} username={user.username} />
                   )
                 )}
-                {user.badge && getBadgeById(user.badge) && (
-                  <AnimatedBadge badgeId={user.badge} size="1.2em" />
+                {isMyProfile && (user.isSupa || user.isVerified) ? (
+                  <button
+                    onClick={() => setShowBadgePicker(true)}
+                    title={user.badge ? 'Change your badge' : 'Pick a badge'}
+                    className="focus:outline-none active:scale-90 transition-transform"
+                  >
+                    {user.badge && getBadgeById(user.badge)
+                      ? <AnimatedBadge badgeId={user.badge} size={20} />
+                      : <span className="text-xs text-discord-muted border border-dashed border-white/15 rounded-full px-2 py-0.5 hover:border-white/30 transition-colors">+ badge</span>
+                    }
+                  </button>
+                ) : (
+                  user.badge && getBadgeById(user.badge) && (
+                    <AnimatedBadge badgeId={user.badge} size={20} />
+                  )
                 )}
               </div>
               <p className="text-discord-muted text-sm">@{user.username}</p>
@@ -524,6 +554,15 @@ export default function Profile({ currentUser, unreadCounts }) {
             setShowVerifPickerVerified(false);
           }}
           onClose={() => setShowVerifPickerVerified(false)}
+        />
+      )}
+
+      {showBadgePicker && isMyProfile && (
+        <BadgePicker
+          currentBadgeId={user?.badge}
+          isSupa={user?.isSupa || false}
+          onSelect={handleBadgeSelect}
+          onClose={() => setShowBadgePicker(false)}
         />
       )}
     </Layout>

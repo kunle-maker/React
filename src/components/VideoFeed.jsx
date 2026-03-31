@@ -197,7 +197,7 @@ function VideoCard({ post, currentUser, isActive, onLike, onBookmark }) {
           {author.isVerified && <VerifiedBadge size={14} />}
           {author.isSupa && <SupaBadge size={14} username={author.username || post.username} />}
           {author.badge && getBadgeById(author.badge) && (
-            <AnimatedBadge badgeId={author.badge} size="0.9em" />
+            <AnimatedBadge badgeId={author.badge} size={14} />
           )}
         </button>
 

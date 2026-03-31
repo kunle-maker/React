@@ -201,7 +201,7 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
               {(author.isVerified || post.isVerified) && <VerifiedBadge size={15} />}
               {(author.isSupa || post.isSupa) && <SupaBadge size={15} username={author.username || post.username} />}
               {(author.badge || post.badge) && getBadgeById(author.badge || post.badge) && (
-                <AnimatedBadge badgeId={author.badge || post.badge} size="1em" />
+                <AnimatedBadge badgeId={author.badge || post.badge} size={15} />
               )}
               <span
                 className="text-discord-muted text-sm truncate cursor-pointer hover:underline"

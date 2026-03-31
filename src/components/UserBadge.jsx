@@ -1,6 +1,7 @@
 import React from 'react';
 import { getBadgeById } from '../data/badges';
 import { getStoredSupaBadgeStyle, getSupaBadgeStyle } from './VerificationBadgePicker';
+import { BADGE_SVG_MAP } from './BadgeSVGs';
 
 function starburstPath() {
   const cx = 12, cy = 12, outerR = 11.5, innerR = 8.8, pts = 12;
@@ -93,16 +94,19 @@ export function SupaBadge({ size = 16, username }) {
   );
 }
 
-export function AnimatedBadge({ badgeId, size = '1.1em' }) {
+export function AnimatedBadge({ badgeId, size = 20 }) {
   const badge = getBadgeById(badgeId);
   if (!badge) return null;
+  const SvgComp = BADGE_SVG_MAP[badge.svgId];
+  if (!SvgComp) return null;
+  const px = typeof size === 'number' ? size : 20;
   return (
     <span
-      className={`badge-anim-${badge.animation} inline-block select-none`}
-      style={{ fontSize: size, lineHeight: 1 }}
+      className={`badge-anim-${badge.animation} inline-block select-none flex-shrink-0`}
+      style={{ display: 'inline-block', verticalAlign: 'middle', filter: `drop-shadow(0 0 4px ${badge.glow})` }}
       title={badge.label}
     >
-      {badge.emoji}
+      <SvgComp color={badge.color} size={px} />
     </span>
   );
 }
@@ -115,7 +119,7 @@ export default function UserBadge({ user, small = false }) {
     <>
       {user.isVerified && <VerifiedBadge size={size} />}
       {user.isSupa && <SupaBadge size={size} username={user.username} />}
-      {badgeId && <AnimatedBadge badgeId={badgeId} size={small ? '0.9em' : '1.1em'} />}
+      {badgeId && <AnimatedBadge badgeId={badgeId} size={size} />}
     </>
   );
 }

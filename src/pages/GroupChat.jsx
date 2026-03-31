@@ -10,8 +10,6 @@ import Avatar from '../components/Avatar';
 import FormattedText from '../components/FormattedText';
 import LinkPreview from '../components/LinkPreview';
 import EmojiPicker from '../components/EmojiPicker';
-import ReactionsModal from '../components/ReactionsModal';
-import { getTwemojiUrl } from '../utils/emoji';
 import { AnimatedBadge, VerifiedBadge, SupaBadge } from '../components/UserBadge';
 import { getBadgeById } from '../data/badges';
 import API from '../utils/api';
@@ -110,8 +108,6 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [editingMsgId, setEditingMsgId] = useState(null);
   const [editText, setEditText] = useState('');
-  const [reactionsModal, setReactionsModal] = useState(null);
-
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const textareaRef = useRef(null);
@@ -171,10 +167,6 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   }, []);
 
   useEffect(() => {
-    const onReaction = (e) => {
-      const { messageId, reactions } = e.detail;
-      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, reactions } : m));
-    };
     const onEdited = (e) => {
       const { messageId, text } = e.detail;
       setMessages(prev => prev.map(m => m._id === messageId ? { ...m, text, edited: true } : m));
@@ -183,39 +175,13 @@ export default function GroupChat({ currentUser, unreadCounts }) {
       const { messageId } = e.detail;
       setMessages(prev => prev.map(m => m._id === messageId ? { ...m, text: '', unsent: true } : m));
     };
-    window.addEventListener('groupMessageReactionUpdated', onReaction);
     window.addEventListener('groupMessageEdited', onEdited);
     window.addEventListener('groupMessageUnsent', onUnsent);
     return () => {
-      window.removeEventListener('groupMessageReactionUpdated', onReaction);
       window.removeEventListener('groupMessageEdited', onEdited);
       window.removeEventListener('groupMessageUnsent', onUnsent);
     };
   }, []);
-
-  const handleReact = async (messageId, emoji) => {
-    setContextMenu(null);
-    const myId = currentUser?._id || currentUser?.id;
-    let prevReactions;
-    setMessages(prev => prev.map(m => {
-      if (m._id !== messageId) return m;
-      prevReactions = m.reactions;
-      const existing = { ...(m.reactions || {}) };
-      const users = Array.isArray(existing[emoji]) ? [...existing[emoji]] : [];
-      if (users.includes(myId)) {
-        existing[emoji] = users.filter(id => id !== myId);
-        if (existing[emoji].length === 0) delete existing[emoji];
-      } else {
-        existing[emoji] = [...users, myId];
-      }
-      return { ...m, reactions: existing };
-    }));
-    try {
-      await API.reactToGroupMessage(groupId, messageId, emoji);
-    } catch {
-      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, reactions: prevReactions } : m));
-    }
-  };
 
   const handleEditSave = async (messageId) => {
     if (!editText.trim()) return;
@@ -661,7 +627,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                       </span>
                       {sender.isVerified && <VerifiedBadge size={12} />}
                       {sender.isSupa && <SupaBadge size={12} username={sender.username} />}
-                      {sender.badge && getBadgeById(sender.badge) && <AnimatedBadge badgeId={sender.badge} size="0.85em" />}
+                      {sender.badge && getBadgeById(sender.badge) && <AnimatedBadge badgeId={sender.badge} size={13} />}
                     </span>
                   )}
                   <div
@@ -749,25 +715,6 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                     )}
                   </div>
                   {!msg.unsent && msg.text && !msg.text.startsWith('[vx:') && <LinkPreview text={msg.text} />}
-                  {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                    <div className={`flex flex-wrap gap-1 -mt-2 mb-0.5 relative z-10 ${mine ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
-                      {Object.entries(msg.reactions).map(([emoji, users]) =>
-                        Array.isArray(users) && users.length > 0 ? (
-                          <button
-                            key={emoji}
-                            onClick={e => { e.stopPropagation(); setReactionsModal({ msg, activeEmoji: emoji }); }}
-                            className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border shadow-md transition-colors active:scale-95
-                              ${users.includes(myId)
-                                ? 'bg-discord-brand/30 border-discord-brand/60 text-white'
-                                : 'bg-discord-dark border-white/20 text-discord-text hover:bg-white/10'}`}
-                          >
-                            <img src={getTwemojiUrl(emoji)} alt={emoji} width={14} height={14} className="object-contain select-none" draggable={false} />
-                            {users.length > 1 && <span className="font-semibold text-[10px]">{users.length}</span>}
-                          </button>
-                        ) : null
-                      )}
-                    </div>
-                  )}
                   {isFirstInGroup && (
                     <span className="text-discord-muted text-[10px] mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
@@ -958,22 +905,6 @@ export default function GroupChat({ currentUser, unreadCounts }) {
           onClick={e => e.stopPropagation()}
         >
           {!contextMenu.msg.unsent && (
-            <div className="px-3 py-2 border-b border-white/6">
-              <p className="text-[10px] text-discord-muted uppercase font-bold mb-1.5">React</p>
-              <div className="flex gap-1.5 flex-wrap">
-                {['❤️','😂','😮','😢','😡','👍'].map(emoji => (
-                  <button
-                    key={emoji}
-                    className="hover:scale-125 transition-transform"
-                    onClick={() => handleReact(contextMenu.msg._id, emoji)}
-                  >
-                    <img src={getTwemojiUrl(emoji)} alt={emoji} width={22} height={22} className="object-contain select-none" draggable={false} />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {!contextMenu.msg.unsent && (
             <button
               className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
               onClick={() => { setReplyingTo(contextMenu.msg); setContextMenu(null); setTimeout(() => textareaRef.current?.focus(), 100); }}
@@ -1115,16 +1046,6 @@ export default function GroupChat({ currentUser, unreadCounts }) {
         </div>
       )}
 
-      {reactionsModal && (
-        <ReactionsModal
-          reactions={reactionsModal.msg.reactions}
-          currentUser={currentUser}
-          knownUsers={[currentUser, ...(group?.members || [])].filter(Boolean)}
-          onReact={(emoji) => handleReact(reactionsModal.msg._id, emoji)}
-          onClose={() => setReactionsModal(null)}
-          initialEmoji={reactionsModal.activeEmoji}
-        />
-      )}
     </Layout>
   );
 }

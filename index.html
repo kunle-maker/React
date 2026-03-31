@@ -175,9 +175,8 @@
         var loaderFill = document.getElementById('vx-loader-fill');
         var rootEl = document.getElementById('root');
         var splashHidden = false;
-        var reactReady = false;
-        var minDisplayTime = 800;
         var startTime = Date.now();
+        var minDisplayTime = 600;
 
         function updateLoader(percent) {
           if (loaderFill) loaderFill.style.width = Math.min(100, percent) + '%';
@@ -186,99 +185,41 @@
         function hideSplash() {
           if (splashHidden) return;
           splashHidden = true;
+          updateLoader(100);
           if (splash) {
             splash.classList.add('hide');
-            setTimeout(function() { 
-              if (splash && splash.parentNode) splash.remove(); 
-            }, 500);
+            setTimeout(function() {
+              if (splash && splash.parentNode) splash.remove();
+            }, 450);
           }
         }
 
-        function tryHide() {
-          if (reactReady) {
-            var elapsed = Date.now() - startTime;
-            var remaining = Math.max(0, minDisplayTime - elapsed);
-            if (remaining > 0) {
-              setTimeout(hideSplash, remaining);
-            } else {
-              hideSplash();
-            }
-          }
+        function onReactReady() {
+          if (splashHidden) return;
+          clearInterval(progressInterval);
+          var elapsed = Date.now() - startTime;
+          var wait = Math.max(0, minDisplayTime - elapsed);
+          setTimeout(hideSplash, wait);
         }
 
-        var observer = new MutationObserver(function(mutations) {
-          for (var i = 0; i < mutations.length; i++) {
-            var added = mutations[i].addedNodes;
-            for (var j = 0; j < added.length; j++) {
-              var node = added[j];
-              if (node.nodeType === 1) {
-                if (node.id === 'root' && node.children.length > 0) {
-                  reactReady = true;
-                  observer.disconnect();
-                  tryHide();
-                  return;
-                }
-                if (node.classList && (node.classList.contains('discord-sidebar') || node.classList.contains('discord-channels') || node.querySelector('.discord-sidebar'))) {
-                  reactReady = true;
-                  observer.disconnect();
-                  tryHide();
-                  return;
-                }
-              }
-            }
-          }
-        });
-
-        observer.observe(rootEl, { childList: true, subtree: true });
+        window.__hideSplash = onReactReady;
 
         var fakeProgress = 0;
         var progressInterval = setInterval(function() {
-          if (!reactReady && fakeProgress < 85) {
-            fakeProgress += Math.random() * 8;
-            if (fakeProgress > 85) fakeProgress = 85;
+          if (fakeProgress < 88) {
+            fakeProgress += Math.random() * 6 + 1;
+            if (fakeProgress > 88) fakeProgress = 88;
             updateLoader(fakeProgress);
-          } else if (reactReady) {
-            updateLoader(100);
-            clearInterval(progressInterval);
-          }
-        }, 180);
-
-        window.__forceHideSplash = function() {
-          reactReady = true;
-          clearInterval(progressInterval);
-          updateLoader(100);
-          tryHide();
-        };
-
-        window.__updateSplashProgress = function(percent) {
-          if (!reactReady && percent > fakeProgress) {
-            fakeProgress = Math.min(percent, 85);
-            updateLoader(fakeProgress);
-          }
-        };
-
-        setTimeout(function() {
-          if (!reactReady) {
-            var checkRoot = setInterval(function() {
-              if (rootEl && rootEl.children.length > 0) {
-                reactReady = true;
-                clearInterval(checkRoot);
-                clearInterval(progressInterval);
-                updateLoader(100);
-                tryHide();
-              }
-            }, 50);
-            setTimeout(function() {
-              clearInterval(checkRoot);
-              if (!reactReady) {
-                reactReady = true;
-                clearInterval(progressInterval);
-                updateLoader(100);
-                tryHide();
-              }
-            }, 5000);
           }
         }, 200);
+
+        var observer = new MutationObserver(function() {
+          if (rootEl && rootEl.firstElementChild) {
+            observer.disconnect();
+            onReactReady();
+          }
+        });
+        observer.observe(rootEl, { childList: true });
       })();
     </script>
   </body>

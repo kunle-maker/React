@@ -10,8 +10,7 @@ import Avatar from '../components/Avatar';
 import FormattedText from '../components/FormattedText';
 import LinkPreview from '../components/LinkPreview';
 import EmojiPicker from '../components/EmojiPicker';
-import ReactionsModal from '../components/ReactionsModal';
-import { parseEmojisToHtml, getTwemojiUrl } from '../utils/emoji';
+import { parseEmojisToHtml } from '../utils/emoji';
 import API from '../utils/api';
 import socket from '../utils/socket';
 
@@ -435,9 +434,7 @@ export default function Messages({ currentUser, unreadCounts }) {
   const [translateMsg, setTranslateMsg] = useState(null);
   const [editingMsgId, setEditingMsgId] = useState(null);
   const [editText, setEditText] = useState('');
-  const [reactPickerMsgId, setReactPickerMsgId] = useState(null);
   const [blockedByMe, setBlockedByMe] = useState(false);
-  const [reactionsModal, setReactionsModal] = useState(null);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -503,16 +500,12 @@ export default function Messages({ currentUser, unreadCounts }) {
   }, [activeConv]);
 
   useEffect(() => {
-    const handleClickOutside = () => { setContextMenu(null); setConvMenu(null); setReactPickerMsgId(null); };
+    const handleClickOutside = () => { setContextMenu(null); setConvMenu(null); };
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
 
   useEffect(() => {
-    const onReaction = (e) => {
-      const { messageId, reactions } = e.detail;
-      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, reactions } : m));
-    };
     const onEdited = (e) => {
       const { messageId, text } = e.detail;
       setMessages(prev => prev.map(m => m._id === messageId ? { ...m, text, edited: true } : m));
@@ -521,40 +514,13 @@ export default function Messages({ currentUser, unreadCounts }) {
       const { messageId } = e.detail;
       setMessages(prev => prev.map(m => m._id === messageId ? { ...m, text: '', unsent: true } : m));
     };
-    window.addEventListener('messageReactionUpdated', onReaction);
     window.addEventListener('messageEdited', onEdited);
     window.addEventListener('messageUnsent', onUnsent);
     return () => {
-      window.removeEventListener('messageReactionUpdated', onReaction);
       window.removeEventListener('messageEdited', onEdited);
       window.removeEventListener('messageUnsent', onUnsent);
     };
   }, []);
-
-  const handleReact = async (messageId, emoji) => {
-    setReactPickerMsgId(null);
-    setContextMenu(null);
-    const myId = currentUser?._id || currentUser?.id;
-    let prevReactions;
-    setMessages(prev => prev.map(m => {
-      if (m._id !== messageId) return m;
-      prevReactions = m.reactions;
-      const existing = { ...(m.reactions || {}) };
-      const users = Array.isArray(existing[emoji]) ? [...existing[emoji]] : [];
-      if (users.includes(myId)) {
-        existing[emoji] = users.filter(id => id !== myId);
-        if (existing[emoji].length === 0) delete existing[emoji];
-      } else {
-        existing[emoji] = [...users, myId];
-      }
-      return { ...m, reactions: existing };
-    }));
-    try {
-      await API.reactToDM(messageId, emoji);
-    } catch {
-      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, reactions: prevReactions } : m));
-    }
-  };
 
   const handleEditSave = async (messageId) => {
     if (!editText.trim()) return;
@@ -1110,26 +1076,6 @@ export default function Messages({ currentUser, unreadCounts }) {
                   )}
                 </div>
                 {!msg.unsent && msg.text && !msg.text.startsWith('[vx:') && <LinkPreview text={msg.text} />}
-                {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                  <div className={`flex flex-wrap gap-1 -mt-2 mb-0.5 relative z-10 ${mine ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
-                    {Object.entries(msg.reactions).map(([emoji, users]) => {
-                      const myId = currentUser?._id || currentUser?.id;
-                      return Array.isArray(users) && users.length > 0 ? (
-                        <button
-                          key={emoji}
-                          onClick={e => { e.stopPropagation(); setReactionsModal({ msg, activeEmoji: emoji }); }}
-                          className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border shadow-md transition-colors active:scale-95
-                            ${users.includes(myId)
-                              ? 'bg-discord-brand/30 border-discord-brand/60 text-white'
-                              : 'bg-discord-dark border-white/20 text-discord-text hover:bg-white/10'}`}
-                        >
-                          <img src={getTwemojiUrl(emoji)} alt={emoji} width={14} height={14} className="object-contain select-none" draggable={false} />
-                          {users.length > 1 && <span className="font-semibold text-[10px]">{users.length}</span>}
-                        </button>
-                      ) : null;
-                    })}
-                  </div>
-                )}
                 <div className={`flex items-center gap-1.5 mt-1 opacity-0 group-hover:opacity-100 transition-opacity ${mine ? 'flex-row-reverse' : ''}`}>
                   <span className="text-discord-muted text-[10px]">
                     {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
@@ -1295,16 +1241,6 @@ export default function Messages({ currentUser, unreadCounts }) {
         </div>
       </form>}
 
-      {reactionsModal && (
-        <ReactionsModal
-          reactions={reactionsModal.msg.reactions}
-          currentUser={currentUser}
-          knownUsers={[currentUser, activeConv].filter(Boolean)}
-          onReact={(emoji) => handleReact(reactionsModal.msg._id, emoji)}
-          onClose={() => setReactionsModal(null)}
-          initialEmoji={reactionsModal.activeEmoji}
-        />
-      )}
     </div>
   ) : (
     <div className="flex flex-col items-center justify-center h-full text-discord-muted gap-3">
@@ -1343,22 +1279,6 @@ export default function Messages({ currentUser, unreadCounts }) {
           }}
           onClick={e => e.stopPropagation()}
         >
-          {!contextMenu.msg.unsent && (
-            <div className="px-3 py-2 border-b border-white/6">
-              <p className="text-[10px] text-discord-muted uppercase font-bold mb-1.5">React</p>
-              <div className="flex gap-1.5 flex-wrap">
-                {['❤️','😂','😮','😢','😡','👍'].map(emoji => (
-                  <button
-                    key={emoji}
-                    className="hover:scale-125 transition-transform"
-                    onClick={() => handleReact(contextMenu.msg._id, emoji)}
-                  >
-                    <img src={getTwemojiUrl(emoji)} alt={emoji} width={22} height={22} className="object-contain select-none" draggable={false} />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
           {!contextMenu.msg.unsent && (
             <button
               className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"

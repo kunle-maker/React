@@ -1373,6 +1373,99 @@ select.discord-input {
 .badge-anim-rainbow   { animation: badge-rainbow-kf 3s linear infinite; display: inline-block; }
 .badge-anim-howl      { animation: badge-howl-kf 2s ease-in-out infinite; display: inline-block; }
 .badge-anim-roar      { animation: badge-roar-kf 1.2s ease-in-out infinite; display: inline-block; }
+.badge-anim-slide     { animation: badge-slide-kf 2s ease-in-out infinite; display: inline-block; }
+.badge-anim-pop       { animation: badge-pop-kf 1.2s ease-in-out infinite; display: inline-block; }
+.badge-anim-launch    { animation: badge-launch-kf 2s ease-in-out infinite; display: inline-block; }
+/* New badge animations */
+.badge-anim-wiggle    { animation: badge-wiggle-kf 0.5s ease-in-out infinite; display: inline-block; }
+.badge-anim-nod       { animation: badge-nod-kf 1.4s ease-in-out infinite; display: inline-block; }
+.badge-anim-crazy     { animation: badge-crazy-kf 0.7s ease-in-out infinite; display: inline-block; }
+.badge-anim-elastic   { animation: badge-elastic-kf 1.6s cubic-bezier(.36,.07,.19,.97) infinite; display: inline-block; }
+.badge-anim-tada      { animation: badge-tada-kf 1.5s ease-in-out infinite; display: inline-block; }
+.badge-anim-wobble    { animation: badge-wobble-kf 1.2s ease-in-out infinite; display: inline-block; }
+.badge-anim-jitter    { animation: badge-jitter-kf 0.15s linear infinite; display: inline-block; }
+.badge-anim-glitch    { animation: badge-glitch-kf 2s steps(1) infinite; display: inline-block; }
+.badge-anim-spiral    { animation: badge-spiral-kf 2s ease-in-out infinite; display: inline-block; }
+.badge-anim-tip       { animation: badge-tip-kf 2s ease-in-out infinite; display: inline-block; }
+
+@keyframes badge-slide-kf {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(6px); }
+}
+@keyframes badge-pop-kf {
+  0%, 100% { transform: scale(1); }
+  40% { transform: scale(1.4); }
+  60% { transform: scale(0.9); }
+}
+@keyframes badge-launch-kf {
+  0%, 100% { transform: translateY(0) rotate(-30deg); }
+  50% { transform: translateY(-7px) rotate(-30deg); }
+}
+@keyframes badge-wiggle-kf {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg); }
+}
+@keyframes badge-nod-kf {
+  0%, 100% { transform: rotate(0deg) scaleY(1); }
+  25% { transform: rotate(10deg) scaleY(1.05); }
+  75% { transform: rotate(-10deg) scaleY(1.05); }
+}
+@keyframes badge-crazy-kf {
+  0%   { transform: rotate(0deg) scale(1); }
+  20%  { transform: rotate(72deg) scale(1.3); }
+  40%  { transform: rotate(144deg) scale(0.8); }
+  60%  { transform: rotate(216deg) scale(1.3); }
+  80%  { transform: rotate(288deg) scale(0.85); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+@keyframes badge-elastic-kf {
+  0%, 100% { transform: scale(1, 1); }
+  20%  { transform: scale(0.8, 1.3); }
+  40%  { transform: scale(1.3, 0.8); }
+  60%  { transform: scale(0.9, 1.1); }
+  80%  { transform: scale(1.05, 0.95); }
+}
+@keyframes badge-tada-kf {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  10%, 20% { transform: scale(0.9) rotate(-3deg); }
+  30%, 50%, 70%, 90% { transform: scale(1.1) rotate(3deg); }
+  40%, 60%, 80% { transform: scale(1.1) rotate(-3deg); }
+}
+@keyframes badge-wobble-kf {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  15%  { transform: translateX(-6px) rotate(-5deg); }
+  30%  { transform: translateX(5px) rotate(3deg); }
+  45%  { transform: translateX(-3px) rotate(-3deg); }
+  60%  { transform: translateX(3px) rotate(2deg); }
+  75%  { transform: translateX(-2px) rotate(-1deg); }
+}
+@keyframes badge-jitter-kf {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(-1px, 1px); }
+  50%  { transform: translate(1px, -1px); }
+  75%  { transform: translate(-1px, -1px); }
+  100% { transform: translate(1px, 1px); }
+}
+@keyframes badge-glitch-kf {
+  0%, 90%, 100% { transform: translate(0, 0) skew(0deg); filter: none; }
+  91%  { transform: translate(-2px, 0) skew(-1deg); filter: brightness(1.5) saturate(2); }
+  92%  { transform: translate(2px, 1px) skew(1deg); filter: hue-rotate(90deg); }
+  93%  { transform: translate(0, -1px) skew(0deg); filter: brightness(0.6); }
+  94%  { transform: translate(-1px, 1px) skew(-2deg); filter: hue-rotate(180deg); }
+  95%  { transform: translate(0, 0) skew(0deg); filter: none; }
+}
+@keyframes badge-spiral-kf {
+  0%   { transform: rotate(0deg) scale(1); }
+  25%  { transform: rotate(90deg) scale(1.2); }
+  50%  { transform: rotate(180deg) scale(1); }
+  75%  { transform: rotate(270deg) scale(1.2); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+@keyframes badge-tip-kf {
+  0%, 100% { transform: rotate(0deg); }
+  25%  { transform: rotate(15deg); }
+  75%  { transform: rotate(-15deg); }
+}
 
 /* Verified ring (gradient border) for verified users */
 .verified-avatar-ring {

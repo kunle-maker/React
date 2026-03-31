@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import API from './utils/api';
 import socket from './utils/socket';
 import InstallPrompt from './components/InstallPrompt';
+import UpdatePrompt from './components/UpdatePrompt';
 import DigitalPlatAd from './components/DigitalPlatAd';
 import { I18nProvider, useI18n } from './contexts/I18nContext';
 import Search         from './pages/Search';
@@ -239,6 +240,7 @@ function AppInner() {
   return (
     <HashRouter>
       <InstallPrompt />
+      <UpdatePrompt />
       <DigitalPlatAd currentUser={currentUser} />
       <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
