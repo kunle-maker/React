@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiRefreshCw, FiX } from 'react-icons/fi';
 
 const APP_VERSION = '2.0.0';
-const UPDATE_CHECK_URL = 'https://YOUR_RENDER_URL/update';
+const UPDATE_CHECK_URL = 'https://vesselx-updates.onrender.com/update';
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const VERSION_KEY = 'vx-app-version';
 const LAST_CHECK_KEY = 'vx-last-check';
