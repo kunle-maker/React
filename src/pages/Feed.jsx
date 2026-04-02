@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiRefreshCw } from 'react-icons/fi';
 import Layout from '../components/Layout';
 import PostCard from '../components/PostCard';
