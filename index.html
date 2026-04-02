@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d0f14" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#8b5cf6" media="(prefers-color-scheme: light)" />
+    <link rel="preconnect" href="https://vesselx.onrender.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="VesselX" />
+    <meta name="description" content="VesselX - Carrying connections forward" />
+    <meta name="application-name" content="VesselX" />
+    <meta name="msapplication-TileColor" content="#0d0f14" />
+    <meta name="msapplication-config" content="none" />
+    <meta property="og:title" content="VesselX" />
+    <meta property="og:description" content="VesselX - Carrying connections forward" />
+    <meta property="og:type" content="website" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png" />
+    <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144.png" />
+    <link rel="apple-touch-startup-image" href="/icons/icon-512.png" />
+    <title>VesselX</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      #vx-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: #0d0f14;
+        background-image: radial-gradient(ellipse 80% 50% at 20% -10%, rgba(139, 92, 246, 0.15) 0%, transparent 60%),
+                          radial-gradient(ellipse 60% 40% at 80% 100%, rgba(16, 185, 129, 0.1) 0%, transparent 60%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(0px);
+      }
+      #vx-splash.hide {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      #vx-splash svg {
+        animation: vx-pulse 1.6s ease-in-out infinite;
+        filter: drop-shadow(0 0 24px rgba(139, 92, 246, 0.5));
+      }
+      #vx-splash-name {
+        font-family: 'Inter', sans-serif;
+        font-weight: 800;
+        font-size: 28px;
+        color: #ffffff;
+        letter-spacing: -0.5px;
+        background: linear-gradient(135deg, #ffffff 0%, #c4b5fd 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      #vx-splash-dots {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      #vx-splash-dots span {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #8b5cf6;
+        animation: vx-bounce 1.2s ease-in-out infinite;
+      }
+      #vx-splash-dots span:nth-child(2) { animation-delay: 0.15s; }
+      #vx-splash-dots span:nth-child(3) { animation-delay: 0.3s; }
+      @keyframes vx-pulse {
+        0%, 100% { transform: scale(1); opacity: 0.9; }
+        50% { transform: scale(1.06); opacity: 1; }
+      }
+      @keyframes vx-bounce {
+        0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+        40% { transform: translateY(-8px); opacity: 1; }
+      }
+      .vx-splash-footer {
+        position: absolute;
+        bottom: 32px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 11px;
+        color: rgba(255,255,255,0.3);
+        font-family: 'Inter', sans-serif;
+        letter-spacing: 0.3px;
+      }
+      .vx-powered {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255,255,255,0.03);
+        backdrop-filter: blur(8px);
+        padding: 6px 12px;
+        border-radius: 40px;
+        border: 1px solid rgba(255,255,255,0.06);
+        font-size: 10px;
+        font-weight: 500;
+        color: rgba(255,255,255,0.5);
+        text-decoration: none;
+        transition: all 0.2s;
+      }
+      .vx-powered:hover {
+        background: rgba(139, 92, 246, 0.12);
+        border-color: rgba(139, 92, 246, 0.3);
+        color: #c4b5fd;
+      }
+      .vx-powered span:first-child {
+        background: #1e293b;
+        padding: 2px 8px;
+        border-radius: 30px;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: #c4b5fd;
+      }
+      .vx-loader-bg {
+        position: absolute;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 120px;
+        height: 2px;
+        background: rgba(255,255,255,0.08);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .vx-loader-fill {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #8b5cf6, #10b981);
+        border-radius: 4px;
+        transition: width 0.15s linear;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="vx-splash">
+      <svg width="80" height="80" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="100" rx="22" fill="#5865f2"/>
+        <text x="50" y="72" font-family="Arial Black, Arial" font-weight="900" font-size="62" text-anchor="middle" fill="white">V</text>
+      </svg>
+      <div id="vx-splash-name">VesselX</div>
+      <div id="vx-splash-dots"><span></span><span></span><span></span></div>
+      <div class="vx-loader-bg"><div class="vx-loader-fill" id="vx-loader-fill"></div></div>
+      <div class="vx-splash-footer">
+        <a href="https://dash.domain.digitalplat.org/signup?ref=konuimkeoF" target="_blank" rel="noopener noreferrer" class="vx-powered">
+          <span>DigitalPlat</span> Free domain by DigitalPlat
+        </a>
+      </div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      (function() {
+        var splash = document.getElementById('vx-splash');
+        var loaderFill = document.getElementById('vx-loader-fill');
+        var rootEl = document.getElementById('root');
+        var splashHidden = false;
+        var startTime = Date.now();
+        var minDisplayTime = 600;
+
+        function updateLoader(percent) {
+          if (loaderFill) loaderFill.style.width = Math.min(100, percent) + '%';
+        }
+
+        function hideSplash() {
+          if (splashHidden) return;
+          splashHidden = true;
+          updateLoader(100);
+          if (splash) {
+            splash.classList.add('hide');
+            setTimeout(function() {
+              if (splash && splash.parentNode) splash.remove();
+            }, 450);
+          }
+        }
+
+        function onReactReady() {
+          if (splashHidden) return;
+          clearInterval(progressInterval);
+          var elapsed = Date.now() - startTime;
+          var wait = Math.max(0, minDisplayTime - elapsed);
+          setTimeout(hideSplash, wait);
+        }
+
+        window.__hideSplash = onReactReady;
+
+        var fakeProgress = 0;
+        var progressInterval = setInterval(function() {
+          if (fakeProgress < 88) {
+            fakeProgress += Math.random() * 6 + 1;
+            if (fakeProgress > 88) fakeProgress = 88;
+            updateLoader(fakeProgress);
+          }
+        }, 200);
+
+        var observer = new MutationObserver(function() {
+          if (rootEl && rootEl.firstElementChild) {
+            observer.disconnect();
+            onReactReady();
+          }
+        });
+        observer.observe(rootEl, { childList: true });
+      })();
+    </script>
+  </body>
+</html>
