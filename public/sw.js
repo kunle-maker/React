@@ -88,6 +88,23 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (url.origin === self.location.origin) {
+    // For navigation requests (like index.html), always try network first to detect updates
+    if (request.mode === 'navigate') {
+      event.respondWith(
+        fetch(request)
+          .then((response) => {
+            if (response && response.status === 200) {
+              const cloned = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
+            }
+            return response;
+          })
+          .catch(() => caches.match(request).then((cached) => cached || caches.match(OFFLINE_URL)))
+      );
+      return;
+    }
+
+    // For other assets, use Stale-While-Revalidate
     event.respondWith(
       caches.match(request).then((cached) => {
         const networkFetch = fetch(request).then((response) => {
@@ -96,12 +113,8 @@ self.addEventListener('fetch', (event) => {
             caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
           }
           return response;
-        }).catch(async () => {
-          if (request.mode === 'navigate') {
-            const cachedRoot = await caches.match('/');
-            return cachedRoot || caches.match(OFFLINE_URL);
-          }
-        });
+        }).catch(() => {});
+
         return cached || networkFetch;
       })
     );

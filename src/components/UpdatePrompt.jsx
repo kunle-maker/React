@@ -1,81 +1,61 @@
 import React, { useState, useEffect } from 'react';
 import { FiRefreshCw, FiX } from 'react-icons/fi';
 
-const APP_VERSION = '2.0.0';
-const UPDATE_CHECK_URL = 'https://YOUR_RENDER_URL/update';
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-const VERSION_KEY = 'vx-app-version';
-const LAST_CHECK_KEY = 'vx-last-check';
-const FIRST_VISIT_KEY = 'vx-first-visit';
-
-async function clearAllSiteData() {
-  try {
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k => caches.delete(k)));
-    }
-  } catch {}
-  try {
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map(r => r.unregister()));
-    }
-  } catch {}
-  const token = localStorage.getItem('token');
-  const user = localStorage.getItem('user');
-  localStorage.clear();
-  sessionStorage.clear();
-  if (token) localStorage.setItem('token', token);
-  if (user) localStorage.setItem('user', user);
-  document.cookie.split(';').forEach(c => {
-    document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-  });
-}
-
 export default function UpdatePrompt() {
   const [show, setShow] = useState(false);
+  const [waitingWorker, setWaitingWorker] = useState(null);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    const now = Date.now();
-    const firstVisit = localStorage.getItem(FIRST_VISIT_KEY);
-    const lastCheck = localStorage.getItem(LAST_CHECK_KEY);
-    const storedVersion = localStorage.getItem(VERSION_KEY);
+    if (!('serviceWorker' in navigator)) return;
 
-    if (!firstVisit) {
-      localStorage.setItem(FIRST_VISIT_KEY, String(now));
-      localStorage.setItem(LAST_CHECK_KEY, String(now));
-      localStorage.setItem(VERSION_KEY, APP_VERSION);
-      clearAllSiteData().catch(() => {});
-      return;
-    }
+    const onUpdate = (reg) => {
+      // Find the new service worker
+      const nw = reg.waiting || reg.installing;
+      if (nw) {
+        setWaitingWorker(nw);
+        setShow(true);
+      }
+    };
 
-    const shouldCheck =
-      !lastCheck ||
-      now - Number(lastCheck) > THIRTY_DAYS_MS ||
-      storedVersion !== APP_VERSION;
+    // Check current registration
+    navigator.serviceWorker.getRegistration().then(reg => {
+      if (!reg) return;
+      
+      // If there's already a worker waiting, show the prompt
+      if (reg.waiting) {
+        onUpdate(reg);
+      }
 
-    if (shouldCheck) {
-      localStorage.setItem(LAST_CHECK_KEY, String(now));
-      localStorage.setItem(VERSION_KEY, APP_VERSION);
-      fetch(UPDATE_CHECK_URL, { cache: 'no-store' })
-        .then(r => r.json())
-        .then(data => {
-          const serverVersion = data?.version;
-          if (serverVersion && serverVersion !== APP_VERSION) {
-            setShow(true);
+      // Listen for new workers installing
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed') {
+            onUpdate(reg);
           }
-        })
-        .catch(() => {});
-    }
+        });
+      });
+    });
+
+    // When the new service worker takes over, reload the page
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
   }, []);
 
-  const handleUpdate = async () => {
+  const handleUpdate = () => {
+    if (waitingWorker) {
+      // Tell the waiting worker to activate
+      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    } else {
+      // Fallback if worker lost
+      window.location.reload();
+    }
     setShow(false);
-    await clearAllSiteData();
-    localStorage.setItem(VERSION_KEY, APP_VERSION);
-    localStorage.setItem(LAST_CHECK_KEY, String(Date.now()));
-    window.location.reload(true);
   };
 
   const handleDismiss = () => {
@@ -102,15 +82,15 @@ export default function UpdatePrompt() {
           <FiRefreshCw size={20} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-discord-text font-bold text-sm">Update Available</p>
-          <p className="text-discord-muted text-xs truncate">A new version of VesselX is ready</p>
+          <p className="text-discord-text font-bold text-sm">Update Ready</p>
+          <p className="text-discord-muted text-xs truncate">New version of VesselX is ready</p>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <button
             onClick={handleUpdate}
             className="discord-btn text-xs px-3 py-1.5 rounded-lg flex items-center gap-1"
           >
-            <FiRefreshCw size={12} /> Update
+            <FiRefreshCw size={12} /> Reload
           </button>
           <button
             onClick={handleDismiss}

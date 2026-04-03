@@ -181,8 +181,8 @@ function JoinModal({ onClose, onJoin }) {
             type="text"
             value={code}
             onChange={e => setCode(e.target.value.toUpperCase())}
-            placeholder="A1B2C3"
-            maxLength={6}
+            placeholder="E97E8BCE82"
+            maxLength={10}
             className="discord-input w-full text-center text-lg tracking-widest font-mono uppercase"
             onKeyDown={e => e.key === 'Enter' && handleJoin()}
             autoFocus

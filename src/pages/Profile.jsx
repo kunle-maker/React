@@ -14,7 +14,15 @@ import API from '../utils/api';
 import ImageCropModal from '../components/ImageCropModal';
 import { parseEmojisToHtml } from '../utils/emoji';
 
-const TwemojiImg = ({ emoji, size = 14 }) => {
+function twemojiUrl(emoji) {
+  const cps = [...emoji].map(c => c.codePointAt(0).toString(16)).filter(cp => parseInt(cp, 16) !== 0xfe0f);
+  return `https://twemoji.maxcdn.com/v/latest/svg/${cps.join('-')}.svg`;
+}
+function TwemojiImg({ emoji, size = 24, className = '' }) {
+  return <img src={twemojiUrl(emoji)} alt={emoji} width={size} height={size} draggable={false} className={`select-none object-contain inline-block ${className}`} loading="lazy" />;
+}
+
+const TwemojiImgLegacy = ({ emoji, size = 14 }) => {
   const cp = [...emoji].map(c => c.codePointAt(0).toString(16)).filter(x => x !== 'fe0f').join('-');
   return <img src={`https://twemoji.maxcdn.com/v/latest/svg/${cp}.svg`} alt={emoji} style={{ width: size, height: size, display: 'inline-block', verticalAlign: 'middle' }} draggable={false} />;
 };
@@ -437,6 +445,7 @@ export default function Profile({ currentUser, unreadCounts }) {
           {[
             { id: 'posts', icon: FiGrid, label: 'Posts' },
             { id: 'friends', icon: FiUsers, label: 'Friends' },
+            { id: 'stats', icon: FiZap, label: 'Stats' },
             ...(isMyProfile ? [{ id: 'saved', icon: FiBookmark, label: 'Saved' }] : []),
           ].map(t => (
             <button
@@ -499,6 +508,70 @@ export default function Profile({ currentUser, unreadCounts }) {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Stats */}
+        {tab === 'stats' && (
+          <div className="p-4 space-y-6">
+            <div className="bg-discord-hover/30 border border-discord-hover rounded-2xl p-5 shadow-xl">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-14 h-14 rounded-2xl bg-discord-brand/20 flex items-center justify-center">
+                  <FiZap size={28} className="text-discord-brand" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-discord-text">Level {user?.level || 1}</h3>
+                  <p className="text-discord-muted text-sm font-semibold">{user?.xp || 0} Total XP Earned</p>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-discord-muted">
+                  <span>Current Progress</span>
+                  <span>{Math.round(((user?.xp || 0) % 1000) / 10)}%</span>
+                </div>
+                <div className="h-3 bg-discord-dark rounded-full overflow-hidden border border-white/5">
+                  <div 
+                    className="h-full bg-gradient-to-r from-discord-brand to-purple-500 rounded-full transition-all duration-1000" 
+                    style={{ width: `${(user?.xp || 0) % 100}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-discord-muted text-right italic font-medium">Keep playing to level up!</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-discord-hover/30 border border-discord-hover rounded-2xl p-4 text-center group hover:border-discord-brand/50 transition-colors shadow-lg">
+                <div className="mb-2 flex justify-center"><TwemojiImg emoji="🔤" size={32} /></div>
+                <p className="text-2xl font-black text-discord-text leading-tight">{user?.gameStats?.wordSprintWins || 0}</p>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-discord-muted mt-1">Word Sprint Wins</p>
+              </div>
+              <div className="bg-discord-hover/30 border border-discord-hover rounded-2xl p-4 text-center group hover:border-discord-brand/50 transition-colors shadow-lg">
+                <div className="mb-2 flex justify-center"><TwemojiImg emoji="🎭" size={32} /></div>
+                <p className="text-2xl font-black text-discord-text leading-tight">{user?.gameStats?.emojiTriviaWins || 0}</p>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-discord-muted mt-1">Emoji Trivia Wins</p>
+              </div>
+            </div>
+
+            <div className="bg-discord-hover/20 border border-discord-hover/50 rounded-2xl p-4">
+              <h4 className="text-xs font-black uppercase tracking-widest text-discord-muted mb-4 px-1">Game Activity</h4>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between px-2">
+                  <span className="text-sm font-bold text-discord-text/80">Total XP Earned</span>
+                  <span className="text-sm font-black text-discord-brand">{user?.gameStats?.totalXpEarned || user?.xp || 0}</span>
+                </div>
+                <div className="h-px bg-discord-hover" />
+                <div className="flex items-center justify-between px-2">
+                  <span className="text-sm font-bold text-discord-text/80">Word Sprint Played</span>
+                  <span className="text-sm font-black text-discord-text">{user?.gameStats?.wordSprintPlayed || 0}</span>
+                </div>
+                <div className="h-px bg-discord-hover" />
+                <div className="flex items-center justify-between px-2">
+                  <span className="text-sm font-bold text-discord-text/80">Emoji Trivia Played</span>
+                  <span className="text-sm font-black text-discord-text">{user?.gameStats?.emojiTriviaPlayed || 0}</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

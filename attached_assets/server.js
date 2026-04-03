@@ -2582,27 +2582,39 @@ k7nle.get('/api/users/:username/posts', authenticateToken, async (req, res) => {
 k7nle.get('/api/feed/following', authenticateToken, async (req, res) => {
   try {
     const currentUserId = req.user.userId;
-    const currentUser = await User.findById(currentUserId);
-    
-    if (!currentUser) {
-      return res.status(404).json({ error: 'User not found' });
+    const currentUser = await User.findById(currentUserId).select('following blockedUsers bookmarks');
+    if (!currentUser) return res.status(404).json({ error: 'User not found' });
+
+    const blockedIds = (currentUser.blockedUsers || []).map(id => id.toString());
+    const bookmarks = currentUser.bookmarks || [];
+
+    let posts = [];
+
+    if (currentUser.following.length > 0) {
+      const followingFiltered = currentUser.following.filter(id => !blockedIds.includes(id.toString()));
+      posts = await Post.find({ userId: { $in: followingFiltered } })
+        .populate('userId', 'username name profilePicture isSupa isVerified')
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .lean();
     }
-    if (currentUser.following.length === 0) {
-      return res.json([]);
+
+    if (posts.length === 0) {
+      posts = await Post.find({ userId: { $nin: [...blockedIds, currentUserId] } })
+        .populate('userId', 'username name profilePicture isSupa isVerified')
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .lean();
     }
-    const posts = await Post.find({
-      userId: { $in: currentUser.following }
-    })
-      .populate('userId', 'username name profilePicture isSupa isVerified')
-      .sort({ createdAt: -1 });
-    
+
     const enhancedPosts = posts.map(post => {
-      const postObj = post.toObject();
-      postObj.isLiked = post.likes.includes(currentUserId);
-      postObj.commentCount = post.comments.length;
-      postObj.likeCount = post.likes.length;      
-      return postObj;
-    });    
+      post.isLiked = post.likes?.some(l => l.toString() === currentUserId) || false;
+      post.isBookmarked = bookmarks.some(b => b.toString() === post._id.toString());
+      post.commentCount = post.comments?.length || 0;
+      post.likeCount = post.likes?.length || 0;
+      post.isOwnPost = (post.userId?._id?.toString() || post.userId?.toString()) === currentUserId;
+      return post;
+    });
     res.json(enhancedPosts);
   } catch (error) {
     console.error('Get following feed error:', error);
@@ -2613,28 +2625,37 @@ k7nle.get('/api/feed/following', authenticateToken, async (req, res) => {
 k7nle.get('/api/feed/combined', authenticateToken, async (req, res) => {
   try {
     const currentUserId = req.user.userId;
-    const currentUser = await User.findById(currentUserId);    
-    if (!currentUser) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    const visibleUserIds = [
-      currentUserId,
-      ...currentUser.following
-    ];    
-    const posts = await Post.find({
-      userId: { $in: visibleUserIds }
-    })
+    const currentUser = await User.findById(currentUserId).select('following blockedUsers bookmarks');
+    if (!currentUser) return res.status(404).json({ error: 'User not found' });
+
+    const blockedIds = (currentUser.blockedUsers || []).map(id => id.toString());
+    const bookmarks = currentUser.bookmarks || [];
+
+    const followingFiltered = (currentUser.following || []).filter(id => !blockedIds.includes(id.toString()));
+    const visibleUserIds = [currentUserId, ...followingFiltered];
+
+    let posts = await Post.find({ userId: { $in: visibleUserIds } })
       .populate('userId', 'username name profilePicture isSupa isVerified')
-      .sort({ createdAt: -1 });
-    
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+
+    if (posts.length === 0) {
+      posts = await Post.find({ userId: { $nin: blockedIds } })
+        .populate('userId', 'username name profilePicture isSupa isVerified')
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .lean();
+    }
+
     const enhancedPosts = posts.map(post => {
-      const postObj = post.toObject();     
-      postObj.isLiked = post.likes.includes(currentUserId);
-      postObj.isOwnPost = post.userId._id.toString() === currentUserId;
-      postObj.commentCount = post.comments.length;
-      postObj.likeCount = post.likes.length;      
-      return postObj;
-    });    
+      post.isLiked = post.likes?.some(l => l.toString() === currentUserId) || false;
+      post.isBookmarked = bookmarks.some(b => b.toString() === post._id.toString());
+      post.isOwnPost = (post.userId?._id?.toString() || post.userId?.toString()) === currentUserId;
+      post.commentCount = post.comments?.length || 0;
+      post.likeCount = post.likes?.length || 0;
+      return post;
+    });
     res.json(enhancedPosts);
   } catch (error) {
     console.error('Get combined feed error:', error);
@@ -2647,48 +2668,51 @@ k7nle.get('/api/feed/following/paginated', authenticateToken, async (req, res) =
     const currentUserId = req.user.userId;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;    
-    const currentUser = await User.findById(currentUserId);
-    
-    if (!currentUser) {
-      return res.status(404).json({ error: 'User not found' });
+    const skip = (page - 1) * limit;
+
+    const currentUser = await User.findById(currentUserId).select('following blockedUsers bookmarks');
+    if (!currentUser) return res.status(404).json({ error: 'User not found' });
+
+    const blockedIds = (currentUser.blockedUsers || []).map(id => id.toString());
+    const bookmarks = currentUser.bookmarks || [];
+    const followingFiltered = (currentUser.following || []).filter(id => !blockedIds.includes(id.toString()));
+
+    let query;
+    let usingFallback = false;
+
+    if (followingFiltered.length > 0) {
+      query = { userId: { $in: followingFiltered } };
+    } else {
+      query = { userId: { $nin: [...blockedIds, currentUserId] } };
+      usingFallback = true;
     }
-    
-    if (currentUser.following.length === 0) {
-      return res.json({
-        posts: [],
-        currentPage: page,
-        totalPages: 0,
-        totalPosts: 0,
-        hasMore: false
-      });
-    }
-    const totalPosts = await Post.countDocuments({
-      userId: { $in: currentUser.following }
-    });
-    
-    const posts = await Post.find({
-      userId: { $in: currentUser.following }
-    })
+
+    const totalPosts = await Post.countDocuments(query);
+
+    const posts = await Post.find(query)
       .populate('userId', 'username name profilePicture isSupa isVerified')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
-    
+      .limit(limit)
+      .lean();
+
     const enhancedPosts = posts.map(post => {
-      const postObj = post.toObject();
-      postObj.isLiked = post.likes.includes(currentUserId);
-      postObj.commentCount = post.comments.length;
-      postObj.likeCount = post.likes.length;
-      return postObj;
-    });    
+      post.isLiked = post.likes?.some(l => l.toString() === currentUserId) || false;
+      post.isBookmarked = bookmarks.some(b => b.toString() === post._id.toString());
+      post.commentCount = post.comments?.length || 0;
+      post.likeCount = post.likes?.length || 0;
+      post.isOwnPost = (post.userId?._id?.toString() || post.userId?.toString()) === currentUserId;
+      return post;
+    });
+
     res.json({
       posts: enhancedPosts,
       currentPage: page,
       totalPages: Math.ceil(totalPosts / limit),
       totalPosts,
-      hasMore: skip + posts.length < totalPosts
-    });    
+      hasMore: skip + posts.length < totalPosts,
+      usingFallback
+    });
   } catch (error) {
     console.error('Get paginated following feed error:', error);
     res.status(500).json({ error: 'Internal server error' });
