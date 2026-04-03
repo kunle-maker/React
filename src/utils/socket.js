@@ -12,17 +12,14 @@ class SocketManager {
   connect(userId, token) {
     if (this.socket?.connected) return;
     this.userId = userId;
-    if (this._timeout) clearTimeout(this._timeout);
-    this._timeout = setTimeout(() => {
-      this.socket = io(BASE_URL, {
-        auth: { token },
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 2000,
-        transports: ['websocket', 'polling']
-      });
-      this._setupListeners();
-    }, 2000);
+    this.socket = io(BASE_URL, {
+      auth: { token },
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+      transports: ['websocket', 'polling']
+    });
+    this._setupListeners();
   }
 
   _setupListeners() {
@@ -149,7 +146,11 @@ class SocketManager {
   }
 
   emit(event, ...args) {
-    this.socket?.emit(event, ...args);
+    if (this.socket) {
+      this.socket.emit(event, ...args);
+    } else {
+      setTimeout(() => this.emit(event, ...args), 500);
+    }
   }
 
   _updateCount(type, inc) {

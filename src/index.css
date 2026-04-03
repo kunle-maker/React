@@ -1249,7 +1249,7 @@ select.discord-input {
 .skeleton-pulse {
   animation: skeletonPulse 1.5s ease-in-out infinite;
 }
-}
+
 /* Glow text for brand moments */
 .text-glow {
   text-shadow: 0 0 20px rgba(88,101,242,0.6), 0 0 40px rgba(88,101,242,0.3);
