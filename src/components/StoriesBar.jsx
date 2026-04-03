@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import { FiX } from 'react-icons/fi';
 import API from '../utils/api';
 
 const StoriesBar = forwardRef(function StoriesBar({ currentUser, onOpenViewer }, ref) {

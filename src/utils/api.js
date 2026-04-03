@@ -144,7 +144,7 @@ class API {
 
   static async getPosts(page = 1, limit = 10) {
     try {
-      const data = await this.request(`/api/posts?page=${page}&limit=${limit}`);
+      const data = await this.request(`/api/posts/feed?page=${page}&limit=${limit}`);
       if (data.posts) return { posts: data.posts, hasMore: data.hasMore || false };
       if (Array.isArray(data)) return { posts: data, hasMore: false };
       return { posts: [], hasMore: false };
