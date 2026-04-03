@@ -249,7 +249,7 @@ self.addEventListener('notificationclick', (event) => {
   else if (type === 'call_incoming')     url = '/messages';
   else if (type === 'group_call_incoming') url = groupId ? `/groups/${groupId}` : '/groups';
   else if (type === 'followee_post')     url = postId ? `/post/${postId}` : '/';
-  else if (type === 'game_invite' || type === 'game_result') url = gameRoomId ? `/games/${gameRoomId}` : '/';
+  else if (type === 'game_invite' || type === 'game_result') url = gameRoomId ? `/game/room/${gameRoomId}` : '/game';
   else if (postId)                       url = `/post/${postId}`;
   else if (groupId)                      url = `/groups/${groupId}`;
 

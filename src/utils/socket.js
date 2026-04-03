@@ -135,6 +135,23 @@ class SocketManager {
     });
   }
 
+  on(event, callback) {
+    if (this.socket) {
+      this.socket.on(event, callback);
+    } else {
+      // If socket not yet connected, retry after a short delay
+      setTimeout(() => this.on(event, callback), 500);
+    }
+  }
+
+  off(event, callback) {
+    this.socket?.off(event, callback);
+  }
+
+  emit(event, ...args) {
+    this.socket?.emit(event, ...args);
+  }
+
   _updateCount(type, inc) {
     window.dispatchEvent(new CustomEvent('unreadCountUpdate', { detail: { type, increment: inc } }));
   }

@@ -25,7 +25,7 @@ const POPUP_ITEMS = [
   { path: '/search',        icon: FiSearch,    label: 'Search',        badgeKey: null },
   { path: '/create',        icon: FiPlusSquare,label: 'Create',        badgeKey: null },
   { path: '/notifications', icon: FiBell,      label: 'Notifications', badgeKey: 'notifications', activeIcon: HiBell },
-  { path: '/games',         icon: MdGames,     label: 'Games',         badgeKey: null },
+  { path: '/game',         icon: MdGames,     label: 'Games',         badgeKey: null },
   { path: '/ai',            icon: FiZap,       label: 'AI',            badgeKey: null },
   { path: '/settings',      icon: FiSettings,  label: 'Settings',      badgeKey: null },
 ];
@@ -47,7 +47,7 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
     { path: '/notifications',icon: FiBell,          activeIcon: HiBell,    label: t.notifications || 'Notifications', badgeKey: 'notifications' },
     { path: '/messages',     icon: FiMessageSquare, activeIcon: HiChatAlt2,label: t.messages || 'Messages', badgeKey: 'messages' },
     { path: '/groups',       icon: FiUsers,         activeIcon: HiUsers,   label: t.group || 'Groups', badgeKey: 'groups' },
-    { path: '/games',        icon: MdGames,                                label: 'Games' },
+    { path: '/game',        icon: MdGames,                                label: 'Games' },
     { path: '/ai',           icon: FiZap,                                  label: t.ai || 'AI' },
   ];
 

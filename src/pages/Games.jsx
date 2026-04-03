@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { FiPlus, FiHash, FiZap, FiUsers, FiTrendingUp, FiPlay, FiRefreshCw, FiCopy, FiCheck } from 'react-icons/fi';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { FiPlus, FiHash, FiZap, FiUsers, FiTrendingUp, FiPlay, FiRefreshCw, FiCopy, FiCheck, FiArrowLeft } from 'react-icons/fi';
 import Layout from '../components/Layout';
 import Avatar from '../components/Avatar';
 import API from '../utils/api';
@@ -32,7 +33,8 @@ function XPBar({ xp, level }) {
   );
 }
 
-function CreateGameModal({ onClose, onCreate }) {
+function CreateGameModal({ onClose }) {
+  const navigate = useNavigate();
   const [gameType, setGameType] = useState('word_sprint');
   const [totalRounds, setTotalRounds] = useState(5);
   const [maxPlayers, setMaxPlayers] = useState(8);
@@ -53,8 +55,7 @@ function CreateGameModal({ onClose, onCreate }) {
         tournamentName: isTournament ? tournamentName : undefined,
         inviteUsernames: invites.length > 0 ? invites : undefined,
       });
-      onCreate(data.room);
-      onClose();
+      navigate(`/game/room/${data.room._id}`, { replace: true });
     } catch (err) {
       alert(err.message || 'Failed to create room');
     } finally {
@@ -63,7 +64,7 @@ function CreateGameModal({ onClose, onCreate }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[110] p-4">
       <div className="bg-discord-sidebar rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
         <div className="px-5 py-4 border-b border-discord-hover">
           <h2 className="font-bold text-discord-text text-lg">Create Game Room</h2>
@@ -151,8 +152,9 @@ function CreateGameModal({ onClose, onCreate }) {
   );
 }
 
-function JoinModal({ onClose, onJoin }) {
-  const [code, setCode] = useState('');
+function JoinModal({ onClose, inviteCode = '' }) {
+  const navigate = useNavigate();
+  const [code, setCode] = useState(inviteCode);
   const [joining, setJoining] = useState(false);
 
   const handleJoin = async () => {
@@ -160,17 +162,21 @@ function JoinModal({ onClose, onJoin }) {
     setJoining(true);
     try {
       const data = await API.joinGameRoom(code.trim().toUpperCase());
-      onJoin(data.room);
-      onClose();
+      navigate(`/game/room/${data.room._id}`, { replace: true });
     } catch (err) {
       alert(err.message || 'Invalid invite code');
+      if (inviteCode) onClose(); // Close if we were trying to join from URL and it failed
     } finally {
       setJoining(false);
     }
   };
 
+  useEffect(() => {
+    if (inviteCode) handleJoin();
+  }, [inviteCode]);
+
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[110] p-4">
       <div className="bg-discord-sidebar rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
         <div className="px-5 py-4 border-b border-discord-hover">
           <h2 className="font-bold text-discord-text">Join a Game</h2>
@@ -199,7 +205,8 @@ function JoinModal({ onClose, onJoin }) {
   );
 }
 
-function RoomCard({ room, currentUserId, onEnter }) {
+function RoomCard({ room, currentUserId }) {
+  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
 
   const copyCode = (e) => {
@@ -210,21 +217,21 @@ function RoomCard({ room, currentUserId, onEnter }) {
   };
 
   const isHost = room.players?.[0]?.userId === currentUserId;
-  const statusColor = room.status === 'waiting' ? 'text-yellow-400' : room.status === 'playing' ? 'text-discord-green' : 'text-discord-muted';
+  const statusColor = room.status === 'waiting' ? 'text-yellow-400' : room.status === 'in_progress' ? 'text-discord-green' : 'text-discord-muted';
   const gameIcon = room.gameType === 'word_sprint' ? '🔤' : '🎭';
   const gameName = room.gameType === 'word_sprint' ? 'Word Sprint' : 'Emoji Trivia';
 
   return (
     <div
       className="bg-discord-hover/50 border border-discord-hover rounded-2xl p-4 cursor-pointer hover:border-discord-brand/40 transition-all active:scale-[0.98]"
-      onClick={() => onEnter(room)}
+      onClick={() => navigate(`/game/room/${room._id}`)}
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <TwemojiImg emoji={gameIcon} size={26} />
           <div>
             <p className="font-bold text-discord-text text-sm">{gameName}</p>
-            <p className={`text-xs font-semibold capitalize ${statusColor}`}>{room.status}</p>
+            <p className={`text-xs font-semibold capitalize ${statusColor}`}>{room.status.replace('_', ' ')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -248,8 +255,8 @@ function RoomCard({ room, currentUserId, onEnter }) {
   );
 }
 
-function RoomLobby({ room: initialRoom, currentUser, onClose }) {
-  const [room, setRoom] = useState(initialRoom);
+function RoomLobby({ roomId, currentUser, onClose }) {
+  const [room, setRoom] = useState(null);
   const [round, setRound] = useState(null);
   const [guess, setGuess] = useState('');
   const [result, setResult] = useState(null);
@@ -257,39 +264,90 @@ function RoomLobby({ room: initialRoom, currentUser, onClose }) {
   const [starting, setStarting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const myId = currentUser?._id || currentUser?.id;
-  const isHost = room.players?.[0]?.userId === myId;
-  const canStart = isHost && room.players?.length >= 2 && room.status === 'waiting';
+
+  const fetchRoom = useCallback(async () => {
+    try {
+      const data = await API.getGameRoom(roomId);
+      setRoom(data.room);
+      // Check if there's an ongoing round
+      if (data.room.status === 'in_progress' && data.room.rounds?.length > 0) {
+        const lastRound = data.room.rounds[data.room.rounds.length - 1];
+        if (!lastRound.endedAt) {
+          // Reconstruct round payload if possible, or wait for next event
+          // For now we just show waiting if we don't have full round data
+        }
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to load room');
+    } finally {
+      setLoading(false);
+    }
+  }, [roomId]);
 
   useEffect(() => {
-    socket.emit?.('joinGameRoom', room._id);
-    const handlePlayerJoined = ({ players }) => setRoom(r => ({ ...r, players }));
-    const handleGameStarted = ({ room: r, round: rd }) => { setRoom(r); setRound(rd); };
+    fetchRoom();
+  }, [fetchRoom]);
+
+  useEffect(() => {
+    if (!room?._id) return;
+
+    socket.emit('joinGameRoom', room._id);
+
+    const handlePlayerJoined = ({ players }) => {
+      setRoom(r => r ? { ...r, players } : null);
+    };
+
+    const handleGameStarted = ({ room: r, round: rd }) => {
+      setRoom(r);
+      setRound(rd);
+      setResult(null);
+      setGameOver(null);
+    };
+
     const handleGuessResult = ({ roundResult, nextRound, gameOver: go }) => {
-      if (roundResult) setResult(roundResult);
-      if (go) setGameOver(go);
-      else if (nextRound) setTimeout(() => { setRound(nextRound); setResult(null); setGuess(''); }, 3000);
+      if (roundResult) {
+        setResult(roundResult);
+        setGuess('');
+      }
+      if (go) {
+        setGameOver(go);
+      } else if (nextRound) {
+        setTimeout(() => {
+          setRound(nextRound);
+          setResult(null);
+          setGuess('');
+        }, 3000);
+      }
     };
-    socket.on?.('playerJoined', handlePlayerJoined);
-    socket.on?.('gameStarted', handleGameStarted);
-    socket.on?.('guessResult', handleGuessResult);
+
+    socket.on('playerJoined', handlePlayerJoined);
+    socket.on('gameStarted', handleGameStarted);
+    socket.on('guessResult', handleGuessResult);
+
     return () => {
-      socket.emit?.('leaveGameRoom', room._id);
-      socket.off?.('playerJoined', handlePlayerJoined);
-      socket.off?.('gameStarted', handleGameStarted);
-      socket.off?.('guessResult', handleGuessResult);
+      socket.emit('leaveGameRoom', room._id);
+      socket.off('playerJoined', handlePlayerJoined);
+      socket.off('gameStarted', handleGameStarted);
+      socket.off('guessResult', handleGuessResult);
     };
-  }, [room._id]);
+  }, [room?._id]);
 
   const handleStart = async () => {
     setStarting(true);
     try {
       const data = await API.startGame(room._id);
+      // Room state will be updated via socket, but we set it here too for speed
       setRoom(data.room);
       setRound(data.round);
-    } catch (err) { alert(err.message || 'Failed to start'); }
-    finally { setStarting(false); }
+    } catch (err) {
+      alert(err.message || 'Failed to start');
+    } finally {
+      setStarting(false);
+    }
   };
 
   const handleGuess = async (e) => {
@@ -298,27 +356,58 @@ function RoomLobby({ room: initialRoom, currentUser, onClose }) {
     setSubmitting(true);
     try {
       const data = await API.submitGameGuess(room._id, guess.trim());
-      if (data.roundResult) setResult(data.roundResult);
-      if (data.gameOver) setGameOver(data.gameOver);
-      else if (!data.roundResult) setGuess('');
-    } catch (err) { alert(err.message || 'Guess failed'); }
-    finally { setSubmitting(false); }
+      // Most of the state update happens via socket guessResult
+      if (!data.roundResult && !data.gameOver) {
+         setGuess('');
+      }
+    } catch (err) {
+      alert(err.message || 'Guess failed');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const copyCode = () => {
+    if (!room) return;
     navigator.clipboard?.writeText(room.inviteCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-discord-bg z-[100] flex items-center justify-center">
+        <div className="text-discord-brand animate-spin"><FiRefreshCw size={32} /></div>
+      </div>
+    );
+  }
+
+  if (error || !room) {
+    return (
+      <div className="fixed inset-0 bg-discord-bg z-[100] flex flex-col items-center justify-center p-6 text-center">
+        <div className="text-4xl mb-4">⚠️</div>
+        <h2 className="text-xl font-bold text-discord-text mb-2">Room Not Found</h2>
+        <p className="text-discord-muted mb-6">{error || 'This game room no longer exists or you do not have access.'}</p>
+        <button onClick={onClose} className="discord-btn px-6 py-2.5 rounded-xl font-bold">Back to Games</button>
+      </div>
+    );
+  }
+
+  const isHost = room.players?.[0]?.userId === myId;
+  const canStart = isHost && room.players?.length >= 2 && room.status === 'waiting';
   const gameIcon = room.gameType === 'word_sprint' ? '🔤' : '🎭';
 
   return (
     <div className="fixed inset-0 bg-discord-bg z-[100] flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-discord-hover flex-shrink-0">
-        <button onClick={onClose} className="text-discord-muted hover:text-discord-text text-sm font-semibold">← Back</button>
-        <span className="font-bold text-discord-text flex items-center gap-1"><TwemojiImg emoji={gameIcon} size={18} /> {room.gameType === 'word_sprint' ? 'Word Sprint' : 'Emoji Trivia'}</span>
-        <button onClick={copyCode} className="flex items-center gap-1 text-xs font-mono font-bold text-discord-brand">
+        <button onClick={onClose} className="flex items-center gap-1.5 text-discord-muted hover:text-discord-text text-sm font-semibold transition-colors">
+          <FiArrowLeft size={16} /> Back
+        </button>
+        <span className="font-bold text-discord-text flex items-center gap-1.5">
+          <TwemojiImg emoji={gameIcon} size={18} /> 
+          {room.gameType === 'word_sprint' ? 'Word Sprint' : 'Emoji Trivia'}
+        </span>
+        <button onClick={copyCode} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-discord-brand/10 text-discord-brand text-xs font-mono font-bold border border-discord-brand/20">
           {copied ? <FiCheck size={12} /> : <FiCopy size={12} />} {room.inviteCode}
         </button>
       </div>
@@ -326,95 +415,140 @@ function RoomLobby({ room: initialRoom, currentUser, onClose }) {
       <div className="flex-1 overflow-y-auto px-4 py-6 max-w-lg mx-auto w-full">
         {gameOver ? (
           <div className="text-center py-8">
-            <div className="flex justify-center mb-4"><TwemojiImg emoji="🏆" size={64} /></div>
-            <h2 className="text-2xl font-bold text-discord-text mb-2">Game Over!</h2>
-            <p className="text-discord-muted mb-6">Winner: <span className="text-discord-brand font-bold">@{gameOver.winner?.username}</span></p>
-            <div className="space-y-2">
-              {gameOver.players?.map((p, i) => (
-                <div key={p.username} className="flex items-center gap-3 bg-discord-hover rounded-xl px-4 py-3">
-                  <span className="text-lg font-bold text-discord-muted w-6">{i + 1}</span>
-                  <span className="flex-1 font-semibold text-discord-text">@{p.username}</span>
-                  <span className="font-bold text-discord-brand">{p.score} pts</span>
+            <div className="flex justify-center mb-4 scale-125"><TwemojiImg emoji="🏆" size={64} /></div>
+            <h2 className="text-3xl font-black text-discord-text mb-1">Game Over!</h2>
+            <p className="text-discord-muted mb-8 text-lg">Winner: <span className="text-discord-brand font-bold">@{gameOver.winner?.username}</span></p>
+            <div className="space-y-2 mb-8">
+              {gameOver.players?.sort((a,b) => b.score - a.score).map((p, i) => (
+                <div key={p.username} className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${p.userId === myId ? 'bg-discord-brand/10 border-discord-brand/30' : 'bg-discord-hover/50 border-discord-hover'}`}>
+                  <span className={`text-lg font-bold w-6 ${i === 0 ? 'text-yellow-400' : 'text-discord-muted'}`}>{i + 1}</span>
+                  <span className="flex-1 font-bold text-discord-text text-left">@{p.username}</span>
+                  <span className="font-black text-discord-brand">{p.score} pts</span>
                 </div>
               ))}
             </div>
-            <button onClick={onClose} className="mt-6 discord-btn px-6 py-2.5 rounded-xl font-semibold">Back to Games</button>
+            <button onClick={onClose} className="discord-btn w-full py-3.5 rounded-2xl font-bold text-lg shadow-lg">Back to Games</button>
           </div>
         ) : result ? (
           <div className="text-center py-8">
-            <div className="flex justify-center mb-3"><TwemojiImg emoji={result.winnerId ? '✅' : '⏱️'} size={52} /></div>
-            <h3 className="text-lg font-bold text-discord-text mb-1">Round {result.roundNumber} Result</h3>
-            <p className="text-discord-muted mb-2">Answer: <span className="font-bold text-discord-text">{result.answer}</span></p>
+            <div className="flex justify-center mb-4"><TwemojiImg emoji={result.winnerId ? '✨' : '⏱️'} size={64} /></div>
+            <h3 className="text-2xl font-black text-discord-text mb-1">Round {result.roundNumber} Result</h3>
+            <p className="text-discord-muted text-lg mb-6">The answer was: <span className="text-discord-text font-bold uppercase tracking-wider">{result.answer}</span></p>
             <div className="space-y-2 mt-4">
-              {result.players?.map(p => (
-                <div key={p.username} className="flex items-center justify-between bg-discord-hover rounded-xl px-4 py-2.5">
-                  <span className="font-semibold text-discord-text">@{p.username}</span>
+              {result.players?.sort((a,b) => b.score - a.score).map(p => (
+                <div key={p.username} className={`flex items-center justify-between rounded-xl px-4 py-3 border ${p.userId === result.winnerId ? 'bg-discord-green/10 border-discord-green/30' : 'bg-discord-hover/50 border-discord-hover'}`}>
                   <div className="flex items-center gap-2">
+                    <span className="font-bold text-discord-text">@{p.username}</span>
+                    {p.userId === result.winnerId && <span className="bg-discord-green text-white text-[10px] px-1.5 py-0.5 rounded font-black uppercase">Fastest</span>}
+                  </div>
+                  <div className="flex items-center gap-3">
                     {p.isCorrect && <span className="text-discord-green text-xs font-bold">✓ Correct</span>}
-                    <span className="font-bold text-discord-brand">{p.score}</span>
+                    <span className="font-black text-discord-brand">{p.score}</span>
                   </div>
                 </div>
               ))}
             </div>
-            <p className="text-discord-muted text-sm mt-4 animate-pulse">Next round starting...</p>
+            <div className="mt-8 flex flex-col items-center">
+              <div className="w-12 h-1 bg-discord-hover rounded-full overflow-hidden mb-2">
+                 <div className="h-full bg-discord-brand animate-[loading_3s_linear]" />
+              </div>
+              <p className="text-discord-muted text-sm font-semibold">Next round starting soon...</p>
+            </div>
           </div>
         ) : round ? (
           <div className="text-center">
-            <div className="mb-2 text-discord-muted text-sm">Round {round.roundNumber}</div>
-            <div className="bg-discord-hover rounded-2xl p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <span className="bg-discord-hover text-discord-text px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Round {round.roundNumber} / {room.totalRounds}</span>
+              <div className="flex items-center gap-1.5 text-discord-muted font-bold text-sm">
+                <FiRefreshCw size={14} className="animate-spin" /> Live
+              </div>
+            </div>
+            <div className="bg-discord-hover/50 border border-discord-hover rounded-3xl p-8 mb-8 shadow-inner">
               {room.gameType === 'emoji_trivia' ? (
-                <div className="mb-3 flex justify-center gap-2 flex-wrap">
-                  {round.emojis?.map((e, i) => <TwemojiImg key={i} emoji={e} size={56} />)}
+                <div className="flex justify-center gap-3 flex-wrap">
+                  {round.emojis?.map((e, i) => <TwemojiImg key={i} emoji={e} size={64} className="drop-shadow-lg transition-transform hover:scale-110" />)}
                 </div>
               ) : (
-                <p className="text-discord-text font-semibold text-base leading-relaxed">{round.prompt}</p>
+                <div className="space-y-4">
+                  <p className="text-discord-text font-bold text-xl leading-relaxed">{round.prompt}</p>
+                  <div className="flex justify-center gap-1">
+                    {[...Array(round.wordLength)].map((_, i) => (
+                      <div key={i} className="w-8 h-10 border-b-4 border-discord-brand/40 bg-discord-brand/5 flex items-center justify-center text-xl font-black text-discord-text">
+                        {i === 0 ? round.startLetter : ''}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
-            <form onSubmit={handleGuess} className="flex gap-2">
+            <form onSubmit={handleGuess} className="flex gap-2 p-1.5 bg-discord-hover rounded-2xl border border-discord-hover focus-within:border-discord-brand/50 transition-all">
               <input
                 type="text"
                 value={guess}
                 onChange={e => setGuess(e.target.value)}
-                placeholder={room.gameType === 'emoji_trivia' ? 'What does it mean?' : 'Your word...'}
-                className="discord-input flex-1"
+                placeholder={room.gameType === 'emoji_trivia' ? 'Type your guess...' : 'Type the word...'}
+                className="bg-transparent border-none text-discord-text px-4 py-3 flex-1 focus:ring-0 font-semibold placeholder:text-discord-muted/50"
                 autoFocus
                 disabled={submitting}
               />
-              <button type="submit" disabled={!guess.trim() || submitting} className="discord-btn px-4 rounded-xl disabled:opacity-50">
-                <FiPlay size={16} />
+              <button type="submit" disabled={!guess.trim() || submitting} className="bg-discord-brand text-white p-3 rounded-xl disabled:opacity-50 hover:bg-discord-brand/90 transition-all shadow-md active:scale-90">
+                <FiPlay size={20} />
               </button>
             </form>
+            <p className="mt-4 text-[11px] text-discord-muted font-bold uppercase tracking-widest">Type fast to earn extra points!</p>
           </div>
         ) : (
           <div>
-            <div className="text-center mb-6">
-              <div className="flex justify-center mb-3"><TwemojiImg emoji="🎮" size={52} /></div>
-              <h2 className="text-xl font-bold text-discord-text">Waiting for players</h2>
-              <p className="text-discord-muted text-sm mt-1">Share the code <span className="font-mono font-bold text-discord-brand">{room.inviteCode}</span> to invite friends</p>
+            <div className="text-center mb-8">
+              <div className="flex justify-center mb-4 scale-125"><TwemojiImg emoji="🎮" size={64} /></div>
+              <h2 className="text-2xl font-black text-discord-text">Waiting Area</h2>
+              <p className="text-discord-muted text-sm mt-1 max-w-[250px] mx-auto leading-relaxed">Share the invite code with your squad to start the battle!</p>
             </div>
-            <div className="space-y-2 mb-6">
-              {room.players?.map((p, i) => (
-                <div key={p.userId || i} className="flex items-center gap-3 bg-discord-hover rounded-xl px-4 py-3">
-                  <div className="w-8 h-8 rounded-full bg-discord-brand/20 flex items-center justify-center text-discord-brand font-bold text-sm">
-                    {(p.username || '?')[0].toUpperCase()}
+            
+            <div className="bg-discord-hover/30 border border-discord-hover rounded-2xl overflow-hidden mb-8">
+              <div className="px-4 py-2 bg-discord-hover/50 border-b border-discord-hover flex justify-between items-center">
+                <span className="text-[10px] font-black text-discord-muted uppercase tracking-wider">Players ({room.players?.length || 0})</span>
+                <span className="text-[10px] font-black text-discord-brand uppercase tracking-wider">{room.maxPlayers - (room.players?.length || 0)} slots left</span>
+              </div>
+              <div className="divide-y divide-discord-hover">
+                {room.players?.map((p, i) => (
+                  <div key={p.userId || i} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-discord-hover/20">
+                    <div className="w-9 h-9 rounded-full bg-discord-brand/20 flex items-center justify-center text-discord-brand font-black text-sm border-2 border-discord-brand/10">
+                      {(p.username || '?')[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-discord-text text-sm">@{p.username}</p>
+                      <p className="text-[10px] text-discord-muted font-semibold">{i === 0 ? 'Room Leader' : 'Challenger'}</p>
+                    </div>
+                    {i === 0 ? (
+                      <span className="bg-discord-brand text-white text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase">Host</span>
+                    ) : p.userId === myId ? (
+                      <span className="bg-discord-muted text-white text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase">You</span>
+                    ) : null}
                   </div>
-                  <span className="flex-1 font-semibold text-discord-text">@{p.username}</span>
-                  {i === 0 && <span className="text-discord-brand text-xs font-bold">Host</span>}
-                </div>
-              ))}
-              {room.players?.length < 2 && (
-                <div className="border-2 border-dashed border-discord-hover rounded-xl px-4 py-3 text-center text-discord-muted text-sm">
-                  Waiting for at least 1 more player...
-                </div>
-              )}
+                ))}
+                {room.players?.length < 2 && (
+                  <div className="px-4 py-6 text-center">
+                    <p className="text-discord-muted text-xs font-semibold animate-pulse italic">Waiting for at least 1 more challenger...</p>
+                  </div>
+                )}
+              </div>
             </div>
-            {canStart && (
-              <button onClick={handleStart} disabled={starting} className="discord-btn w-full py-3 rounded-xl font-bold text-base disabled:opacity-60">
-                {starting ? 'Starting...' : <span className="flex items-center justify-center gap-1.5"><TwemojiImg emoji="🎮" size={18} /> Start Game</span>}
+
+            {canStart ? (
+              <button onClick={handleStart} disabled={starting} className="discord-btn w-full py-4 rounded-2xl font-black text-lg shadow-xl shadow-discord-brand/20 hover:shadow-discord-brand/40 active:scale-95 transition-all">
+                {starting ? 'Initializing...' : <span className="flex items-center justify-center gap-2"><TwemojiImg emoji="🚀" size={20} /> Launch Game</span>}
               </button>
-            )}
-            {!isHost && (
-              <p className="text-center text-discord-muted text-sm">Waiting for the host to start the game...</p>
+            ) : isHost ? (
+               <div className="p-4 bg-discord-brand/10 border border-discord-brand/20 rounded-2xl text-center">
+                 <p className="text-discord-brand text-xs font-bold uppercase tracking-wider">Need at least 2 players to start</p>
+               </div>
+            ) : (
+              <div className="text-center p-4 bg-discord-hover/50 rounded-2xl border border-discord-hover">
+                <FiRefreshCw size={20} className="mx-auto text-discord-brand animate-spin mb-2" />
+                <p className="text-discord-text text-sm font-bold">Waiting for host to start...</p>
+                <p className="text-discord-muted text-[11px] mt-1 font-semibold uppercase tracking-widest">Get ready!</p>
+              </div>
             )}
           </div>
         )}
@@ -424,14 +558,15 @@ function RoomLobby({ room: initialRoom, currentUser, onClose }) {
 }
 
 export default function Games({ currentUser, unreadCounts }) {
+  const { mode, inviteCode, roomId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [tab, setTab] = useState('play');
   const [myRooms, setMyRooms] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [myStats, setMyStats] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
-  const [showJoin, setShowJoin] = useState(false);
-  const [activeRoom, setActiveRoom] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const myId = currentUser?._id || currentUser?.id;
@@ -459,31 +594,30 @@ export default function Games({ currentUser, unreadCounts }) {
   useEffect(() => {
     if (tab === 'play') loadPlayData();
     else if (tab === 'leaderboard') loadLeaderboard();
-  }, [tab]);
+  }, [tab, loadPlayData, loadLeaderboard]);
 
-  if (activeRoom) {
+  // Handle path segments if we are using the new nested routes
+  const isCreate = location.pathname === '/game/create';
+  const isJoin = location.pathname.startsWith('/game/join');
+  const isRoom = location.pathname.startsWith('/game/room');
+
+  if (isRoom && roomId) {
     return (
       <RoomLobby
-        room={activeRoom}
+        roomId={roomId}
         currentUser={currentUser}
-        onClose={() => { setActiveRoom(null); loadPlayData(); }}
+        onClose={() => { navigate('/game', { replace: true }); loadPlayData(); }}
       />
     );
   }
 
   return (
     <Layout currentUser={currentUser} unreadCounts={unreadCounts} contentClass="overflow-y-auto scrollable mobile-content-pad">
-      {showCreate && (
-        <CreateGameModal
-          onClose={() => setShowCreate(false)}
-          onCreate={(room) => { setMyRooms(prev => [room, ...prev]); setActiveRoom(room); }}
-        />
+      {isCreate && (
+        <CreateGameModal onClose={() => navigate('/game', { replace: true })} />
       )}
-      {showJoin && (
-        <JoinModal
-          onClose={() => setShowJoin(false)}
-          onJoin={(room) => setActiveRoom(room)}
-        />
+      {isJoin && (
+        <JoinModal inviteCode={inviteCode} onClose={() => navigate('/game', { replace: true })} />
       )}
 
       <div className="sticky top-0 z-10 bg-discord-bg/95 backdrop-blur border-b border-discord-hover">
@@ -513,11 +647,11 @@ export default function Games({ currentUser, unreadCounts }) {
         {tab === 'play' && (
           <>
             <div className="grid grid-cols-2 gap-3 mb-6">
-              <button onClick={() => setShowCreate(true)}
+              <button onClick={() => navigate('/game/create')}
                 className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-discord-brand text-white font-bold shadow-lg hover:bg-discord-brand/90 active:scale-95 transition-all">
                 <FiPlus size={18} /> Create Game
               </button>
-              <button onClick={() => setShowJoin(true)}
+              <button onClick={() => navigate('/game/join')}
                 className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-discord-brand text-discord-brand font-bold hover:bg-discord-brand/10 active:scale-95 transition-all">
                 <FiHash size={18} /> Join with Code
               </button>
@@ -563,7 +697,7 @@ export default function Games({ currentUser, unreadCounts }) {
                 <p className="text-discord-muted text-xs font-bold uppercase tracking-wider mb-3">My Rooms</p>
                 <div className="space-y-3">
                   {myRooms.map(room => (
-                    <RoomCard key={room._id} room={room} currentUserId={myId} onEnter={setActiveRoom} />
+                    <RoomCard key={room._id} room={room} currentUserId={myId} />
                   ))}
                 </div>
               </>
@@ -586,9 +720,9 @@ export default function Games({ currentUser, unreadCounts }) {
                 <span className="w-8 flex items-center justify-center">
                   {i < 3 ? <TwemojiImg emoji={i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} size={24} /> : <span className="font-black text-discord-muted">{i + 1}</span>}
                 </span>
-                <div className="w-9 h-9 rounded-full bg-discord-brand/20 flex items-center justify-center font-bold text-sm text-discord-brand flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-discord-brand/20 flex items-center justify-center font-bold text-sm text-discord-brand flex-shrink-0 overflow-hidden border-2 border-discord-brand/10">
                   {entry.profilePicture
-                    ? <img src={API.getAvatarUrl(entry.profilePicture, 72)} className="w-9 h-9 rounded-full object-cover" alt={entry.username} />
+                    ? <img src={API.getAvatarUrl(entry.profilePicture, 72)} className="w-full h-full object-cover" alt={entry.username} />
                     : (entry.name || entry.username)[0].toUpperCase()
                   }
                 </div>
@@ -598,7 +732,7 @@ export default function Games({ currentUser, unreadCounts }) {
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-discord-brand text-sm">{entry.gameStats?.wordSprintWins + entry.gameStats?.emojiTriviaWins || 0}</p>
-                  <p className="text-discord-muted text-[11px]">wins</p>
+                  <p className="text-discord-muted text-[11px] font-bold uppercase">wins</p>
                 </div>
               </div>
             ))}
@@ -610,3 +744,4 @@ export default function Games({ currentUser, unreadCounts }) {
     </Layout>
   );
 }
+

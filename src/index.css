@@ -1241,10 +1241,15 @@ select.discord-input {
   50% { opacity: 0.5; }
 }
 
+@keyframes loading {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
 .skeleton-pulse {
   animation: skeletonPulse 1.5s ease-in-out infinite;
 }
-
+}
 /* Glow text for brand moments */
 .text-glow {
   text-shadow: 0 0 20px rgba(88,101,242,0.6), 0 0 40px rgba(88,101,242,0.3);

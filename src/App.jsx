@@ -268,7 +268,10 @@ function AppInner() {
           <Route path="/settings" element={<ProtectedRoute token={token}><Settings {...sharedProps} /></ProtectedRoute>} />
           <Route path="/vx-admin" element={<ProtectedRoute token={token}><AdminPanel {...sharedProps} /></ProtectedRoute>} />
           <Route path="/mod-bot" element={<ProtectedRoute token={token}><ModeratorBot {...sharedProps} /></ProtectedRoute>} />
-          <Route path="/games" element={<ProtectedRoute token={token}><Games {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/game" element={<ProtectedRoute token={token}><Games {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/game/create" element={<ProtectedRoute token={token}><Games {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/game/join/:inviteCode" element={<ProtectedRoute token={token}><Games {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/game/room/:roomId" element={<ProtectedRoute token={token}><Games {...sharedProps} /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
