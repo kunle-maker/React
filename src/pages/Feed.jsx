@@ -33,14 +33,17 @@ export default function Feed({ currentUser, unreadCounts }) {
   const [storyViewerGroupIdx, setStoryViewerGroupIdx] = useState(0);
   const storiesBarRef = useRef(null);
 
+  const [usingFallback, setUsingFallback] = useState(false);
+
   const fetchPosts = useCallback(async (pg = 1, resetPosts = false) => {
     try {
       setLoading(pg === 1);
       let result;
       if (tab === 'foryou') {
-        result = await API.getPosts(pg, 15);
+        result = await API.getRecommendedFeed(pg, 15);
       } else {
         result = await API.getFollowingFeed(pg, 10);
+        setUsingFallback(result?.usingFallback ?? false);
       }
       const newPosts = result?.posts || (Array.isArray(result) ? result : []);
       setPosts(prev => resetPosts ? newPosts : [...prev, ...newPosts]);
@@ -53,6 +56,7 @@ export default function Feed({ currentUser, unreadCounts }) {
     setPosts([]);
     setPage(1);
     setHasMore(true);
+    setUsingFallback(false);
     fetchPosts(1, true);
   }, [tab]);
 
@@ -142,6 +146,13 @@ export default function Feed({ currentUser, unreadCounts }) {
         />
 
         <CreatePost currentUser={currentUser} onPost={p => setPosts(prev => [p, ...prev])} />
+
+        {usingFallback && tab === 'following' && (
+          <div className="mx-4 my-2 px-4 py-2.5 rounded-xl bg-brand-primary/10 border border-brand-primary/20 text-xs text-discord-muted flex items-center gap-2">
+            <span>👥</span>
+            <span>Follow people to see their posts here. Showing popular posts for now.</span>
+          </div>
+        )}
 
         {loading && posts.length === 0 ? (
           <div className="space-y-0">

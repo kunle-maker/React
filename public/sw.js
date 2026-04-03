@@ -39,6 +39,18 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  if (request.method === 'POST' && url.pathname === '/' && url.searchParams.has('share-target')) {
+    event.respondWith((async () => {
+      const formData = await request.formData();
+      const title = formData.get('title') || '';
+      const text = formData.get('text') || '';
+      const shareUrl = formData.get('url') || '';
+      const redirectUrl = `/#/create?title=${encodeURIComponent(title)}&text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
+      return Response.redirect(redirectUrl, 303);
+    })());
+    return;
+  }
+
   if (request.method !== 'GET') return;
   if (url.pathname.startsWith('/api/') || url.hostname === 'vesselx.onrender.com') {
     event.respondWith(
@@ -270,19 +282,6 @@ self.addEventListener('message', (event) => {
   }
 });
 
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  if (event.request.method === 'POST' && url.pathname === '/' && url.searchParams.has('share-target')) {
-    event.respondWith((async () => {
-      const formData = await event.request.formData();
-      const title = formData.get('title') || '';
-      const text = formData.get('text') || '';
-      const shareUrl = formData.get('url') || '';
-      const redirectUrl = `/#/create?title=${encodeURIComponent(title)}&text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
-      return Response.redirect(redirectUrl, 303);
-    })());
-  }
-});
 
 function openDB() {
   return new Promise((resolve, reject) => {
