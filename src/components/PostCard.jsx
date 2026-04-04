@@ -13,26 +13,30 @@ import { playVideo, pauseVideo } from '../utils/videoPlayer';
 import { parseEmojisToHtml } from '../utils/emoji';
 
 function TwemojiIcon({ emoji, size = '1.4em', className = '' }) {
-  const cp = [...emoji].map(c => c.codePointAt(0).toString(16)).filter(x => x !== 'fe0f').join('-');
-  return (
-    <img 
-      src={`https://twemoji.maxcdn.com/v/latest/svg/${cp}.svg`} 
-      alt={emoji} 
-      style={{ width: size, height: size }}
-      className={`select-none object-contain inline-block ${className}`}
-    />
-  );
+  if (!emoji || typeof emoji !== 'string') return null;
+  try {
+    const cp = [...emoji].map(c => c.codePointAt(0).toString(16)).filter(x => x !== 'fe0f').join('-');
+    return (
+      <img 
+        src={`https://twemoji.maxcdn.com/v/latest/svg/${cp}.svg`} 
+        alt={emoji} 
+        style={{ width: size, height: size }}
+        className={`select-none object-contain inline-block ${className}`}
+      />
+    );
+  } catch (e) { return null; }
 }
 
 const REACTIONS = ['❤️', '🔥', '😂', '😮', '😢', '👍'];
 
 export default function PostCard({ post, currentUser, onDelete, onUpdate, onClickMedia }) {
+  if (!post) return null;
   const navigate = useNavigate();
   const [liked, setLiked] = useState(() => {
     if (post.isLiked !== undefined) return post.isLiked;
     if (currentUser && post.likes) {
       const myId = currentUser._id || currentUser.id;
-      return post.likes.some(l => l === myId || l._id === myId);
+      return Array.isArray(post.likes) && post.likes.some(l => (l?._id || l) === myId);
     }
     return false;
   });
@@ -56,8 +60,9 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
   const videoRef = useRef(null);
   const controlTimer = useRef(null);
 
-  const author = post.userId || { username: post.username, profilePicture: post.userProfilePicture };
-  const isOwn = currentUser && (author._id === currentUser._id || author.username === currentUser.username || post.username === currentUser.username);
+  const author = post.userId || { username: post.username || 'user', profilePicture: post.userProfilePicture };
+  const username = author.username || post.username || 'user';
+  const isOwn = currentUser && (author?._id === currentUser?._id || username === currentUser?.username);
 
   useEffect(() => {
     const el = videoRef.current;
