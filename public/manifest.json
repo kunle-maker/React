@@ -30,6 +30,10 @@
 
   "related_applications": [
     {
+      "platform": "webapp",
+      "url": "https://vesselx.onrender.com/manifest.json"
+    },
+    {
       "platform": "play",
       "url": "https://play.google.com/store/apps/details?id=io.qzz.vesselx.twa",
       "id": "io.qzz.vesselx.twa"
