@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiHeart, FiMessageCircle, FiShare2, FiBookmark, FiMoreHorizontal, FiTrash2, FiCopy, FiExternalLink, FiSend, FiX, FiFlag, FiVolumeX, FiVolume2 } from 'react-icons/fi';
+import { FiHeart, FiMessageCircle, FiShare2, FiBookmark, FiMoreHorizontal, FiTrash2, FiCopy, FiExternalLink, FiSend, FiX, FiFlag, FiVolumeX, FiVolume2, FiDownload } from 'react-icons/fi';
 import { HiHeart } from 'react-icons/hi';
 import { FaWhatsapp, FaFacebook, FaSnapchatGhost, FaTelegramPlane, FaSms } from 'react-icons/fa';
 import { formatDistanceToNow } from 'date-fns';
@@ -51,6 +51,10 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
   const [interactedUsers, setInteractedUsers] = useState([]);
   const [showReport, setShowReport] = useState(false);
 
+  const media = post.media || [];
+  const [mediaIndex, setMediaIndex] = useState(0);
+  const currentMedia = media[mediaIndex];
+
   useEffect(() => {
     if (showShareSheet && interactedUsers.length === 0) {
       API.getConversations()
@@ -77,7 +81,58 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
       toast.error('Failed to send message');
     }
   };
-  const [mediaIndex, setMediaIndex] = useState(0);
+
+  const shareText = `Check out this post on Vesselx! ${window.location.origin}/#/post/${post._id}`;
+  const postUrl = `${window.location.origin}/#/post/${post._id}`;
+
+  const handleSocialShare = (platform) => {
+    let url = '';
+    switch (platform) {
+      case 'whatsapp':
+        url = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+        break;
+      case 'facebook':
+        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}`;
+        break;
+      case 'telegram':
+        url = `https://t.me/share/url?url=${encodeURIComponent(postUrl)}&text=${encodeURIComponent('Check out this post on Vesselx!')}`;
+        break;
+      case 'sms':
+        url = `sms:?body=${encodeURIComponent(shareText)}`;
+        break;
+      default:
+        break;
+    }
+    if (url) {
+      window.open(url, '_blank');
+      setShowShareSheet(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!currentMedia) return;
+    try {
+      toast.info('Starting download...');
+      const mediaUrl = API.getMediaUrl(currentMedia.url);
+      const response = await fetch(mediaUrl);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      const extension = currentMedia.type === 'video' ? 'mp4' : 'jpg';
+      a.download = `vesselx_${post._id}_${Date.now()}.${extension}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success('Downloaded successfully');
+      setShowMenu(false);
+    } catch (err) {
+      console.error('Download error:', err);
+      toast.error('Download failed');
+    }
+  };
+
   const [burst, setBurst] = useState(null);
   const [lastTap, setLastTap] = useState(0);
 
@@ -168,8 +223,6 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
     }
   };
 
-  const media = post.media || [];
-  const currentMedia = media[mediaIndex];
   const timeAgo = post.createdAt ? formatDistanceToNow(new Date(post.createdAt), { addSuffix: true }) : '';
   const hashtags = post.hashtags || (post.caption?.match(/#[a-z0-9_]+/gi) || []).map(t => t.slice(1));
 
@@ -335,24 +388,29 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
 
       {showMenu && (
         <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end justify-center animate-fade-in" onClick={() => setShowMenu(false)}>
-           <div className="w-full max-w-lg bg-discord-sidebar rounded-t-3xl p-4 space-y-2 animate-slide-up" onClick={e => e.stopPropagation()}>
-              <div className="w-12 h-1 bg-discord-hover rounded-full mx-auto mb-6" />
-              <button onClick={() => { navigate(`/post/${post._id}`); setShowMenu(false); }} className="w-full py-3 text-left px-4 text-discord-text font-bold hover:bg-discord-hover rounded-2xl flex items-center gap-4">
-                 <FiExternalLink size={18} /> Open post
+           <div className="w-full max-w-sm bg-discord-sidebar rounded-t-3xl p-3 space-y-1.5 animate-slide-up" onClick={e => e.stopPropagation()}>
+              <div className="w-10 h-1 bg-discord-hover rounded-full mx-auto mb-4" />
+              <button onClick={() => { navigate(`/post/${post._id}`); setShowMenu(false); }} className="w-full py-2.5 text-left px-4 text-discord-text text-sm font-bold hover:bg-discord-hover rounded-xl flex items-center gap-3">
+                 <FiExternalLink size={16} /> Open post
               </button>
-              <button onClick={() => { navigator.clipboard.writeText(window.location.origin + '/#/post/' + post._id); setShowMenu(false); }} className="w-full py-3 text-left px-4 text-discord-text font-bold hover:bg-discord-hover rounded-2xl flex items-center gap-4">
-                 <FiCopy size={18} /> Copy link
+              <button onClick={() => { navigator.clipboard.writeText(window.location.origin + '/#/post/' + post._id); setShowMenu(false); toast.success('Link copied!'); }} className="w-full py-2.5 text-left px-4 text-discord-text text-sm font-bold hover:bg-discord-hover rounded-xl flex items-center gap-3">
+                 <FiCopy size={16} /> Copy link
               </button>
-              {isOwn ? (
-                <button onClick={handleDelete} className="w-full py-3 text-left px-4 text-red-400 font-bold hover:bg-red-400/10 rounded-2xl flex items-center gap-4">
-                  <FiTrash2 size={18} /> Delete post
-                </button>
-              ) : (
-                <button onClick={() => { setShowReport(true); setShowMenu(false); }} className="w-full py-3 text-left px-4 text-orange-400 font-bold hover:bg-orange-400/10 rounded-2xl flex items-center gap-4">
-                  <FiFlag size={18} /> Report post
+              {currentMedia && (
+                <button onClick={handleDownload} className="w-full py-2.5 text-left px-4 text-discord-text text-sm font-bold hover:bg-discord-hover rounded-xl flex items-center gap-3">
+                   <FiDownload size={16} /> Download {currentMedia.type === 'video' ? 'video' : 'image'}
                 </button>
               )}
-              <button onClick={() => setShowMenu(false)} className="w-full py-3 text-center text-discord-muted font-bold pt-4">Cancel</button>
+              {isOwn ? (
+                <button onClick={handleDelete} className="w-full py-2.5 text-left px-4 text-red-400 text-sm font-bold hover:bg-red-400/10 rounded-xl flex items-center gap-3">
+                  <FiTrash2 size={16} /> Delete post
+                </button>
+              ) : (
+                <button onClick={() => { setShowReport(true); setShowMenu(false); }} className="w-full py-2.5 text-left px-4 text-orange-400 text-sm font-bold hover:bg-orange-400/10 rounded-xl flex items-center gap-3">
+                  <FiFlag size={16} /> Report post
+                </button>
+              )}
+              <button onClick={() => setShowMenu(false)} className="w-full py-2.5 text-center text-discord-muted text-sm font-bold mt-2">Cancel</button>
            </div>
         </div>
       )}
@@ -387,13 +445,13 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
                       </div>
                       <span className="text-[10px] text-discord-muted font-bold">Copy Link</span>
                    </div>
-                   <div className="flex flex-col items-center gap-2 cursor-pointer active:scale-90 transition-transform" onClick={() => setShowShareSheet(false)}>
+                   <div className="flex flex-col items-center gap-2 cursor-pointer active:scale-90 transition-transform" onClick={() => handleSocialShare('whatsapp')}>
                       <div className="w-14 h-14 rounded-full bg-[#25D366] flex items-center justify-center text-white">
                          <FaWhatsapp size={28} />
                       </div>
                       <span className="text-[10px] text-discord-muted font-bold">WhatsApp</span>
                    </div>
-                   <div className="flex flex-col items-center gap-2 cursor-pointer active:scale-90 transition-transform" onClick={() => setShowShareSheet(false)}>
+                   <div className="flex flex-col items-center gap-2 cursor-pointer active:scale-90 transition-transform" onClick={() => handleSocialShare('facebook')}>
                       <div className="w-14 h-14 rounded-full bg-[#1877F2] flex items-center justify-center text-white">
                          <FaFacebook size={28} />
                       </div>
@@ -405,13 +463,13 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
                       </div>
                       <span className="text-[10px] text-discord-muted font-bold">Snapchat</span>
                    </div>
-                   <div className="flex flex-col items-center gap-2 cursor-pointer active:scale-90 transition-transform" onClick={() => setShowShareSheet(false)}>
+                   <div className="flex flex-col items-center gap-2 cursor-pointer active:scale-90 transition-transform" onClick={() => handleSocialShare('telegram')}>
                       <div className="w-14 h-14 rounded-full bg-[#0088cc] flex items-center justify-center text-white">
                          <FaTelegramPlane size={28} />
                       </div>
                       <span className="text-[10px] text-discord-muted font-bold">Telegram</span>
                    </div>
-                   <div className="flex flex-col items-center gap-2 cursor-pointer active:scale-90 transition-transform" onClick={() => setShowShareSheet(false)}>
+                   <div className="flex flex-col items-center gap-2 cursor-pointer active:scale-90 transition-transform" onClick={() => handleSocialShare('sms')}>
                       <div className="w-14 h-14 rounded-full bg-green-500 flex items-center justify-center text-white">
                          <FaSms size={28} />
                       </div>
