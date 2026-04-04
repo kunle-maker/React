@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiHeart, FiMessageCircle, FiShare2, FiBookmark, FiMoreHorizontal, FiTrash2, FiCopy, FiExternalLink, FiSend, FiX, FiFlag, FiVolumeX, FiVolume2 } from 'react-icons/fi';
 import { HiHeart } from 'react-icons/hi';
+import { FaWhatsapp, FaFacebook, FaSnapchatGhost, FaTelegramPlane, FaSms } from 'react-icons/fa';
 import { formatDistanceToNow } from 'date-fns';
 import Avatar from './Avatar';
 import FormattedText from './FormattedText';
@@ -11,6 +12,7 @@ import { VerifiedBadge, SupaBadge } from './UserBadge';
 import API from '../utils/api';
 import { playVideo, pauseVideo } from '../utils/videoPlayer';
 import { parseEmojisToHtml } from '../utils/emoji';
+import { toast } from '../utils/toast';
 
 function TwemojiIcon({ emoji, size = '1.4em', className = '' }) {
   if (!emoji || typeof emoji !== 'string') return null;
@@ -45,7 +47,36 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
   const [userReaction, setUserReaction] = useState(post.userReaction || null);
   const [showReactions, setShowReactions] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showShareSheet, setShowShareSheet] = useState(false);
+  const [interactedUsers, setInteractedUsers] = useState([]);
   const [showReport, setShowReport] = useState(false);
+
+  useEffect(() => {
+    if (showShareSheet && interactedUsers.length === 0) {
+      API.getConversations()
+        .then(data => {
+          const users = data.map(conv => conv.user).filter(Boolean);
+          setInteractedUsers(users);
+        })
+        .catch(err => console.error('Failed to fetch interacted users', err));
+    }
+  }, [showShareSheet, interactedUsers.length]);
+
+  const handleSendToUser = async (targetUser) => {
+    try {
+      const link = `${window.location.origin}/#/post/${post._id}`;
+      await API.sendMessage({
+        receiverUsername: targetUser.username,
+        text: `Check out this post: ${link}`,
+        type: 'text'
+      });
+      setShowShareSheet(false);
+      toast.success(`Sent to ${targetUser.username}`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to send message');
+    }
+  };
   const [mediaIndex, setMediaIndex] = useState(0);
   const [burst, setBurst] = useState(null);
   const [lastTap, setLastTap] = useState(0);
@@ -199,13 +230,14 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
                   {muted ? <FiVolumeX size={16} /> : <FiVolume2 size={16} />}
                </div>
             </div>
-            {/* Reels Navigation Trigger */}
+            {/* Reels Navigation Trigger - Commented out as requested
             <button 
               onClick={(e) => { e.stopPropagation(); onClickMedia?.(post, mediaIndex); }}
               className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white active:scale-90 transition-transform"
             >
                <FiSend size={16} className="rotate-[-10deg]" />
             </button>
+            */}
           </>
         ) : (
           <img
@@ -238,7 +270,10 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
           >
             <FiMessageCircle size={26} strokeWidth={2} />
           </button>
-          <button className="text-discord-text hover:text-discord-muted transition-transform active:scale-110">
+          <button 
+            onClick={() => setShowShareSheet(true)}
+            className="text-discord-text hover:text-discord-muted transition-transform active:scale-110"
+          >
             <FiShare2 size={24} strokeWidth={2} />
           </button>
         </div>
@@ -302,22 +337,90 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
         <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end justify-center animate-fade-in" onClick={() => setShowMenu(false)}>
            <div className="w-full max-w-lg bg-discord-sidebar rounded-t-3xl p-4 space-y-2 animate-slide-up" onClick={e => e.stopPropagation()}>
               <div className="w-12 h-1 bg-discord-hover rounded-full mx-auto mb-6" />
-              <button onClick={() => { navigate(`/post/${post._id}`); setShowMenu(false); }} className="w-full py-4 text-left px-6 text-discord-text font-bold hover:bg-discord-hover rounded-2xl flex items-center gap-4">
-                 <FiExternalLink size={20} /> Go to post
+              <button onClick={() => { navigate(`/post/${post._id}`); setShowMenu(false); }} className="w-full py-3 text-left px-4 text-discord-text font-bold hover:bg-discord-hover rounded-2xl flex items-center gap-4">
+                 <FiExternalLink size={18} /> Open post
               </button>
-              <button onClick={() => { navigator.clipboard.writeText(window.location.origin + '/#/post/' + post._id); setShowMenu(false); }} className="w-full py-4 text-left px-6 text-discord-text font-bold hover:bg-discord-hover rounded-2xl flex items-center gap-4">
-                 <FiCopy size={20} /> Copy link
+              <button onClick={() => { navigator.clipboard.writeText(window.location.origin + '/#/post/' + post._id); setShowMenu(false); }} className="w-full py-3 text-left px-4 text-discord-text font-bold hover:bg-discord-hover rounded-2xl flex items-center gap-4">
+                 <FiCopy size={18} /> Copy link
               </button>
               {isOwn ? (
-                <button onClick={handleDelete} className="w-full py-4 text-left px-6 text-red-400 font-bold hover:bg-red-400/10 rounded-2xl flex items-center gap-4">
-                  <FiTrash2 size={20} /> Delete post
+                <button onClick={handleDelete} className="w-full py-3 text-left px-4 text-red-400 font-bold hover:bg-red-400/10 rounded-2xl flex items-center gap-4">
+                  <FiTrash2 size={18} /> Delete post
                 </button>
               ) : (
-                <button onClick={() => { setShowReport(true); setShowMenu(false); }} className="w-full py-4 text-left px-6 text-orange-400 font-bold hover:bg-orange-400/10 rounded-2xl flex items-center gap-4">
-                  <FiFlag size={20} /> Report post
+                <button onClick={() => { setShowReport(true); setShowMenu(false); }} className="w-full py-3 text-left px-4 text-orange-400 font-bold hover:bg-orange-400/10 rounded-2xl flex items-center gap-4">
+                  <FiFlag size={18} /> Report post
                 </button>
               )}
-              <button onClick={() => setShowMenu(false)} className="w-full py-4 text-center text-discord-muted font-bold pt-4">Cancel</button>
+              <button onClick={() => setShowMenu(false)} className="w-full py-3 text-center text-discord-muted font-bold pt-4">Cancel</button>
+           </div>
+        </div>
+      )}
+
+      {showShareSheet && (
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end justify-center animate-fade-in" onClick={() => setShowShareSheet(false)}>
+           <div className="w-full max-w-lg bg-discord-sidebar rounded-t-3xl p-6 space-y-6 animate-slide-up" onClick={e => e.stopPropagation()}>
+              <div className="w-12 h-1 bg-discord-hover rounded-full mx-auto" />
+              
+              <div className="flex flex-col gap-4">
+                 <h3 className="text-discord-text font-black text-lg px-2">Send to</h3>
+                 <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide px-2">
+                    {interactedUsers.length > 0 ? (
+                      interactedUsers.map(user => (
+                        <div key={user._id} className="flex flex-col items-center gap-2 min-w-[70px] cursor-pointer active:scale-95 transition-transform" onClick={() => handleSendToUser(user)}>
+                           <Avatar user={user} size={50} />
+                           <span className="text-[10px] text-discord-muted font-bold truncate w-full text-center">{user.username}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-discord-muted text-xs px-2">No recent interactions</p>
+                    )}
+                 </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-discord-text font-black text-lg px-2">Share via</h3>
+                <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide px-2">
+                   <div className="flex flex-col items-center gap-2 cursor-pointer active:scale-90 transition-transform" onClick={() => { navigator.clipboard.writeText(window.location.origin + '/#/post/' + post._id); setShowShareSheet(false); toast.success('Link copied!'); }}>
+                      <div className="w-14 h-14 rounded-full bg-discord-hover flex items-center justify-center text-discord-text">
+                         <FiCopy size={24} />
+                      </div>
+                      <span className="text-[10px] text-discord-muted font-bold">Copy Link</span>
+                   </div>
+                   <div className="flex flex-col items-center gap-2 cursor-pointer active:scale-90 transition-transform" onClick={() => setShowShareSheet(false)}>
+                      <div className="w-14 h-14 rounded-full bg-[#25D366] flex items-center justify-center text-white">
+                         <FaWhatsapp size={28} />
+                      </div>
+                      <span className="text-[10px] text-discord-muted font-bold">WhatsApp</span>
+                   </div>
+                   <div className="flex flex-col items-center gap-2 cursor-pointer active:scale-90 transition-transform" onClick={() => setShowShareSheet(false)}>
+                      <div className="w-14 h-14 rounded-full bg-[#1877F2] flex items-center justify-center text-white">
+                         <FaFacebook size={28} />
+                      </div>
+                      <span className="text-[10px] text-discord-muted font-bold">Facebook</span>
+                   </div>
+                   <div className="flex flex-col items-center gap-2 cursor-pointer active:scale-90 transition-transform" onClick={() => setShowShareSheet(false)}>
+                      <div className="w-14 h-14 rounded-full bg-[#FFFC00] flex items-center justify-center text-black">
+                         <FaSnapchatGhost size={28} />
+                      </div>
+                      <span className="text-[10px] text-discord-muted font-bold">Snapchat</span>
+                   </div>
+                   <div className="flex flex-col items-center gap-2 cursor-pointer active:scale-90 transition-transform" onClick={() => setShowShareSheet(false)}>
+                      <div className="w-14 h-14 rounded-full bg-[#0088cc] flex items-center justify-center text-white">
+                         <FaTelegramPlane size={28} />
+                      </div>
+                      <span className="text-[10px] text-discord-muted font-bold">Telegram</span>
+                   </div>
+                   <div className="flex flex-col items-center gap-2 cursor-pointer active:scale-90 transition-transform" onClick={() => setShowShareSheet(false)}>
+                      <div className="w-14 h-14 rounded-full bg-green-500 flex items-center justify-center text-white">
+                         <FaSms size={28} />
+                      </div>
+                      <span className="text-[10px] text-discord-muted font-bold">SMS</span>
+                   </div>
+                </div>
+              </div>
+
+              <button onClick={() => setShowShareSheet(false)} className="w-full py-4 text-center text-discord-muted font-bold pt-4 border-t border-discord-hover/30">Cancel</button>
            </div>
         </div>
       )}
