@@ -62,3 +62,9 @@ export function showToast(message, { type = 'info' } = {}) {
     }, 180);
   }, 2800);
 }
+
+export const toast = {
+  success: (msg) => showToast(msg, { type: 'success' }),
+  error: (msg) => showToast(msg, { type: 'error' }),
+  info: (msg) => showToast(msg, { type: 'info' }),
+};
