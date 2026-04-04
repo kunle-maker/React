@@ -1034,40 +1034,53 @@ export default function Messages({ currentUser, unreadCounts }) {
   const items = buildMessageItems();
 
   const ChatArea = activeConv ? (
-    <div className="flex flex-col h-full relative">
+    <div className="flex flex-col h-full relative bg-discord-bg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/6 backdrop-blur-xl bg-discord-bg/80 flex-shrink-0">
-        {isMobile && (
-          <button className="text-discord-muted hover:text-discord-text transition-colors" onClick={() => { setActiveConv(null); navigate('/messages'); }}>
-            <FiArrowLeft size={20} />
-          </button>
-        )}
-        <div
-          className="cursor-pointer flex items-center gap-3 flex-1 min-w-0 group"
-          onClick={() => navigate(`/profile/${activeConv.username}`)}
-        >
-          <Avatar user={activeConv} size={36} showStatus={!activeConv.isSupa} supaRing={true} />
-          <div className="min-w-0">
-            <p className={`text-sm group-hover:underline truncate ${activeConv.isSupa ? 'supa-chat-name' : 'font-bold text-discord-text'}`}>{activeConv.name}</p>
-            <p className={`text-xs font-medium ${activeConv.isOnline ? 'text-discord-green' : 'text-discord-muted'}`}>
-              {activeConv.isOnline ? 'Online' : 'Offline'}
-            </p>
+      <div className="flex items-center justify-between px-4 h-14 border-b border-discord-hover/50 bg-discord-bg/80 backdrop-blur-xl z-20 flex-shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          {isMobile && (
+            <button className="text-discord-muted hover:text-discord-text transition-colors -ml-1 p-1" onClick={() => { setActiveConv(null); navigate('/messages'); }}>
+              <FiArrowLeft size={22} />
+            </button>
+          )}
+          <div
+            className="cursor-pointer flex items-center gap-2.5 min-w-0 group"
+            onClick={() => navigate(`/profile/${activeConv.username}`)}
+          >
+            <div className="relative flex-shrink-0">
+              <Avatar user={activeConv} size={34} showStatus={!activeConv.isSupa} supaRing={true} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className={`text-[15px] font-bold truncate ${activeConv.isSupa ? 'supa-chat-name' : 'text-discord-text'}`}>
+                  {activeConv.name}
+                </span>
+                {activeConv.isVerified && <FiCheckCircle size={12} className="text-discord-brand flex-shrink-0" />}
+              </div>
+              <p className="text-[11px] font-medium leading-none text-discord-muted mt-0.5">
+                {activeConv.isOnline ? (
+                  <span className="flex items-center gap-1 text-discord-green">
+                    <span className="w-1.5 h-1.5 rounded-full bg-discord-green" /> Online
+                  </span>
+                ) : 'Offline'}
+              </p>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button
-            className="w-9 h-9 flex items-center justify-center rounded-xl text-discord-muted hover:text-discord-green hover:bg-discord-green/10 transition-colors"
+            className="w-9 h-9 flex items-center justify-center rounded-full text-discord-muted hover:text-discord-text hover:bg-white/5 transition-all"
             onClick={() => sendCallInvite(false)}
             title="Voice Call"
           >
-            <FiPhone size={17} />
+            <FiPhone size={19} />
           </button>
           <button
-            className="w-9 h-9 flex items-center justify-center rounded-xl text-discord-muted hover:text-discord-green hover:bg-discord-green/10 transition-colors"
+            className="w-9 h-9 flex items-center justify-center rounded-full text-discord-muted hover:text-discord-text hover:bg-white/5 transition-all"
             onClick={() => sendCallInvite(true)}
             title="Video Call"
           >
-            <FiVideo size={17} />
+            <FiVideo size={19} />
           </button>
         </div>
       </div>
@@ -1075,64 +1088,75 @@ export default function Messages({ currentUser, unreadCounts }) {
       {/* Messages */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto px-4 py-4"
+        className="flex-1 overflow-y-auto px-4 py-2 scroll-smooth no-scrollbar"
         onScroll={handleScroll}
+        onClick={() => { if (showEmojiPicker) setShowEmojiPicker(false); }}
       >
         {loading ? (
-          <div className="space-y-4 pt-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className={`flex items-end gap-2 ${i % 3 === 0 ? 'flex-row-reverse' : ''}`}>
-                <div className="skeleton w-8 h-8 rounded-full flex-shrink-0" />
-                <div className={`skeleton h-9 rounded-2xl ${i % 3 === 0 ? 'w-32' : 'w-48'}`} />
+          <div className="space-y-6 pt-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="flex gap-4">
+                <div className="skeleton w-10 h-10 rounded-full flex-shrink-0" />
+                <div className="space-y-2 flex-1">
+                  <div className="skeleton h-4 w-32 rounded" />
+                  <div className="skeleton h-16 w-full rounded-xl" />
+                </div>
               </div>
             ))}
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="mb-4">
-              <Avatar user={activeConv} size={72} className="mx-auto" />
+          <div className="flex flex-col items-start justify-end h-full px-2 pb-8">
+            <div className="w-20 h-20 rounded-full bg-discord-brand/10 flex items-center justify-center mb-4">
+              <Avatar user={activeConv} size={80} supaRing />
             </div>
-            <p className="font-bold text-discord-text text-lg">{activeConv.name}</p>
-            <p className="text-discord-muted text-sm">@{activeConv.username}</p>
-            <div className="mt-3 px-4 py-2.5 rounded-full bg-white/4 border border-white/6">
-              <p className="text-discord-muted text-sm">This is the beginning of your conversation</p>
-            </div>
+            <h2 className="text-3xl font-bold text-discord-text mb-2">Welcome to the beginning of your direct message history with @{activeConv.username}</h2>
+            <p className="text-discord-muted mb-6">This is the start of your direct message history with {activeConv.name}.</p>
+            <div className="h-px w-full bg-discord-hover/50 mb-4" />
           </div>
         ) : items.map(item => {
           if (item.type === 'date') return <DateSeparator key={item.key} date={item.date} />;
           const { msg, mine, grouped } = item;
+
           return (
             <div
               key={item.key}
-              className={`flex items-end gap-2 ${mine ? 'flex-row-reverse' : ''} ${grouped ? 'mt-0.5' : 'mt-4'} group`}
+              className={`group flex items-start gap-4 px-2 py-1 hover:bg-white/[0.02] transition-colors relative ${grouped ? 'mt-[-4px]' : 'mt-4'}`}
               onContextMenu={e => handleMessageContextMenu(e, msg)}
             >
-              {!mine && (
-                <div className="w-8 flex-shrink-0">
-                  {!grouped ? (
-                    <Avatar user={activeConv} size={32} />
-                  ) : (
-                    <span className="text-discord-muted text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">
-                      {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
-                    </span>
-                  )}
+              {!grouped ? (
+                <div className="flex-shrink-0 mt-1 cursor-pointer" onClick={() => navigate(`/profile/${mine ? currentUser.username : activeConv.username}`)}>
+                  <Avatar user={mine ? currentUser : activeConv} size={40} />
+                </div>
+              ) : (
+                <div className="w-10 flex-shrink-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-[10px] text-discord-muted mt-1.5 select-none font-medium">
+                    {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
+                  </span>
                 </div>
               )}
-              <div className={`max-w-[72%] flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
-                <div className={`px-3.5 py-2.5 text-sm shadow-sm
-                  ${msg.unsent ? 'bg-white/4 border border-white/8 text-discord-muted italic rounded-2xl' :
-                    mine
-                      ? 'bg-discord-brand text-white rounded-2xl rounded-br-md'
-                      : 'bg-white/6 border border-white/5 text-discord-text rounded-2xl rounded-bl-md'
-                  }
-                  ${grouped ? (mine ? 'rounded-tr-lg' : 'rounded-tl-lg') : ''}
-                `}>
+
+              <div className="flex-1 min-w-0">
+                {!grouped && (
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span 
+                      className={`text-[15px] font-bold cursor-pointer hover:underline ${(mine ? (currentUser.isSupa ? 'supa-chat-name' : 'text-discord-text') : (activeConv.isSupa ? 'supa-chat-name' : 'text-discord-text'))}`}
+                      onClick={() => navigate(`/profile/${mine ? currentUser.username : activeConv.username}`)}
+                    >
+                      {mine ? currentUser.name : activeConv.name}
+                    </span>
+                    <span className="text-[11px] text-discord-muted font-medium">
+                      {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
+                    </span>
+                  </div>
+                )}
+
+                <div className={`text-[15px] leading-relaxed break-words text-[#dbdee1] ${msg.unsent ? 'italic text-discord-muted opacity-60' : ''}`}>
                   {msg.unsent ? (
                     <span>This message was unsent</span>
                   ) : editingMsgId === msg._id ? (
-                    <div className="flex flex-col gap-1.5 min-w-[180px]">
+                    <div className="mt-1 bg-discord-hover/30 rounded-lg p-2 border border-discord-brand/30">
                       <textarea
-                        className="discord-input text-sm resize-none w-full"
+                        className="w-full bg-transparent text-sm resize-none outline-none text-discord-text"
                         rows={2}
                         value={editText}
                         onChange={e => setEditText(e.target.value)}
@@ -1142,44 +1166,29 @@ export default function Messages({ currentUser, unreadCounts }) {
                         }}
                         autoFocus
                       />
-                      <div className="flex gap-1.5 justify-end">
-                        <button type="button" onClick={() => { setEditingMsgId(null); setEditText(''); }} className="text-[11px] text-discord-muted hover:text-discord-text px-2 py-0.5 rounded">Cancel</button>
-                        <button type="button" onClick={() => handleEditSave(msg._id)} className="text-[11px] bg-discord-brand text-white px-2 py-0.5 rounded hover:bg-discord-brand/80">Save</button>
+                      <div className="flex gap-2 justify-end mt-2">
+                        <button onClick={() => { setEditingMsgId(null); setEditText(''); }} className="text-xs text-discord-text hover:underline">Cancel</button>
+                        <button onClick={() => handleEditSave(msg._id)} className="text-xs bg-discord-brand text-white px-3 py-1 rounded-md font-medium">Save Changes</button>
                       </div>
                     </div>
                   ) : (
-                    <MessageContent msg={msg} onOpenImage={setFullscreenImg} />
+                    <div className="relative group/content">
+                      <MessageContent msg={msg} onOpenImage={setFullscreenImg} />
+                      {msg.edited && !msg.unsent && <span className="text-[10px] text-discord-muted ml-1 select-none">(edited)</span>}
+                    </div>
                   )}
                 </div>
                 {!msg.unsent && msg.text && !msg.text.startsWith('[vx:') && <LinkPreview text={msg.text} />}
-                <div className={`flex items-center gap-1.5 mt-1 opacity-0 group-hover:opacity-100 transition-opacity ${mine ? 'flex-row-reverse' : ''}`}>
-                  <span className="text-discord-muted text-[10px]">
-                    {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
-                    {msg.edited && !msg.unsent && <span className="ml-1 opacity-60">(edited)</span>}
-                  </span>
-                  {mine && !msg.unsent && (
-                    <span>
-                      {msg.status === 'read'
-                        ? <FiCheckCircle size={10} className="text-discord-brand" />
-                        : <FiCheck size={10} className="text-discord-muted" />
-                      }
-                    </span>
-                  )}
-                </div>
               </div>
-              {mine && (
-                <span className="text-discord-muted text-[10px] mb-2 opacity-0 group-hover:opacity-100 transition-opacity self-end">
-                  {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
-                </span>
-              )}
             </div>
           );
         })}
         {isTyping && (
-          <div className="flex items-end gap-2 mt-3">
-            <Avatar user={activeConv} size={32} />
-            <div className="bg-white/6 border border-white/5 px-4 py-3 rounded-2xl rounded-bl-md">
-              <div className="typing-indicator"><span/><span/><span/></div>
+          <div className="flex items-center gap-4 px-2 py-2">
+            <div className="w-10 flex-shrink-0" />
+            <div className="flex items-center gap-2 text-discord-muted text-xs font-bold italic">
+              <div className="typing-indicator flex gap-1"><span className="w-1 h-1"/><span className="w-1 h-1"/><span className="w-1 h-1"/></div>
+              <span>{activeConv.name} is typing...</span>
             </div>
           </div>
         )}
@@ -1189,158 +1198,106 @@ export default function Messages({ currentUser, unreadCounts }) {
       {/* Jump to bottom */}
       {!isAtBottom && (
         <button
-          className="absolute bottom-28 right-4 discord-btn w-10 h-10 rounded-full flex items-center justify-center shadow-xl text-sm"
+          className="absolute bottom-24 right-6 bg-discord-brand text-white w-10 h-10 rounded-full flex items-center justify-center shadow-xl z-30 animate-bounce"
           onClick={() => scrollToBottom()}
         >
           {newMsgCount > 0 ? (
             <span className="text-[11px] font-bold">{newMsgCount > 9 ? '9+' : newMsgCount}</span>
           ) : (
-            <span>↓</span>
+            <FiArrowLeft className="rotate-[-90deg]" size={18} />
           )}
         </button>
       )}
 
-      {/* Blocked notice (replaces input) */}
-      {blockedByMe && (
-        <div className="px-4 py-4 border-t border-white/6 flex-shrink-0 bg-discord-sidebar/50">
-          <div className="flex flex-col items-center gap-2 text-center">
-            <p className="text-discord-muted text-sm">You blocked <span className="font-semibold text-discord-text">@{activeConv?.username}</span>. You can't send messages.</p>
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  await API.unblockUser(activeConv.username);
-                  setBlockedByMe(false);
-                } catch {}
-              }}
-              className="text-xs font-bold text-discord-brand hover:underline"
-            >
-              Unblock
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Input */}
-      {!blockedByMe && <form onSubmit={handleSend} className="px-4 pt-3 pb-20 md:pb-3 border-t border-white/6 flex-shrink-0">
-        {/* Media Preview */}
-        {mediaAttachment && (
-          <div className="mb-2 flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
-            {mediaAttachment.type === 'image' && (
-              <img
-                src={mediaAttachment.dataUrl}
-                alt="preview"
-                className="w-12 h-12 rounded-lg object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                title="Tap to crop"
-                onClick={() => {
-                  setPendingImageSrc(mediaAttachment.dataUrl);
-                  setShowCropModal(true);
+      <div className={`flex flex-col flex-shrink-0 bg-discord-bg transition-all duration-300 ${showEmojiPicker ? 'pb-0' : 'pb-safe'}`}>
+        {blockedByMe ? (
+          <div className="px-4 py-4 border-t border-discord-hover/50 flex flex-col items-center gap-2">
+            <p className="text-discord-muted text-sm text-center">You blocked <span className="font-bold text-discord-text">@{activeConv?.username}</span>. You can't send messages.</p>
+            <button onClick={async () => { try { await API.unblockUser(activeConv.username); setBlockedByMe(false); } catch {} }} className="text-discord-brand text-xs font-bold hover:underline">Unblock User</button>
+          </div>
+        ) : (
+          <form onSubmit={handleSend} className="px-4 py-3">
+            {/* Media Attachment Preview */}
+            {mediaAttachment && (
+              <div className="mb-3 p-3 bg-discord-hover/30 rounded-xl border border-discord-hover/50 flex items-center gap-3 animate-fade-in">
+                 {mediaAttachment.type === 'image' && (
+                  <img src={mediaAttachment.dataUrl} className="w-16 h-16 rounded-lg object-cover cursor-pointer" onClick={() => { setPendingImageSrc(mediaAttachment.dataUrl); setShowCropModal(true); }} />
+                 )}
+                 <div className="flex-1 min-w-0">
+                   <p className="text-sm font-bold text-discord-text truncate">{mediaAttachment.filename}</p>
+                   <p className="text-xs text-discord-muted">{(mediaAttachment.size / 1024).toFixed(1)} KB</p>
+                 </div>
+                 <button type="button" onClick={() => setMediaAttachment(null)} className="p-2 text-discord-muted hover:text-discord-red"><FiX size={20} /></button>
+              </div>
+            )}
+
+            <div className="flex items-end gap-3 bg-discord-hover/50 rounded-2xl px-4 py-2.5 min-h-[48px] border border-transparent focus-within:border-discord-brand/20 transition-all">
+              <button
+                type="button"
+                className="p-1 text-discord-muted hover:text-discord-text transition-colors mb-0.5"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <FiPlusSquare size={22} className="fill-discord-muted/10" />
+                <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileAttach} />
+              </button>
+
+              <textarea
+                ref={textareaRef}
+                value={newMsg}
+                onChange={e => { handleTyping(e); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'; }}
+                onFocus={() => setShowEmojiPicker(false)}
+                placeholder={`Message @${activeConv.username}`}
+                className="flex-1 bg-transparent text-[15px] text-discord-text outline-none resize-none py-1 max-h-40 no-scrollbar"
+                rows={1}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend(e);
+                  }
                 }}
               />
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-discord-text font-medium truncate">{mediaAttachment.filename}</p>
-              <p className="text-[11px] text-discord-muted">{mediaAttachment.type === 'image' ? 'Tap image to crop' : `${(mediaAttachment.size / 1024).toFixed(1)} KB`}</p>
+
+              <div className="flex items-center gap-2 mb-0.5">
+                <button
+                  type="button"
+                  className={`p-1 transition-colors ${showEmojiPicker ? 'text-discord-brand' : 'text-discord-muted hover:text-discord-text'}`}
+                  onClick={handleEmojiButtonClick}
+                >
+                  <FiSmile size={22} />
+                </button>
+                {newMsg.trim() || mediaAttachment ? (
+                  <button type="submit" className="p-1 text-discord-brand hover:text-discord-brand-light transition-all active:scale-90">
+                    <FiSend size={22} />
+                  </button>
+                ) : null}
+              </div>
             </div>
-            <button type="button" onClick={() => setMediaAttachment(null)} className="text-discord-muted hover:text-discord-red transition-colors flex-shrink-0">
-              <FiX size={16} />
-            </button>
-          </div>
+          </form>
         )}
 
-        <div className="flex items-end gap-2">
-          {/* Left toolbar: attach + mic */}
-          <div className="flex items-center gap-1 flex-shrink-0 mb-0.5">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileAttach}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="w-9 h-9 flex items-center justify-center rounded-xl text-discord-muted hover:text-discord-brand hover:bg-discord-brand/10 transition-colors"
-              title="Attach photo"
-            >
-              <FiPaperclip size={18} />
-            </button>
-          </div>
-
-          <div className="relative flex-1">
-            <textarea
-              ref={textareaRef}
-              value={newMsg}
-              onChange={e => { handleTyping(e); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'; }}
-              placeholder={mediaAttachment ? 'Add a caption...' : `Message @${activeConv.username}...`}
-              className="discord-input w-full resize-none overflow-hidden pr-10"
-              rows={1}
-              style={{ minHeight: '42px', maxHeight: '160px', lineHeight: '1.5' }}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  const start = e.target.selectionStart;
-                  const end = e.target.selectionEnd;
-                  setNewMsg(prev => prev.slice(0, start) + '\n' + prev.slice(end));
-                  setTimeout(() => {
-                    const el = e.target;
-                    el.selectionStart = el.selectionEnd = start + 1;
-                    el.style.height = 'auto';
-                    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
-                  }, 0);
-                }
+        {/* Improved Emoji Picker as Keyboard */}
+        {showEmojiPicker && (
+          <div className="w-full bg-discord-bg animate-slide-up border-t border-discord-hover/50" style={{ height: '320px' }}>
+            <EmojiStickerPicker
+              onSelectEmoji={insertEmoji}
+              onSelectSticker={async (sticker) => {
+                setShowEmojiPicker(false);
+                const stickerText = `[vx:img:${sticker.url}]`;
+                const tempMsg = { _id: Date.now(), text: stickerText, senderId: currentUser?._id || currentUser?.id, createdAt: new Date().toISOString(), status: 'sent' };
+                setMessages(prev => [...prev, tempMsg]);
+                scrollToBottom();
+                try { await API.sendMessage({ receiverUsername: activeConv.username, text: stickerText }); } catch {}
               }}
+              onClose={() => setShowEmojiPicker(false)}
+              anchor="keyboard"
             />
-            <button
-              type="button"
-              className="absolute right-2 bottom-2 text-discord-muted hover:text-discord-brand transition-colors p-1"
-              onClick={e => { e.stopPropagation(); setShowEmojiPicker(p => !p); }}
-            >
-              <FiSmile size={18} />
-            </button>
-            {showEmojiPicker && (
-              <EmojiStickerPicker
-                onSelectEmoji={emoji => { insertEmoji(emoji); setShowEmojiPicker(false); }}
-                onSelectSticker={async (sticker) => {
-                  setShowEmojiPicker(false);
-                  if (!activeConv) return;
-                  const myId = currentUser?._id || currentUser?.id;
-                  const stickerText = `[vx:img:${sticker.url}]`;
-                  const tempMsg = {
-                    _id: Date.now(),
-                    text: stickerText,
-                    senderId: myId,
-                    createdAt: new Date().toISOString(),
-                    status: 'sent',
-                  };
-                  setMessages(prev => [...prev, tempMsg]);
-                  scrollToBottom();
-                  try {
-                    await API.sendMessage({
-                      receiverUsername: activeConv.username,
-                      text: stickerText,
-                    });
-                  } catch {}
-                }}
-                onClose={() => setShowEmojiPicker(false)}
-                anchor="top"
-              />
-            )}
           </div>
-          <button
-            type="submit"
-            disabled={(!newMsg.trim() && !mediaAttachment) || sending}
-            className="discord-btn p-2.5 rounded-xl disabled:opacity-40 flex-shrink-0 mb-0.5"
-          >
-            <FiSend size={16} />
-          </button>
-        </div>
-      </form>}
-
+        )}
+      </div>
     </div>
   ) : (
-    <div className="flex flex-col items-center justify-center h-full text-discord-muted gap-3">
+    <div className="flex flex-col items-center justify-center h-full text-discord-muted gap-3 bg-discord-bg">
       <div className="w-16 h-16 rounded-2xl bg-white/4 flex items-center justify-center">
         <FiMessageSquare size={28} className="opacity-40" />
       </div>

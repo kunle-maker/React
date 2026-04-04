@@ -130,7 +130,7 @@ export default function Feed({ currentUser, unreadCounts }) {
              <button onClick={() => navigate('/create')} className="text-discord-text hover:text-brand-primary transition-colors">
                <FiCamera size={24} />
              </button>
-             <h1 className="text-2xl font-black text-discord-text tracking-tighter italic">VESSELX</h1>
+             <h1 className="text-2xl font-bold text-discord-text tracking-tight" style={{ fontFamily: "'Quicksand', sans-serif" }}>VESSELX</h1>
           </div>
           
           <div className="flex items-center gap-4">

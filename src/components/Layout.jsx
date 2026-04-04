@@ -86,6 +86,9 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
 
   const toggleSidebar = () => setIsSidebarExpanded(!isSidebarExpanded);
 
+  const isChatRoute = location.pathname.includes('/messages/chat/') || 
+                      (location.pathname.startsWith('/groups/') && !location.pathname.endsWith('/members') && !location.pathname.endsWith('/info'));
+
   return (
     <div className="app-shell flex h-screen overflow-hidden">
       {/* Desktop Sidebar */}
@@ -206,86 +209,88 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
       )}
 
       {/* Mobile Floating Pill Nav — 5 items: Home | Messages | FAB | Groups | Profile */}
-      <nav className="mobile-pill-nav">
-        {/* Home */}
-        <Link
-          to="/"
-          className={`mobile-pill-item ${location.pathname === '/' ? 'active text-brand-primary' : ''}`}
-          aria-label="Home"
-        >
-          {location.pathname === '/' ? <HiHome size={24} /> : <FiHome size={22} />}
-          {location.pathname === '/' && <span className="mobile-pill-label text-brand-primary">Home</span>}
-        </Link>
-
-        {/* Messages */}
-        <Link
-          to="/messages"
-          className={`mobile-pill-item ${isActive('/messages') ? 'active text-brand-primary' : ''}`}
-          aria-label="Messages"
-        >
-          {isActive('/messages') ? <HiChatAlt2 size={24} /> : <FiMessageSquare size={22} />}
-          {isActive('/messages') && <span className="mobile-pill-label text-brand-primary">Chat</span>}
-          {(unreadCounts.messages || 0) > 0 && (
-            <span className="badge absolute top-1 right-2 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
-              {unreadCounts.messages > 99 ? '99+' : unreadCounts.messages}
-            </span>
-          )}
-        </Link>
-
-        {/* Action Hub — center FAB */}
-        <div className="mobile-pill-vbox-wrap">
-          <button
-            ref={vboxRef}
-            className={`mobile-pill-vbox ${showPopup ? 'open scale-110 rotate-90' : ''} ${isPopupRouteActive && !showPopup ? 'route-active' : ''}`}
-            onClick={() => {
-              setShowPopup(p => !p);
-              if (navigator.vibrate) navigator.vibrate(12);
-            }}
-            aria-label="Actions"
-            aria-expanded={showPopup}
-          >
-            {showPopup ? (
-              <FiX size={20} className="text-white" />
-            ) : (
-              <>
-                <VLogo size={24} />
-                {popupBadge > 0 && (
-                  <span className="badge absolute -top-1 -right-1 text-[8px] min-w-[14px] h-3.5 flex items-center justify-center px-0.5 border border-brand-primary">
-                    {popupBadge > 99 ? '99+' : popupBadge}
-                  </span>
-                )}
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Groups */}
-        <Link
-          to="/groups"
-          className={`mobile-pill-item ${isActive('/groups') ? 'active text-brand-primary' : ''}`}
-          aria-label="Groups"
-        >
-          {isActive('/groups') ? <HiUsers size={24} /> : <FiUsers size={22} />}
-          {isActive('/groups') && <span className="mobile-pill-label text-brand-primary">Groups</span>}
-          {(unreadCounts.groups || 0) > 0 && (
-            <span className="badge absolute top-1 right-2 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
-              {unreadCounts.groups > 99 ? '99+' : unreadCounts.groups}
-            </span>
-          )}
-        </Link>
-
-        {/* Profile */}
-        {currentUser && (
+      {!isChatRoute && (
+        <nav className="mobile-pill-nav">
+          {/* Home */}
           <Link
-            to={`/profile/${currentUser.username}`}
-            className={`mobile-pill-item ${isActive(`/profile/${currentUser.username}`) ? 'active ring-2 ring-brand-primary/30' : ''}`}
-            aria-label="Profile"
+            to="/"
+            className={`mobile-pill-item ${location.pathname === '/' ? 'active text-brand-primary' : ''}`}
+            aria-label="Home"
           >
-            <Avatar user={currentUser} size={24} className={isActive(`/profile/${currentUser.username}`) ? 'opacity-100' : 'opacity-60'} />
-            {isActive(`/profile/${currentUser.username}`) && <span className="mobile-pill-label text-brand-primary">Profile</span>}
+            {location.pathname === '/' ? <HiHome size={24} /> : <FiHome size={22} />}
+            {location.pathname === '/' && <span className="mobile-pill-label text-brand-primary">Home</span>}
           </Link>
-        )}
-      </nav>
+
+          {/* Messages */}
+          <Link
+            to="/messages"
+            className={`mobile-pill-item ${isActive('/messages') ? 'active text-brand-primary' : ''}`}
+            aria-label="Messages"
+          >
+            {isActive('/messages') ? <HiChatAlt2 size={24} /> : <FiMessageSquare size={22} />}
+            {isActive('/messages') && <span className="mobile-pill-label text-brand-primary">Chat</span>}
+            {(unreadCounts.messages || 0) > 0 && (
+              <span className="badge absolute top-1 right-2 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
+                {unreadCounts.messages > 99 ? '99+' : unreadCounts.messages}
+              </span>
+            )}
+          </Link>
+
+          {/* Action Hub — center FAB */}
+          <div className="mobile-pill-vbox-wrap">
+            <button
+              ref={vboxRef}
+              className={`mobile-pill-vbox ${showPopup ? 'open scale-110 rotate-90' : ''} ${isPopupRouteActive && !showPopup ? 'route-active' : ''}`}
+              onClick={() => {
+                setShowPopup(p => !p);
+                if (navigator.vibrate) navigator.vibrate(12);
+              }}
+              aria-label="Actions"
+              aria-expanded={showPopup}
+            >
+              {showPopup ? (
+                <FiX size={20} className="text-white" />
+              ) : (
+                <>
+                  <VLogo size={24} />
+                  {popupBadge > 0 && (
+                    <span className="badge absolute -top-1 -right-1 text-[8px] min-w-[14px] h-3.5 flex items-center justify-center px-0.5 border border-brand-primary">
+                      {popupBadge > 99 ? '99+' : popupBadge}
+                    </span>
+                  )}
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Groups */}
+          <Link
+            to="/groups"
+            className={`mobile-pill-item ${isActive('/groups') ? 'active text-brand-primary' : ''}`}
+            aria-label="Groups"
+          >
+            {isActive('/groups') ? <HiUsers size={24} /> : <FiUsers size={22} />}
+            {isActive('/groups') && <span className="mobile-pill-label text-brand-primary">Groups</span>}
+            {(unreadCounts.groups || 0) > 0 && (
+              <span className="badge absolute top-1 right-2 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
+                {unreadCounts.groups > 99 ? '99+' : unreadCounts.groups}
+              </span>
+            )}
+          </Link>
+
+          {/* Profile */}
+          {currentUser && (
+            <Link
+              to={`/profile/${currentUser.username}`}
+              className={`mobile-pill-item ${isActive(`/profile/${currentUser.username}`) ? 'active ring-2 ring-brand-primary/30' : ''}`}
+              aria-label="Profile"
+            >
+              <Avatar user={currentUser} size={24} className={isActive(`/profile/${currentUser.username}`) ? 'opacity-100' : 'opacity-60'} />
+              {isActive(`/profile/${currentUser.username}`) && <span className="mobile-pill-label text-brand-primary">Profile</span>}
+            </Link>
+          )}
+        </nav>
+      )}
     </div>
   );
 }

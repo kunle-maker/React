@@ -9,7 +9,8 @@ import Layout from '../components/Layout';
 import Avatar from '../components/Avatar';
 import FormattedText from '../components/FormattedText';
 import LinkPreview from '../components/LinkPreview';
-import EmojiPicker from '../components/EmojiPicker';
+import EmojiStickerPicker from '../components/EmojiStickerPicker';
+import { parseEmojisToHtml } from '../utils/emoji';
 import { VerifiedBadge, SupaBadge } from '../components/UserBadge';
 import API from '../utils/api';
 import socket from '../utils/socket';
@@ -199,6 +200,33 @@ export default function GroupChat({ currentUser, unreadCounts }) {
       await API.unsendGroupMessage(groupId, messageId);
       setMessages(prev => prev.map(m => m._id === messageId ? { ...m, text: '', unsent: true } : m));
     } catch {}
+  };
+
+  const handleEmojiButtonClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (showEmojiPicker) {
+      setShowEmojiPicker(false);
+      textareaRef.current?.focus();
+    } else {
+      setShowEmojiPicker(true);
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    }
+  };
+
+  const insertEmoji = (emoji) => {
+    const start = textareaRef.current.selectionStart;
+    const end = textareaRef.current.selectionEnd;
+    const text = newMsg.slice(0, start) + emoji + newMsg.slice(end);
+    setNewMsg(text);
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + emoji.length;
+        textareaRef.current.focus();
+      }
+    }, 0);
   };
 
   const fetchGroup = async () => {
@@ -460,88 +488,85 @@ export default function GroupChat({ currentUser, unreadCounts }) {
 
   return (
     <Layout currentUser={currentUser} unreadCounts={unreadCounts}>
-      <div className="flex flex-col h-full relative">
+      <div className="flex flex-col h-full relative bg-discord-bg overflow-hidden">
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-white/6 flex-shrink-0 backdrop-blur-xl bg-discord-bg/80">
-          <button className="text-discord-muted hover:text-discord-text transition-colors" onClick={() => navigate('/groups')}>
-            <FiArrowLeft size={20} />
-          </button>
-          <div
-            className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
-            onClick={() => navigate(`/groups/${groupId}/info`)}
-          >
-            {group?.profilePicture ? (
-              <img src={API.getAvatarUrl(group.profilePicture, 80)} alt={group.name} className="w-9 h-9 rounded-xl object-cover flex-shrink-0 shadow-md" />
-            ) : (
-              <div className="w-9 h-9 rounded-xl bg-discord-brand flex items-center justify-center flex-shrink-0 shadow-md">
-                <FiUsers size={16} className="text-white" />
+        <div className="flex items-center justify-between px-4 h-14 border-b border-discord-hover/50 bg-discord-bg/80 backdrop-blur-xl z-20 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <button className="text-discord-muted hover:text-discord-text transition-colors -ml-1 p-1" onClick={() => navigate('/groups')}>
+              <FiArrowLeft size={22} />
+            </button>
+            <div
+              className="flex items-center gap-2.5 min-w-0 cursor-pointer group"
+              onClick={() => navigate(`/groups/${groupId}/info`)}
+            >
+              {group?.profilePicture ? (
+                <img src={API.getAvatarUrl(group.profilePicture, 80)} alt={group.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-discord-brand flex items-center justify-center flex-shrink-0">
+                  <FiUsers size={16} className="text-white" />
+                </div>
+              )}
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[15px] font-bold text-discord-text truncate group-hover:underline">
+                    {group?.name}
+                  </span>
+                  {isChannel && <span className="text-[10px] font-bold text-discord-brand bg-discord-brand/15 px-1.5 py-0.5 rounded-full border border-discord-brand/30 flex-shrink-0">📢 Channel</span>}
+                </div>
+                <p className="text-[11px] font-medium leading-none text-discord-muted mt-0.5">
+                  {group?.members?.length || 0} {isChannel ? 'subscribers' : 'members'}
+                </p>
               </div>
-            )}
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <p className="font-bold text-discord-text text-sm truncate">{group?.name}</p>
-                {isChannel && <span className="text-[10px] font-bold text-discord-brand bg-discord-brand/15 px-1.5 py-0.5 rounded-full border border-discord-brand/30 flex-shrink-0">📢 Channel</span>}
-              </div>
-              <p className="text-discord-muted text-xs">{group?.members?.length || 0} {isChannel ? 'subscribers' : 'members'}</p>
             </div>
           </div>
-          <div className="flex items-center gap-0.5">
+
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
-              className="p-2 rounded-lg text-discord-muted hover:text-discord-green hover:bg-discord-green/10 transition-colors"
+              className="w-9 h-9 flex items-center justify-center rounded-full text-discord-muted hover:text-discord-text hover:bg-white/5 transition-all"
               onClick={() => sendCallInvite(false)}
-              title="Voice call"
+              title="Voice Call"
             >
-              <FiPhone size={18} />
+              <FiPhone size={19} />
             </button>
             <button
-              className="p-2 rounded-lg text-discord-muted hover:text-discord-brand hover:bg-discord-brand/10 transition-colors"
+              className="w-9 h-9 flex items-center justify-center rounded-full text-discord-muted hover:text-discord-text hover:bg-white/5 transition-all"
               onClick={() => sendCallInvite(true)}
-              title="Video call"
+              title="Video Call"
             >
-              <FiVideo size={18} />
+              <FiVideo size={19} />
             </button>
             <button
-              className="p-2 rounded-lg text-discord-muted hover:text-discord-text hover:bg-white/5 transition-colors"
+              className="w-9 h-9 flex items-center justify-center rounded-full text-discord-muted hover:text-discord-text hover:bg-white/5 transition-all"
               onClick={() => navigate(`/groups/${groupId}/members`)}
               title="Members"
             >
-              <FiUsers size={18} />
+              <FiUsers size={19} />
             </button>
-            <button
-              className="p-2 rounded-lg text-discord-muted hover:text-discord-text hover:bg-white/5 transition-colors"
-              onClick={() => navigate(`/groups/${groupId}/info`)}
-              title="Group info"
-            >
-              <FiInfo size={18} />
-            </button>
-            {/* More options (leave for non-admins) */}
             <div className="relative">
               <button
-                className="p-2 rounded-lg text-discord-muted hover:text-discord-text hover:bg-white/5 transition-colors"
+                className="w-9 h-9 flex items-center justify-center rounded-full text-discord-muted hover:text-discord-text hover:bg-white/5 transition-all"
                 onClick={e => { e.stopPropagation(); setShowMenu(v => !v); }}
-                title="More options"
+                title="More"
               >
-                <FiMoreVertical size={18} />
+                <FiMoreVertical size={19} />
               </button>
               {showMenu && (
                 <div
-                  className="absolute right-0 top-full mt-1 bg-discord-dark border border-white/10 rounded-xl shadow-2xl py-1 min-w-40 z-50 backdrop-blur-xl"
+                  className="absolute right-0 top-full mt-1 bg-discord-dark border border-white/10 rounded-xl shadow-2xl py-1 min-w-40 z-50 backdrop-blur-xl animate-fade-in"
                   onClick={e => e.stopPropagation()}
                 >
+                  <button
+                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-discord-muted hover:bg-white/5 transition-colors"
+                    onClick={() => { setShowMenu(false); navigate(`/groups/${groupId}/info`); }}
+                  >
+                    <FiInfo size={14} /> {isAdmin ? 'Group Settings' : 'Group Info'}
+                  </button>
                   {!isAdmin && (
                     <button
                       className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-discord-red hover:bg-discord-red/10 transition-colors"
                       onClick={() => { setShowMenu(false); handleLeave(); }}
                     >
                       <FiLogOut size={14} /> Leave Group
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <button
-                      className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-discord-muted hover:bg-white/5 transition-colors"
-                      onClick={() => { setShowMenu(false); navigate(`/groups/${groupId}/info`); }}
-                    >
-                      <FiInfo size={14} /> Group Settings
                     </button>
                   )}
                 </div>
@@ -553,20 +578,34 @@ export default function GroupChat({ currentUser, unreadCounts }) {
         {/* Messages */}
         <div
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5"
+          className="flex-1 overflow-y-auto px-4 py-2 scroll-smooth no-scrollbar"
           onScroll={handleScroll}
+          onClick={() => { if (showEmojiPicker) setShowEmojiPicker(false); }}
         >
           {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-2 border-discord-brand border-t-transparent rounded-full animate-spin" />
+            <div className="space-y-6 pt-4">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="flex gap-4">
+                  <div className="skeleton w-10 h-10 rounded-full flex-shrink-0" />
+                  <div className="space-y-2 flex-1">
+                    <div className="skeleton h-4 w-32 rounded" />
+                    <div className="skeleton h-16 w-full rounded-xl" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full py-12 text-discord-muted">
-              <div className="w-16 h-16 rounded-2xl bg-discord-brand/15 flex items-center justify-center mb-4">
-                <FiUsers size={28} className="text-discord-brand" />
+            <div className="flex flex-col items-start justify-end h-full px-2 pb-8">
+              <div className="w-20 h-20 rounded-2xl bg-discord-brand/10 flex items-center justify-center mb-4">
+                 {group?.profilePicture ? (
+                   <img src={API.getAvatarUrl(group.profilePicture, 120)} alt={group.name} className="w-full h-full rounded-2xl object-cover" />
+                 ) : (
+                   <FiUsers size={40} className="text-discord-brand" />
+                 )}
               </div>
-              <p className="font-semibold text-discord-text mb-1">{group?.name}</p>
-              <p className="text-sm text-center px-8">This is the beginning of the group. Say hello!</p>
+              <h2 className="text-3xl font-bold text-discord-text mb-2">Welcome to {group?.name}!</h2>
+              <p className="text-discord-muted mb-6">This is the start of the {group?.name} group.</p>
+              <div className="h-px w-full bg-discord-hover/50 mb-4" />
             </div>
           ) : items.map(item => {
             if (item.type === 'date') return <DateSeparator key={item.key} date={item.date} />;
@@ -574,77 +613,68 @@ export default function GroupChat({ currentUser, unreadCounts }) {
 
             if (msg.type === 'system') {
               return (
-                <div key={item.key} className="flex justify-center items-center my-2 px-4">
-                  <span className="text-[11px] text-discord-muted bg-white/5 border border-white/8 rounded-full px-3 py-1 text-center max-w-[80%] leading-snug">
-                    {msg.text}
-                  </span>
+                <div key={item.key} className="flex items-center gap-4 px-2 py-1 my-1">
+                   <div className="w-10 flex-shrink-0 flex justify-center">
+                     <div className="w-0.5 h-full bg-discord-hover/30" />
+                   </div>
+                   <span className="text-[13px] text-discord-muted font-medium italic">
+                     {msg.text}
+                   </span>
                 </div>
               );
             }
 
             const mine = isSentByMe(msg);
-            const sender = msg.senderId || { username: msg.senderUsername };
+            const sender = msg.senderId || { username: msg.senderUsername, name: msg.senderUsername };
             const msgKey = msg._id;
             const isSwiping = swipingMsgId === msgKey;
+
             return (
               <div
                 key={item.key}
-                className={`flex items-end gap-2 ${mine ? 'flex-row-reverse' : ''} ${isFirstInGroup ? 'mt-3' : 'mt-0.5'} group relative`}
+                className={`group flex items-start gap-4 px-2 py-0.5 hover:bg-white/[0.02] transition-colors relative ${isFirstInGroup ? 'mt-4' : 'mt-[-2px]'}`}
                 onContextMenu={e => handleMessageContextMenu(e, msg)}
                 onTouchStart={e => handleMsgTouchStart(e, msgKey)}
                 onTouchMove={e => handleMsgTouchMove(e, msgKey)}
                 onTouchEnd={() => handleMsgTouchEnd(msg)}
                 style={isSwiping ? { transform: `translateX(${swipeOffset}px)`, transition: 'none' } : { transition: 'transform 0.2s ease' }}
               >
-                {isSwiping && swipeOffset > 20 && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-8 text-discord-brand opacity-80 pointer-events-none">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg>
+                {!isFirstInGroup ? (
+                   <div className="w-10 flex-shrink-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                     <span className="text-[10px] text-discord-muted mt-1.5 select-none font-medium">
+                       {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
+                     </span>
+                   </div>
+                ) : (
+                  <div className="flex-shrink-0 mt-1 cursor-pointer" onClick={() => navigate(`/profile/${sender.username}`)}>
+                    <Avatar user={sender} size={40} supaRing={sender.isSupa} />
                   </div>
                 )}
-                {!mine && (
-                  <div className="w-8 flex-shrink-0 self-end">
-                    {isFirstInGroup ? (
-                      <div onClick={() => navigate(`/profile/${sender.username}`)} className="cursor-pointer">
-                        <Avatar user={sender} size={32} supaRing={true} />
-                      </div>
-                    ) : (
-                      <span className="text-discord-muted text-[10px] opacity-0 group-hover:opacity-100 transition-opacity pl-1">
-                        {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
-                      </span>
-                    )}
-                  </div>
-                )}
-                <div className={`max-w-[75%] flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
-                  {!mine && isFirstInGroup && (
-                    <span className="flex items-center gap-1 mb-1 flex-wrap">
+
+                <div className="flex-1 min-w-0">
+                  {isFirstInGroup && (
+                    <div className="flex items-center gap-2 mb-0.5">
                       <span
-                        className={`text-xs font-semibold cursor-pointer hover:underline ${sender.isSupa ? 'supa-chat-name' : ''}`}
+                        className={`text-[15px] font-bold cursor-pointer hover:underline ${sender.isSupa ? 'supa-chat-name' : 'text-discord-text'}`}
                         style={sender.isSupa ? {} : { color: stringToColor(sender.username || '') }}
                         onClick={() => navigate(`/profile/${sender.username}`)}
                       >
                         {sender.name || sender.username}
                       </span>
-                      {sender.isVerified && <VerifiedBadge size={12} />}
-                      {sender.isSupa && <SupaBadge size={12} username={sender.username} />}
-                    </span>
+                      {sender.isVerified && <VerifiedBadge size={14} />}
+                      <span className="text-[11px] text-discord-muted font-medium">
+                        {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
+                      </span>
+                    </div>
                   )}
-                  <div
-                    className={`text-sm break-words shadow-sm transition-all duration-150
-                      ${msg.unsent ? 'px-3 py-2 bg-white/4 border border-white/8 text-discord-muted italic rounded-2xl' :
-                        (msg.text || '').startsWith('[vx:img:') || (msg.text || '').startsWith('[vx:call:')
-                          ? 'bg-transparent p-0 border-0'
-                          : `px-3 py-2 ${mine
-                            ? 'bg-discord-brand text-white rounded-2xl rounded-br-sm'
-                            : 'bg-white/6 border border-white/5 text-discord-text rounded-2xl rounded-bl-sm'}
-                            ${isFirstInGroup ? '' : mine ? 'rounded-tr-lg' : 'rounded-tl-lg'}`}
-                    `}
-                  >
+
+                  <div className={`text-[15px] leading-relaxed break-words text-[#dbdee1] ${msg.unsent ? 'italic text-discord-muted opacity-60' : ''}`}>
                     {msg.unsent ? (
                       <span>This message was unsent</span>
                     ) : editingMsgId === msg._id ? (
-                      <div className="flex flex-col gap-1.5 min-w-[180px]">
+                      <div className="mt-1 bg-discord-hover/30 rounded-lg p-2 border border-discord-brand/30">
                         <textarea
-                          className="discord-input text-sm resize-none w-full"
+                          className="w-full bg-transparent text-sm resize-none outline-none text-discord-text"
                           rows={2}
                           value={editText}
                           onChange={e => setEditText(e.target.value)}
@@ -654,84 +684,83 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                           }}
                           autoFocus
                         />
-                        <div className="flex gap-1.5 justify-end">
-                          <button type="button" onClick={() => { setEditingMsgId(null); setEditText(''); }} className="text-[11px] text-discord-muted hover:text-discord-text px-2 py-0.5 rounded">Cancel</button>
-                          <button type="button" onClick={() => handleEditSave(msg._id)} className="text-[11px] bg-discord-brand text-white px-2 py-0.5 rounded hover:bg-discord-brand/80">Save</button>
+                        <div className="flex gap-2 justify-end mt-2">
+                          <button onClick={() => { setEditingMsgId(null); setEditText(''); }} className="text-xs text-discord-text hover:underline">Cancel</button>
+                          <button onClick={() => handleEditSave(msg._id)} className="text-xs bg-discord-brand text-white px-3 py-1 rounded-md font-medium">Save Changes</button>
                         </div>
                       </div>
                     ) : (
-                      (() => {
-                        const text = msg.text || '';
-                        const replyMatch = text.match(/^↩ (@[^\n]+)\n([\s\S]*)$/);
-                        if (replyMatch) {
-                          return (
-                            <div>
-                              <div className={`text-xs px-2 py-1 rounded mb-1.5 border-l-2 ${mine ? 'border-white/50 bg-white/10 text-white/70' : 'border-discord-brand bg-discord-brand/10 text-discord-muted'}`}>
-                                {replyMatch[1]}
+                      <div className="relative group/content">
+                        {(() => {
+                          const text = msg.text || '';
+                          const replyMatch = text.match(/^↩ (@[^\n]+)\n([\s\S]*)$/);
+                          if (replyMatch) {
+                            return (
+                              <div className="mb-1">
+                                <div className="flex items-center gap-2 text-xs text-discord-muted mb-0.5 opacity-80 hover:opacity-100 cursor-pointer">
+                                   <div className="w-4 h-4 rounded-full bg-discord-hover flex items-center justify-center"><FiArrowLeft size={10} className="rotate-180" /></div>
+                                   <span className="font-bold">{replyMatch[1]}</span>
+                                </div>
+                                <FormattedText text={replyMatch[2].trim()} />
                               </div>
-                              <FormattedText text={replyMatch[2].trim()} />
-                            </div>
-                          );
-                        }
-                        const imgMatch = text.match(/^\[vx:img:([^\]]+)\](.*)$/s);
-                        const callMatch = text.match(/^\[vx:call:([^\]]+)\](.*)$/s);
-                        if (imgMatch) {
-                          return (
-                            <div>
-                              <img
-                                src={imgMatch[1]}
-                                alt="Image"
-                                className="rounded-xl max-w-[240px] max-h-[300px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                onClick={() => setFullscreenImg(imgMatch[1])}
-                                loading="lazy"
-                              />
-                              {imgMatch[2]?.trim() && <div className="mt-1.5 text-sm text-discord-text"><FormattedText text={imgMatch[2].trim()} /></div>}
-                            </div>
-                          );
-                        }
-                        if (callMatch) {
-                          return (
-                            <div className="flex flex-col gap-2 min-w-[180px] bg-white/6 border border-white/10 rounded-2xl px-3 py-2">
-                              <div className="flex items-center gap-2">
-                                <FiVideo size={14} className="text-discord-green flex-shrink-0" />
-                                <span className="text-xs font-semibold text-discord-green">Video Call</span>
+                            );
+                          }
+                          const imgMatch = text.match(/^\[vx:img:([^\]]+)\](.*)$/s);
+                          const callMatch = text.match(/^\[vx:call:([^\]]+)\](.*)$/s);
+                          if (imgMatch) {
+                            return (
+                              <div>
+                                <img
+                                  src={imgMatch[1]}
+                                  alt="Image"
+                                  className="rounded-xl max-w-full md:max-w-[400px] max-h-[500px] object-cover cursor-pointer hover:brightness-90 transition-all mt-1 shadow-sm"
+                                  onClick={() => setFullscreenImg(imgMatch[1])}
+                                  loading="lazy"
+                                />
+                                {imgMatch[2]?.trim() && <div className="mt-2"><FormattedText text={imgMatch[2].trim()} /></div>}
                               </div>
-                              <a
-                                href={callMatch[1]}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 bg-discord-brand/90 hover:bg-discord-brand text-white px-3 py-2 rounded-xl text-xs font-bold transition-colors"
-                                onClick={e => e.stopPropagation()}
-                              >
-                                <FiVideo size={14} /> Join Call
-                              </a>
-                            </div>
-                          );
-                        }
-                        return <FormattedText text={text} />;
-                      })()
+                            );
+                          }
+                          if (callMatch) {
+                             return (
+                               <div className="flex flex-col gap-3 mt-2 max-w-sm bg-discord-hover/30 border border-discord-hover/50 rounded-2xl p-4">
+                                 <div className="flex items-center gap-3">
+                                   <div className="w-10 h-10 rounded-full bg-discord-green/20 flex items-center justify-center text-discord-green"><FiVideo size={20} /></div>
+                                   <div>
+                                     <p className="text-sm font-bold text-discord-text">Video Call Started</p>
+                                     <p className="text-xs text-discord-muted">Join the ongoing conversation</p>
+                                   </div>
+                                 </div>
+                                 <a
+                                   href={callMatch[1]}
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   className="flex items-center justify-center gap-2 bg-discord-green hover:bg-discord-green-dark text-white py-2 rounded-xl text-sm font-bold transition-all shadow-lg shadow-discord-green/20"
+                                   onClick={e => e.stopPropagation()}
+                                 >
+                                   Join Call
+                                 </a>
+                               </div>
+                             );
+                          }
+                          return <FormattedText text={text} />;
+                        })()}
+                        {msg.edited && !msg.unsent && <span className="text-[10px] text-discord-muted ml-1 select-none">(edited)</span>}
+                      </div>
                     )}
                   </div>
                   {!msg.unsent && msg.text && !msg.text.startsWith('[vx:') && <LinkPreview text={msg.text} />}
-                  {isFirstInGroup && (
-                    <span className="text-discord-muted text-[10px] mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
-                      {msg.edited && !msg.unsent && <span className="ml-1 opacity-60">(edited)</span>}
-                    </span>
-                  )}
                 </div>
-                {mine && (
-                  <span className="text-discord-muted text-[10px] mb-1 opacity-0 group-hover:opacity-100 transition-opacity self-end">
-                    {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
-                  </span>
-                )}
               </div>
             );
           })}
           {typingUsers.length > 0 && (
-            <div className="flex items-center gap-2 text-discord-muted text-xs mt-2 px-1">
-              <div className="typing-indicator"><span/><span/><span/></div>
-              <span>{typingUsers.slice(0, 2).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...</span>
+            <div className="flex items-center gap-4 px-2 py-2">
+              <div className="w-10 flex-shrink-0" />
+              <div className="flex items-center gap-2 text-discord-muted text-xs font-bold italic">
+                <div className="typing-indicator flex gap-1"><span className="w-1 h-1"/><span className="w-1 h-1"/><span className="w-1 h-1"/></div>
+                <span>{typingUsers.slice(0, 2).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...</span>
+              </div>
             </div>
           )}
           <div ref={messagesEndRef} />
@@ -740,165 +769,238 @@ export default function GroupChat({ currentUser, unreadCounts }) {
         {/* Jump to bottom */}
         {!isAtBottom && newMsgCount > 0 && (
           <button
-            className="absolute bottom-28 left-1/2 -translate-x-1/2 discord-btn text-sm px-4 py-1.5 rounded-full shadow-xl animate-slide-up flex items-center gap-2"
+            className="absolute bottom-24 right-6 bg-discord-brand text-white w-10 h-10 rounded-full flex items-center justify-center shadow-xl z-30 animate-bounce"
             onClick={() => scrollToBottom()}
           >
-            ↓ {newMsgCount} new {newMsgCount === 1 ? 'message' : 'messages'}
+            <span className="text-[11px] font-bold">{newMsgCount > 9 ? '9+' : newMsgCount}</span>
           </button>
         )}
 
         {/* Channel read-only notice */}
         {isChannel && !canPost && (
-          <div className="px-4 py-3 border-t border-white/6 flex-shrink-0 bg-discord-sidebar/50">
-            <div className="flex items-center justify-center gap-2 text-discord-muted text-sm">
-              <span className="text-lg">📢</span>
-              <span>This is a broadcast channel. Only the owner can post.</span>
-            </div>
+          <div className="px-4 py-4 bg-discord-bg border-t border-discord-hover/50 flex flex-col items-center gap-2">
+            <div className="w-10 h-10 rounded-full bg-discord-hover/50 flex items-center justify-center text-discord-muted"><FiInfo size={20} /></div>
+            <p className="text-discord-muted text-sm text-center">This is a broadcast channel. Only the owner can post.</p>
           </div>
         )}
 
         {/* Input */}
-        {canPost && <form onSubmit={handleSend} className="px-4 pt-3 pb-20 md:pb-3 border-t border-white/6 flex-shrink-0 relative">
-          {/* Reply Preview */}
-          {replyingTo && (
-            <div className="mb-2 flex items-center gap-2 bg-discord-brand/10 border border-discord-brand/30 rounded-xl px-3 py-2">
-              <div className="w-0.5 h-full bg-discord-brand rounded-full self-stretch flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-discord-brand text-[11px] font-semibold mb-0.5">
-                  Replying to @{replyingTo.senderId?.username || replyingTo.senderUsername || 'someone'}
-                </p>
-                <p className="text-discord-muted text-xs truncate">
-                  {(replyingTo.text || '').replace(/^\[vx:[^\]]+\]\n?/, '').trim().slice(0, 80) || '📷 Photo'}
-                </p>
-              </div>
-              <button type="button" onClick={() => setReplyingTo(null)} className="text-discord-muted hover:text-discord-red transition-colors flex-shrink-0">
-                <FiX size={14} />
-              </button>
-            </div>
-          )}
-          {/* Mention Dropdown */}
-          {mentionQuery !== null && mentionMembers.length > 0 && (
-            <div className="absolute bottom-full left-4 right-4 mb-1 bg-discord-dark border border-white/10 rounded-xl shadow-2xl py-1 z-50 backdrop-blur-xl max-h-52 overflow-y-auto">
-              {mentionMembers.map((m) => {
-                const username = m.username || m.user?.username || '';
-                const name = m.name || m.user?.name || username;
-                const profilePicture = m.profilePicture || m.user?.profilePicture;
-                return (
+        {canPost && (
+          <div className={`flex flex-col flex-shrink-0 bg-discord-bg transition-all duration-300 ${showEmojiPicker ? 'pb-0' : 'pb-safe'}`}>
+            <form onSubmit={handleSend} className="px-4 py-3">
+              {/* Reply Preview */}
+              {replyingTo && (
+                <div className="mb-3 p-3 bg-discord-hover/30 rounded-xl border border-discord-hover/50 flex items-center gap-3 animate-fade-in">
+                   <div className="w-1 h-8 bg-discord-brand rounded-full" />
+                   <div className="flex-1 min-w-0">
+                     <p className="text-xs font-bold text-discord-brand mb-0.5">Replying to @{replyingTo.senderId?.username || replyingTo.senderUsername}</p>
+                     <p className="text-xs text-discord-muted truncate">{(replyingTo.text || '').replace(/^\[vx:[^\]]+\]\n?/, '').trim() || '📷 Photo'}</p>
+                   </div>
+                   <button type="button" onClick={() => setReplyingTo(null)} className="p-2 text-discord-muted hover:text-discord-red"><FiX size={18} /></button>
+                </div>
+              )}
+
+              {/* Media Attachment Preview */}
+              {mediaAttachment && (
+                <div className="mb-3 p-3 bg-discord-hover/30 rounded-xl border border-discord-hover/50 flex items-center gap-3 animate-fade-in">
+                   {mediaAttachment.type === 'image' && (
+                    <img src={mediaAttachment.dataUrl} className="w-16 h-16 rounded-lg object-cover cursor-pointer" onClick={() => { setPendingImageSrc(mediaAttachment.dataUrl); setShowCropModal(true); }} />
+                   )}
+                   <div className="flex-1 min-w-0">
+                     <p className="text-sm font-bold text-discord-text truncate">{mediaAttachment.filename}</p>
+                     <p className="text-xs text-discord-muted">{(mediaAttachment.size / 1024).toFixed(1)} KB</p>
+                   </div>
+                   <button type="button" onClick={() => setMediaAttachment(null)} className="p-2 text-discord-muted hover:text-discord-red"><FiX size={20} /></button>
+                </div>
+              )}
+
+              {/* Mention Suggestions */}
+              {mentionQuery !== null && mentionMembers.length > 0 && (
+                <div className="mb-2 bg-discord-dark border border-discord-hover/50 rounded-xl shadow-2xl overflow-hidden animate-slide-up">
+                  {mentionMembers.map((m) => {
+                    const uname = m.username || m.user?.username;
+                    const name = m.name || m.user?.name || uname;
+                    return (
+                      <button
+                        key={uname}
+                        type="button"
+                        className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-white/5 transition-colors text-left"
+                        onMouseDown={e => { e.preventDefault(); handleMentionSelect(uname); }}
+                      >
+                        <Avatar user={m.user || m} size={32} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-discord-text truncate">{name}</p>
+                          <p className="text-xs text-discord-muted">@{uname}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="flex items-end gap-3 bg-discord-hover/50 rounded-2xl px-4 py-2.5 min-h-[48px] border border-transparent focus-within:border-discord-brand/20 transition-all">
+                {!group?.textOnly && (
                   <button
-                    key={username}
                     type="button"
-                    className="flex items-center gap-3 w-full px-3 py-2 hover:bg-white/8 transition-colors text-left"
-                    onMouseDown={e => { e.preventDefault(); handleMentionSelect(username); }}
+                    className="p-1 text-discord-muted hover:text-discord-text transition-colors mb-0.5"
+                    onClick={() => fileInputRef.current?.click()}
                   >
-                    <Avatar user={{ username, name, profilePicture }} size={28} />
-                    <div className="min-w-0">
-                      <p className="text-discord-text text-sm font-semibold truncate">{name}</p>
-                      <p className="text-discord-muted text-xs">@{username}</p>
-                    </div>
+                    <FiPlusSquare size={22} className="fill-discord-muted/10" />
+                    <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileAttach} />
                   </button>
-                );
-              })}
-            </div>
-          )}
-          {/* Media Preview */}
-          {mediaAttachment && (
-            <div className="mb-2 flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
-              <div className="relative flex-shrink-0">
-                <img
-                  src={mediaAttachment.dataUrl}
-                  alt="preview"
-                  className="w-12 h-12 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                  title="Tap to crop"
-                  onClick={() => {
-                    setPendingImageSrc(mediaAttachment.dataUrl);
-                    setShowCropModal(true);
+                )}
+
+                <textarea
+                  ref={textareaRef}
+                  value={newMsg}
+                  onChange={e => { handleTyping(e); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'; }}
+                  onFocus={() => setShowEmojiPicker(false)}
+                  placeholder={`Message ${group?.name}`}
+                  className="flex-1 bg-transparent text-[15px] text-discord-text outline-none resize-none py-1 max-h-40 no-scrollbar"
+                  rows={1}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend(e);
+                    }
                   }}
                 />
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <span className="text-white text-[8px] font-bold bg-black/50 rounded px-1 opacity-0 hover:opacity-100">Crop</span>
+
+                <div className="flex items-center gap-2 mb-0.5">
+                  <button
+                    type="button"
+                    className={`p-1 transition-colors ${showEmojiPicker ? 'text-discord-brand' : 'text-discord-muted hover:text-discord-text'}`}
+                    onClick={handleEmojiButtonClick}
+                  >
+                    <FiSmile size={22} />
+                  </button>
+                  {newMsg.trim() || mediaAttachment ? (
+                    <button type="submit" className="p-1 text-discord-brand hover:text-discord-brand-light transition-all active:scale-90">
+                      <FiSend size={22} />
+                    </button>
+                  ) : null}
                 </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-discord-text font-medium truncate">{mediaAttachment.filename}</p>
-                <p className="text-[11px] text-discord-muted">Tap image to crop</p>
-              </div>
-              <button type="button" onClick={() => setMediaAttachment(null)} className="text-discord-muted hover:text-discord-red transition-colors flex-shrink-0">
-                <FiX size={16} />
-              </button>
-            </div>
-          )}
-          <div className="flex items-end gap-2">
-            {!group?.textOnly && (
-            <div className="flex items-center gap-1 flex-shrink-0 mb-0.5">
-              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileAttach} />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-9 h-9 flex items-center justify-center rounded-xl text-discord-muted hover:text-discord-brand hover:bg-discord-brand/10 transition-colors"
-                title="Attach photo"
-              >
-                <FiPaperclip size={18} />
-              </button>
-            </div>
-            )}
-            <div className="relative flex-1">
-              <textarea
-                ref={textareaRef}
-                value={newMsg}
-                onChange={e => { handleTyping(e); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'; }}
-                placeholder={mediaAttachment ? 'Add a caption...' : `Message ${group?.name || 'group'}...`}
-                className="discord-input w-full resize-none overflow-hidden pr-10"
-                rows={1}
-                style={{ minHeight: '42px', maxHeight: '160px', lineHeight: '1.5' }}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    const start = e.target.selectionStart;
-                    const end = e.target.selectionEnd;
-                    setNewMsg(prev => prev.slice(0, start) + '\n' + prev.slice(end));
-                    setTimeout(() => {
-                      const el = e.target;
-                      el.selectionStart = el.selectionEnd = start + 1;
-                      el.style.height = 'auto';
-                      el.style.height = Math.min(el.scrollHeight, 160) + 'px';
-                    }, 0);
-                  }
-                }}
-              />
-              <button
-                type="button"
-                className="absolute right-2 bottom-2 text-discord-muted hover:text-discord-brand transition-colors p-1"
-                onClick={e => { e.stopPropagation(); setShowEmojiPicker(p => !p); }}
-              >
-                <FiSmile size={18} />
-              </button>
-              {showEmojiPicker && (
-                <EmojiPicker
-                  onSelect={emoji => {
-                    const ta = textareaRef.current;
-                    if (!ta) { setNewMsg(prev => prev + emoji); setShowEmojiPicker(false); return; }
-                    const start = ta.selectionStart;
-                    const end = ta.selectionEnd;
-                    setNewMsg(prev => prev.slice(0, start) + emoji + prev.slice(end));
-                    setTimeout(() => { ta.selectionStart = ta.selectionEnd = start + emoji.length; ta.focus(); }, 0);
+            </form>
+
+            {/* Emoji Keyboard */}
+            {showEmojiPicker && (
+              <div className="w-full bg-discord-bg animate-slide-up border-t border-discord-hover/50" style={{ height: '320px' }}>
+                <EmojiStickerPicker
+                  onSelectEmoji={insertEmoji}
+                  onSelectSticker={async (sticker) => {
                     setShowEmojiPicker(false);
+                    const stickerText = `[vx:img:${sticker.url}]`;
+                    const tempId = Date.now();
+                    const tempMsg = {
+                      _id: tempId,
+                      text: stickerText,
+                      senderId: { _id: myId, username: currentUser?.username, name: currentUser?.name, profilePicture: currentUser?.profilePicture },
+                      senderUsername: currentUser?.username,
+                      createdAt: new Date().toISOString()
+                    };
+                    setMessages(prev => [...prev, tempMsg]);
+                    scrollToBottom();
+                    try {
+                      await API.sendGroupMessage(groupId, stickerText);
+                    } catch {}
                   }}
                   onClose={() => setShowEmojiPicker(false)}
-                  anchor="top"
+                  anchor="keyboard"
                 />
-              )}
-            </div>
-            <button type="submit" disabled={(!newMsg.trim() && !mediaAttachment) || sending} className="discord-btn p-2.5 rounded-lg disabled:opacity-40 flex-shrink-0 mb-0.5">
-              <FiSend size={16} />
-            </button>
+              </div>
+            )}
           </div>
-        </form>}
+        )}
       </div>
 
       {/* Context Menu */}
       {contextMenu && (
         <div
           className="fixed z-50 bg-discord-dark border border-white/10 rounded-xl shadow-2xl py-1 min-w-36 backdrop-blur-xl"
+          style={{ top: Math.min(contextMenu.y, window.innerHeight - 250), left: Math.min(contextMenu.x, window.innerWidth - 180) }}
+          onClick={e => e.stopPropagation()}
+        >
+          {!contextMenu.msg.unsent && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
+              onClick={() => { setReplyingTo(contextMenu.msg); setContextMenu(null); setTimeout(() => textareaRef.current?.focus(), 100); }}
+            >
+              ↩ Reply
+            </button>
+          )}
+          {!contextMenu.msg.unsent && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
+              onClick={() => copyMessage(contextMenu.msg.text)}
+            >
+              <FiCopy size={13} /> Copy Text
+            </button>
+          )}
+          {!contextMenu.msg.unsent && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-brand hover:bg-discord-brand/10 transition-colors"
+              onClick={() => { setTranslateMsg(contextMenu.msg.text); setContextMenu(null); }}
+            >
+              <FiGlobe size={13} /> Translate
+            </button>
+          )}
+          {!contextMenu.msg.unsent && contextMenu.senderUserId === myId && !contextMenu.msg.text?.startsWith('[vx:') && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
+              onClick={() => {
+                setEditingMsgId(contextMenu.msg._id);
+                setEditText(contextMenu.msg.text || '');
+                setContextMenu(null);
+              }}
+            >
+              <FiEdit2 size={13} /> Edit Message
+            </button>
+          )}
+          {!contextMenu.msg.unsent && contextMenu.senderUserId === myId && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-red hover:bg-discord-red/10 transition-colors"
+              onClick={() => handleUnsend(contextMenu.msg._id)}
+            >
+              <FiTrash2 size={13} /> Unsend
+            </button>
+          )}
+          {contextMenu.senderUserId && contextMenu.senderUserId !== myId && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-orange-400 hover:bg-orange-400/10 transition-colors"
+              onClick={() => {
+                setReportTarget({ type: 'user', id: contextMenu.senderUserId, name: contextMenu.senderName });
+                setContextMenu(null);
+              }}
+            >
+              <FiFlag size={13} /> Report User
+            </button>
+          )}
+          <button
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-orange-400 hover:bg-orange-400/10 transition-colors"
+            onClick={() => {
+              setReportTarget({ type: 'group', id: groupId, name: group?.name });
+              setContextMenu(null);
+            }}
+          >
+            <FiFlag size={13} /> Report Group
+          </button>
+        </div>
+      )}
+
+      {reportTarget && (
+        <ReportModal
+          type={reportTarget.type}
+          targetId={reportTarget.id}
+          targetName={reportTarget.name}
+          onClose={() => setReportTarget(null)}
+        />
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 bg-discord-dark border border-white/10 rounded-xl shadow-2xl py-1 min-w-36 backdrop-blur-xl animate-fade-in"
           style={{ top: Math.min(contextMenu.y, window.innerHeight - 250), left: Math.min(contextMenu.x, window.innerWidth - 180) }}
           onClick={e => e.stopPropagation()}
         >
@@ -1043,7 +1145,6 @@ export default function GroupChat({ currentUser, unreadCounts }) {
           </div>
         </div>
       )}
-
     </Layout>
   );
 }

@@ -122,6 +122,7 @@ export default function EmojiStickerPicker({ onSelectEmoji, onSelectSticker, onC
   const pickerRef = useRef();
 
   useEffect(() => {
+    if (anchor === 'keyboard') return;
     const handler = (e) => {
       if (pickerRef.current && !pickerRef.current.contains(e.target)) onClose();
     };
@@ -131,18 +132,17 @@ export default function EmojiStickerPicker({ onSelectEmoji, onSelectSticker, onC
       document.removeEventListener('mousedown', handler);
       document.removeEventListener('touchstart', handler);
     };
-  }, [onClose]);
+  }, [onClose, anchor]);
+
+  const style = anchor === 'keyboard' 
+    ? { width: '100%', height: '100%', position: 'relative' }
+    : { width: 320, height: 360, top: 'calc(100% + 8px)', right: 0, position: 'absolute' };
 
   return (
     <div
       ref={pickerRef}
-      className="absolute z-50 bg-discord-dark border border-discord-hover rounded-2xl shadow-2xl overflow-hidden select-none flex flex-col"
-      style={{
-        width: 320,
-        height: 360,
-        top: 'calc(100% + 8px)',
-        right: 0,
-      }}
+      className={`z-50 bg-discord-dark overflow-hidden select-none flex flex-col ${anchor !== 'keyboard' ? 'border border-discord-hover rounded-2xl shadow-2xl' : ''}`}
+      style={style}
       onMouseDown={e => e.preventDefault()}
     >
       <div className="flex-1 min-h-0">
