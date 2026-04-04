@@ -34,7 +34,6 @@ export default function Feed({ currentUser, unreadCounts }) {
   const [storyViewerGroupIdx, setStoryViewerGroupIdx] = useState(0);
   const storiesBarRef = useRef(null);
 
-  const [fullScreenVideo, setFullScreenVideo] = useState(null); // { posts, index }
   const [usingFallback, setUsingFallback] = useState(false);
 
   const fetchPosts = useCallback(async (pg = 1, resetPosts = false) => {
@@ -95,24 +94,18 @@ export default function Feed({ currentUser, unreadCounts }) {
       // Find all videos in current posts to maintain context
       const videoOnlyPosts = posts.filter(p => p.media?.some(m => m.type === 'video'));
       const videoIdx = videoOnlyPosts.findIndex(p => p._id === post._id);
-      setFullScreenVideo({ posts: videoOnlyPosts, index: Math.max(0, videoIdx) });
+      
+      // Navigate to /reels with state
+      navigate('/reels', { 
+        state: { 
+          initialPosts: videoOnlyPosts, 
+          startIndex: Math.max(0, videoIdx) 
+        } 
+      });
     } else {
       navigate(`/post/${post._id}`, { state: { post } });
     }
   };
-
-  if (fullScreenVideo) {
-    return (
-      <div className="fixed inset-0 z-[100] bg-black">
-        <VideoFeed
-          currentUser={currentUser}
-          initialPosts={fullScreenVideo.posts}
-          startIndex={fullScreenVideo.index}
-          onClose={() => setFullScreenVideo(null)}
-        />
-      </div>
-    );
-  }
 
   return (
     <Layout
