@@ -455,6 +455,15 @@ class API {
   static async getMyGameRooms() { return this.request('/api/games/my-rooms'); }
   static async getGameLeaderboard(limit = 20) { return this.request(`/api/games/leaderboard?limit=${limit}`); }
   static async getMyGameStats() { return this.request('/api/games/my-stats'); }
+  static async deleteGameRoom(roomId) {
+    return this.request(`/api/games/room/${roomId}`, { method: 'DELETE' });
+  }
+  static async kickPlayer(roomId, username) {
+    return this.request(`/api/games/room/${roomId}/kick`, { method: 'POST', body: JSON.stringify({ username }) });
+  }
+  static async leaveGameRoom(roomId) {
+    return this.request(`/api/games/room/${roomId}/leave`, { method: 'POST' });
+  }
 
   static getMediaUrl(url) {
     if (!url) return null;

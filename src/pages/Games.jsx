@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { FiPlus, FiHash, FiZap, FiUsers, FiTrendingUp, FiPlay, FiRefreshCw, FiCopy, FiCheck, FiArrowLeft } from 'react-icons/fi';
+import { FiPlus, FiHash, FiZap, FiUsers, FiTrendingUp, FiPlay, FiRefreshCw, FiCopy, FiCheck, FiArrowLeft, FiX, FiLogOut, FiUserX, FiClock } from 'react-icons/fi';
 import Layout from '../components/Layout';
 import Avatar from '../components/Avatar';
 import API from '../utils/api';
 import socket from '../utils/socket';
+import { showToast } from '../utils/toast';
 
 function twemojiUrl(emoji) {
   const cps = [...emoji].map(c => c.codePointAt(0).toString(16)).filter(cp => parseInt(cp, 16) !== 0xfe0f);
@@ -263,6 +264,10 @@ function RoomLobby({ roomId, currentUser, onClose }) {
   const [gameOver, setGameOver] = useState(null);
   const [starting, setStarting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [kicking, setKicking] = useState(null);
+  const [timeUntilClose, setTimeUntilClose] = useState(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -273,14 +278,6 @@ function RoomLobby({ roomId, currentUser, onClose }) {
     try {
       const data = await API.getGameRoom(roomId);
       setRoom(data.room);
-      // Check if there's an ongoing round
-      if (data.room.status === 'in_progress' && data.room.rounds?.length > 0) {
-        const lastRound = data.room.rounds[data.room.rounds.length - 1];
-        if (!lastRound.endedAt) {
-          // Reconstruct round payload if possible, or wait for next event
-          // For now we just show waiting if we don't have full round data
-        }
-      }
     } catch (err) {
       setError(err.message || 'Failed to load room');
     } finally {
@@ -293,12 +290,30 @@ function RoomLobby({ roomId, currentUser, onClose }) {
   }, [fetchRoom]);
 
   useEffect(() => {
+    if (room?.status !== 'waiting' || !room?.lastActivity) {
+      setTimeUntilClose(null);
+      return;
+    }
+
+    const INACTIVITY_LIMIT_MS = 10 * 60 * 1000;
+    const updateTimer = () => {
+      const elapsed = Date.now() - new Date(room.lastActivity).getTime();
+      const remaining = INACTIVITY_LIMIT_MS - elapsed;
+      setTimeUntilClose(Math.max(0, Math.floor(remaining / 1000)));
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 10000);
+    return () => clearInterval(timer);
+  }, [room?.status, room?.lastActivity]);
+
+  useEffect(() => {
     if (!room?._id) return;
 
     socket.emit('joinGameRoom', room._id);
 
     const handlePlayerJoined = ({ players }) => {
-      setRoom(r => r ? { ...r, players } : null);
+      setRoom(r => r ? { ...r, players, lastActivity: new Date().toISOString() } : null);
     };
 
     const handleGameStarted = ({ room: r, round: rd }) => {
@@ -312,6 +327,7 @@ function RoomLobby({ roomId, currentUser, onClose }) {
       if (roundResult) {
         setResult(roundResult);
         setGuess('');
+        setRoom(r => r ? { ...r, lastActivity: new Date().toISOString() } : null);
       }
       if (go) {
         setGameOver(go);
@@ -324,29 +340,97 @@ function RoomLobby({ roomId, currentUser, onClose }) {
       }
     };
 
+    const handleRoomCancelled = ({ reason }) => {
+      showToast(reason, { type: 'error' });
+      onClose();
+    };
+
+    const handlePlayerKicked = ({ username, players }) => {
+      if (currentUser.username === username) {
+        showToast('You have been removed from this room by the host', { type: 'error' });
+        onClose();
+      } else {
+        setRoom(r => r ? { ...r, players, lastActivity: new Date().toISOString() } : null);
+        showToast(`${username} was removed from the room`);
+      }
+    };
+
+    const handlePlayerLeft = ({ username, players }) => {
+      setRoom(r => r ? { ...r, players, lastActivity: new Date().toISOString() } : null);
+      showToast(`${username} left the room`);
+    };
+
     socket.on('playerJoined', handlePlayerJoined);
     socket.on('gameStarted', handleGameStarted);
     socket.on('guessResult', handleGuessResult);
+    socket.on('roomCancelled', handleRoomCancelled);
+    socket.on('playerKicked', handlePlayerKicked);
+    socket.on('playerLeft', handlePlayerLeft);
 
     return () => {
       socket.emit('leaveGameRoom', room._id);
       socket.off('playerJoined', handlePlayerJoined);
       socket.off('gameStarted', handleGameStarted);
       socket.off('guessResult', handleGuessResult);
+      socket.off('roomCancelled', handleRoomCancelled);
+      socket.off('playerKicked', handlePlayerKicked);
+      socket.off('playerLeft', handlePlayerLeft);
     };
-  }, [room?._id]);
+  }, [room?._id, currentUser.username, onClose]);
 
   const handleStart = async () => {
     setStarting(true);
     try {
       const data = await API.startGame(room._id);
-      // Room state will be updated via socket, but we set it here too for speed
       setRoom(data.room);
       setRound(data.round);
     } catch (err) {
-      alert(err.message || 'Failed to start');
+      if (err.message?.includes('at least 2 players')) {
+        showToast(err.message);
+      } else {
+        alert(err.message || 'Failed to start');
+      }
     } finally {
       setStarting(false);
+    }
+  };
+
+  const handleDeleteRoom = async () => {
+    if (!window.confirm('Are you sure you want to close this room?')) return;
+    setDeleting(true);
+    try {
+      await API.deleteGameRoom(room._id);
+      onClose();
+    } catch (err) {
+      alert(err.message || 'Failed to delete room');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleLeaveRoom = async () => {
+    const msg = room.hostId === myId ? 'Leaving as host will close the room for everyone. Continue?' : 'Are you sure you want to leave?';
+    if (!window.confirm(msg)) return;
+    setLeaving(true);
+    try {
+      await API.leaveGameRoom(room._id);
+      onClose();
+    } catch (err) {
+      alert(err.message || 'Failed to leave room');
+    } finally {
+      setLeaving(false);
+    }
+  };
+
+  const handleKickPlayer = async (username) => {
+    if (!window.confirm(`Are you sure you want to kick ${username}?`)) return;
+    setKicking(username);
+    try {
+      await API.kickPlayer(room._id, username);
+    } catch (err) {
+      alert(err.message || 'Failed to kick player');
+    } finally {
+      setKicking(null);
     }
   };
 
@@ -359,6 +443,7 @@ function RoomLobby({ roomId, currentUser, onClose }) {
       // Most of the state update happens via socket guessResult
       if (!data.roundResult && !data.gameOver) {
          setGuess('');
+         setRoom(r => r ? { ...r, lastActivity: new Date().toISOString() } : null);
       }
     } catch (err) {
       alert(err.message || 'Guess failed');
@@ -393,16 +478,26 @@ function RoomLobby({ roomId, currentUser, onClose }) {
     );
   }
 
-  const isHost = room.players?.[0]?.userId === myId;
+  const isHost = room.hostId === myId;
   const canStart = isHost && room.players?.length >= 2 && room.status === 'waiting';
   const gameIcon = room.gameType === 'word_sprint' ? '🔤' : '🎭';
 
   return (
     <div className="fixed inset-0 bg-discord-bg z-[100] flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-discord-hover flex-shrink-0">
-        <button onClick={onClose} className="flex items-center gap-1.5 text-discord-muted hover:text-discord-text text-sm font-semibold transition-colors">
-          <FiArrowLeft size={16} /> Back
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button onClick={onClose} className="text-discord-muted hover:text-discord-text transition-colors">
+            <FiArrowLeft size={20} />
+          </button>
+          <button 
+            onClick={isHost ? handleDeleteRoom : handleLeaveRoom}
+            disabled={room.status === 'in_progress' || deleting || leaving}
+            className="flex items-center gap-1.5 text-red-400 hover:text-red-300 text-xs font-bold uppercase tracking-wide disabled:opacity-40 disabled:cursor-not-allowed ml-2"
+            title={room.status === 'in_progress' ? 'Cannot leave mid-game' : ''}
+          >
+            {isHost ? <FiX size={14} /> : <FiLogOut size={14} />} {isHost ? 'Close Room' : 'Leave'}
+          </button>
+        </div>
         <span className="font-bold text-discord-text flex items-center gap-1.5">
           <TwemojiImg emoji={gameIcon} size={18} /> 
           {room.gameType === 'word_sprint' ? 'Word Sprint' : 'Emoji Trivia'}
@@ -503,16 +598,26 @@ function RoomLobby({ roomId, currentUser, onClose }) {
               <div className="flex justify-center mb-4 scale-125"><TwemojiImg emoji="🎮" size={64} /></div>
               <h2 className="text-2xl font-black text-discord-text">Waiting Area</h2>
               <p className="text-discord-muted text-sm mt-1 max-w-[250px] mx-auto leading-relaxed">Share the invite code with your squad to start the battle!</p>
+              
+              {timeUntilClose !== null && timeUntilClose < 120 && (
+                <div className="mt-4 flex items-center justify-center gap-2 text-red-400 font-bold text-xs uppercase animate-pulse">
+                  <FiClock size={14} /> Room closes in ~{Math.floor(timeUntilClose / 60)}m {timeUntilClose % 60}s
+                </div>
+              )}
             </div>
             
             <div className="bg-discord-hover/30 border border-discord-hover rounded-2xl overflow-hidden mb-8">
               <div className="px-4 py-2 bg-discord-hover/50 border-b border-discord-hover flex justify-between items-center">
-                <span className="text-[10px] font-black text-discord-muted uppercase tracking-wider">Players ({room.players?.length || 0})</span>
-                <span className="text-[10px] font-black text-discord-brand uppercase tracking-wider">{room.maxPlayers - (room.players?.length || 0)} slots left</span>
+                <span className="text-[10px] font-black text-discord-muted uppercase tracking-wider">
+                  {room.players?.length || 0} / {room.maxPlayers || 8} players
+                </span>
+                <span className="text-[10px] font-black text-discord-brand uppercase tracking-wider">
+                  {room.players?.length < 2 ? 'Waiting for players...' : 'Ready to start!'}
+                </span>
               </div>
               <div className="divide-y divide-discord-hover">
                 {room.players?.map((p, i) => (
-                  <div key={p.userId || i} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-discord-hover/20">
+                  <div key={p.userId || i} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-discord-hover/20 group">
                     <div className="w-9 h-9 rounded-full bg-discord-brand/20 flex items-center justify-center text-discord-brand font-black text-sm border-2 border-discord-brand/10">
                       {(p.username || '?')[0].toUpperCase()}
                     </div>
@@ -520,18 +625,24 @@ function RoomLobby({ roomId, currentUser, onClose }) {
                       <p className="font-bold text-discord-text text-sm">@{p.username}</p>
                       <p className="text-[10px] text-discord-muted font-semibold">{i === 0 ? 'Room Leader' : 'Challenger'}</p>
                     </div>
-                    {i === 0 ? (
-                      <span className="bg-discord-brand text-white text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase">Host</span>
-                    ) : p.userId === myId ? (
-                      <span className="bg-discord-muted text-white text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase">You</span>
-                    ) : null}
+                    <div className="flex items-center gap-2">
+                      {i === 0 ? (
+                        <span className="bg-discord-brand text-white text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase">Host</span>
+                      ) : p.userId === myId ? (
+                        <span className="bg-discord-muted text-white text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase">You</span>
+                      ) : isHost && (
+                        <button 
+                          onClick={() => handleKickPlayer(p.username)}
+                          disabled={kicking === p.username}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-discord-muted hover:text-red-400 hover:bg-red-400/10 transition-all"
+                          title="Kick Player"
+                        >
+                          {kicking === p.username ? <FiRefreshCw size={14} className="animate-spin" /> : <FiUserX size={14} />}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
-                {room.players?.length < 2 && (
-                  <div className="px-4 py-6 text-center">
-                    <p className="text-discord-muted text-xs font-semibold animate-pulse italic">Waiting for at least 1 more challenger...</p>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -540,8 +651,23 @@ function RoomLobby({ roomId, currentUser, onClose }) {
                 {starting ? 'Initializing...' : <span className="flex items-center justify-center gap-2"><TwemojiImg emoji="🚀" size={20} /> Launch Game</span>}
               </button>
             ) : isHost ? (
-               <div className="p-4 bg-discord-brand/10 border border-discord-brand/20 rounded-2xl text-center">
-                 <p className="text-discord-brand text-xs font-bold uppercase tracking-wider">Need at least 2 players to start</p>
+               <div className="space-y-4">
+                 <div className="p-4 bg-discord-brand/10 border border-discord-brand/20 rounded-2xl text-center">
+                   <p className="text-discord-brand text-xs font-bold uppercase tracking-wider mb-2">Need at least 2 players to start</p>
+                   <button 
+                     onClick={copyCode}
+                     className="flex items-center gap-2 mx-auto px-4 py-2 rounded-xl bg-discord-brand text-white text-sm font-bold shadow-md hover:bg-discord-brand/90 transition-all active:scale-95"
+                   >
+                     {copied ? <FiCheck size={14} /> : <FiCopy size={14} />} 
+                     {copied ? 'Code Copied!' : 'Copy Invite Code'}
+                   </button>
+                 </div>
+                 <button 
+                   disabled 
+                   className="discord-btn w-full py-4 rounded-2xl font-black text-lg opacity-50 cursor-not-allowed"
+                 >
+                   Launch Game
+                 </button>
                </div>
             ) : (
               <div className="text-center p-4 bg-discord-hover/50 rounded-2xl border border-discord-hover">
