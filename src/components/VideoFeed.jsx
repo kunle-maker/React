@@ -278,18 +278,18 @@ function VideoCard({ post, isActive, onLike, onBookmark }) {
   );
 }
 
-export default function VideoFeed({ currentUser }) {
-  const [videoPosts, setVideoPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function VideoFeed({ currentUser, initialPosts = [], startIndex = 0, onClose }) {
+  const [videoPosts, setVideoPosts] = useState(initialPosts.length > 0 ? initialPosts : []);
+  const [loading, setLoading] = useState(initialPosts.length === 0);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [hasMore, setHasMore] = useState(initialPosts.length === 0);
+  const [activeIndex, setActiveIndex] = useState(startIndex);
   const cardRefs = useRef([]);
   const observerRef = useRef(null);
   const fetchingRef = useRef(false);
 
   const fetchVideos = useCallback(async (pg = 1, reset = false) => {
-    if (fetchingRef.current) return;
+    if (fetchingRef.current || initialPosts.length > 0) return;
     fetchingRef.current = true;
     try {
       if (pg === 1) setLoading(true);
@@ -308,11 +308,19 @@ export default function VideoFeed({ currentUser }) {
       setHasMore(result?.hasMore ?? false);
     } catch { }
     finally { setLoading(false); fetchingRef.current = false; }
-  }, [currentUser]);
+  }, [currentUser, initialPosts]);
 
   const currentUserId = currentUser?._id || currentUser?.id;
-  useEffect(() => { fetchVideos(1, true); }, [currentUserId]);
-  useEffect(() => { if (page > 1) fetchVideos(page); }, [page]);
+  useEffect(() => { 
+    if (initialPosts.length === 0) fetchVideos(1, true); 
+    else {
+      // Scroll to start index
+      const el = cardRefs.current[startIndex];
+      if (el) el.scrollIntoView({ behavior: 'auto' });
+    }
+  }, [currentUserId, initialPosts, startIndex]);
+
+  useEffect(() => { if (page > 1 && initialPosts.length === 0) fetchVideos(page); }, [page, initialPosts]);
 
   useEffect(() => {
     observerRef.current?.disconnect();
@@ -322,7 +330,7 @@ export default function VideoFeed({ currentUser }) {
           if (entry.intersectionRatio >= 0.5) {
             const idx = parseInt(entry.target.dataset.index, 10);
             setActiveIndex(idx);
-            if (hasMore && idx >= videoPosts.length - 2) setPage(p => p + 1);
+            if (hasMore && idx >= videoPosts.length - 2 && initialPosts.length === 0) setPage(p => p + 1);
           }
         });
       },
@@ -330,7 +338,7 @@ export default function VideoFeed({ currentUser }) {
     );
     cardRefs.current.forEach(el => { if (el) observerRef.current.observe(el); });
     return () => observerRef.current?.disconnect();
-  }, [videoPosts, hasMore]);
+  }, [videoPosts, hasMore, initialPosts]);
 
   const handleLike = async (postId) => {
     setVideoPosts(prev => prev.map(p => p._id !== postId ? p : {
@@ -347,6 +355,11 @@ export default function VideoFeed({ currentUser }) {
   if (loading && videoPosts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-black">
+        {onClose && (
+          <button onClick={onClose} className="absolute top-6 left-6 z-50 text-white/70 hover:text-white">
+            <FiArrowLeft size={24} />
+          </button>
+        )}
         <div className="relative w-16 h-16">
            <div className="absolute inset-0 border-4 border-discord-brand/20 rounded-full" />
            <div className="absolute inset-0 border-4 border-discord-brand border-t-transparent rounded-full animate-spin" />
@@ -362,16 +375,21 @@ export default function VideoFeed({ currentUser }) {
   if (!loading && videoPosts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-black px-12 text-center">
+        {onClose && (
+          <button onClick={onClose} className="absolute top-6 left-6 z-50 text-white/70 hover:text-white">
+            <FiArrowLeft size={24} />
+          </button>
+        )}
         <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6">
            <TwemojiImg emoji="📭" size={48} />
         </div>
         <p className="text-white font-bold text-lg mb-2">No videos discovered</p>
         <p className="text-white/40 text-sm leading-relaxed">Be the first to spark a connection by sharing a reel!</p>
         <button 
-          onClick={() => window.location.reload()}
+          onClick={() => initialPosts.length === 0 ? window.location.reload() : onClose?.()}
           className="mt-8 px-8 py-3 rounded-full bg-discord-brand text-white font-bold text-sm shadow-xl shadow-discord-brand/20 active:scale-95 transition-transform"
         >
-          Refresh Feed
+          {initialPosts.length === 0 ? 'Refresh Feed' : 'Go Back'}
         </button>
       </div>
     );
@@ -379,9 +397,18 @@ export default function VideoFeed({ currentUser }) {
 
   return (
     <div
-      className="h-full overflow-y-scroll snap-y snap-mandatory bg-black no-scrollbar"
+      className="h-full overflow-y-scroll snap-y snap-mandatory bg-black no-scrollbar relative"
       style={{ WebkitOverflowScrolling: 'touch' }}
     >
+      {onClose && (
+        <button 
+          onClick={onClose} 
+          className="absolute top-6 left-6 z-50 text-white/80 hover:text-white drop-shadow-lg active:scale-90 transition-transform"
+        >
+          <FiArrowLeft size={28} />
+        </button>
+      )}
+
       {videoPosts.map((post, idx) => (
         <div
           key={post._id || idx}
@@ -398,7 +425,7 @@ export default function VideoFeed({ currentUser }) {
           />
         </div>
       ))}
-      {hasMore && (
+      {hasMore && initialPosts.length === 0 && (
         <div className="snap-start flex items-center justify-center bg-black" style={{ height: '100%' }}>
           <div className="w-8 h-8 border-4 border-white/10 border-t-discord-brand rounded-full animate-spin" />
         </div>

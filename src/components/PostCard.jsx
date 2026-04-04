@@ -23,7 +23,7 @@ function TwemojiIcon({ emoji, size = '1.4em' }) {
 
 const REACTIONS = ['❤️', '🔥', '😂', '😮', '😢', '👍'];
 
-export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
+export default function PostCard({ post, currentUser, onDelete, onUpdate, onClickMedia }) {
   const navigate = useNavigate();
   const [liked, setLiked] = useState(() => {
     if (post.isLiked !== undefined) return post.isLiked;
@@ -239,22 +239,40 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate }) {
           {media.length > 0 && (
             <div className="mt-2 mb-3 rounded-2xl overflow-hidden bg-discord-dark/50 border border-discord-hover/30 relative group">
               {currentMedia?.type === 'video' ? (
-                <video
-                  ref={videoRef}
-                  src={API.getMediaUrl(currentMedia.url)}
-                  controls
-                  playsInline
-                  muted
-                  className="w-full max-h-[500px] object-contain"
-                  onClick={e => e.stopPropagation()}
-                />
+                <div 
+                  className="relative cursor-pointer"
+                  onClick={e => {
+                    if (onClickMedia) {
+                      e.stopPropagation();
+                      onClickMedia(post, mediaIndex);
+                    }
+                  }}
+                >
+                  <video
+                    ref={videoRef}
+                    src={API.getMediaUrl(currentMedia.url)}
+                    playsInline
+                    muted
+                    className="w-full max-h-[500px] object-contain"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/20">
+                       <FiSend size={24} className="text-white ml-1" />
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <img
                   src={API.getMediaUrl(currentMedia?.url)}
                   alt="Post media"
                   className="w-full max-h-[500px] object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                   loading="lazy"
-                  onClick={e => e.stopPropagation()}
+                  onClick={e => {
+                    if (onClickMedia) {
+                      e.stopPropagation();
+                      onClickMedia(post, mediaIndex);
+                    }
+                  }}
                 />
               )}
               {media.length > 1 && (
