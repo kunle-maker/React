@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiHeart, FiMessageCircle, FiShare2, FiBookmark, FiMoreHorizontal, FiTrash2, FiCopy, FiExternalLink, FiSend, FiX, FiFlag } from 'react-icons/fi';
+import { FiHeart, FiMessageCircle, FiShare2, FiBookmark, FiMoreHorizontal, FiTrash2, FiCopy, FiExternalLink, FiSend, FiX, FiFlag, FiVolumeX, FiVolume2 } from 'react-icons/fi';
 import { HiHeart } from 'react-icons/hi';
 import { formatDistanceToNow } from 'date-fns';
 import Avatar from './Avatar';
@@ -123,20 +123,24 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
         clearTimeout(controlTimer.current);
         controlTimer.current = setTimeout(() => setShowVideoControl(false), 1500);
       }
-      
-      // If it's a video, user might want to enter Reels mode
-      if (post.media?.[mediaIndex]?.type === 'video' && onClickMedia) {
-         // We allow a small delay to distinguish between mute and Reels navigation
-         // But per request, let's make it intuitive: 
-         // Most users tap media to view it. We'll use a specific "Expand" button or long press if needed,
-         // but for now, let's stick to the requested onClickMedia trigger.
-      }
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Delete this post?')) return;
+    try {
+      await API.deletePost(post._id);
+      onDelete?.(post._id);
+      setShowMenu(false);
+    } catch (err) {
+      console.error(err);
     }
   };
 
   const media = post.media || [];
   const currentMedia = media[mediaIndex];
   const timeAgo = post.createdAt ? formatDistanceToNow(new Date(post.createdAt), { addSuffix: true }) : '';
+  const hashtags = post.hashtags || (post.caption?.match(/#[a-z0-9_]+/gi) || []).map(t => t.slice(1));
 
   return (
     <article className="bg-discord-bg border-b border-discord-hover/30 pb-4 animate-fade-in">
