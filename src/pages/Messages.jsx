@@ -944,7 +944,7 @@ export default function Messages({ currentUser, unreadCounts }) {
               <div
                 key={u._id}
                 className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 cursor-pointer transition-colors rounded-xl"
-                onClick={() => { setSearchQ(''); setSearchUsers([]); navigate(`/messages/${u.username}`); }}
+                onClick={() => { setSearchQ(''); setSearchUsers([]); navigate(`/messages/chat/${u.username}`); }}
               >
                 <Avatar user={u} size={38} showStatus />
                 <div>
@@ -989,7 +989,7 @@ export default function Messages({ currentUser, unreadCounts }) {
                     ? 'bg-discord-brand/15 border border-discord-brand/20'
                     : 'hover:bg-white/5'
                   }`}
-                onClick={() => navigate(`/messages/${c.username}`)}
+                onClick={() => navigate(`/messages/chat/${c.username}`)}
                 onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setConvMenu({ username: c.username, x: e.clientX, y: e.clientY }); }}
               >
                 <div className="relative flex-shrink-0">
