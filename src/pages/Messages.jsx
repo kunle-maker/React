@@ -857,6 +857,10 @@ export default function Messages({ currentUser, unreadCounts }) {
     if (near) setNewMsgCount(0);
   }, []);
 
+  const handleEmojiButtonClick = () => {
+    setShowEmojiPicker(prev => !prev);
+  };
+
   const searchHandler = async (q) => {
     setSearchQ(q);
     if (!q.trim()) { setSearchUsers([]); return; }
