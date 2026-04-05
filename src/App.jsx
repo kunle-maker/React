@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import API from './utils/api';
 import socket from './utils/socket';
-import InstallPrompt from './components/InstallPrompt';
 import UpdatePrompt from './components/UpdatePrompt';
 import DigitalPlatAd from './components/DigitalPlatAd';
 import { I18nProvider, useI18n } from './contexts/I18nContext';
@@ -240,7 +239,6 @@ function AppInner() {
 
   return (
     <HashRouter>
-      <InstallPrompt />
       <UpdatePrompt />
       <DigitalPlatAd currentUser={currentUser} />
       <ErrorBoundary>
@@ -270,6 +268,7 @@ function AppInner() {
           <Route path="/mod-bot" element={<ProtectedRoute token={token}><ModeratorBot {...sharedProps} /></ProtectedRoute>} />
           <Route path="/game" element={<ProtectedRoute token={token}><Games {...sharedProps} /></ProtectedRoute>} />
           <Route path="/game/create" element={<ProtectedRoute token={token}><Games {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/game/join" element={<ProtectedRoute token={token}><Games {...sharedProps} /></ProtectedRoute>} />
           <Route path="/game/join/:inviteCode" element={<ProtectedRoute token={token}><Games {...sharedProps} /></ProtectedRoute>} />
           <Route path="/game/room/:roomId" element={<ProtectedRoute token={token}><Games {...sharedProps} /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
