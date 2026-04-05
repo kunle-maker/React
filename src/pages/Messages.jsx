@@ -1166,7 +1166,7 @@ export default function Messages({ currentUser, unreadCounts }) {
                         value={editText}
                         onChange={e => setEditText(e.target.value)}
                         onKeyDown={e => {
-                          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleEditSave(msg._id); }
+                          if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches) { e.preventDefault(); handleEditSave(msg._id); }
                           if (e.key === 'Escape') { setEditingMsgId(null); setEditText(''); }
                         }}
                         autoFocus
@@ -1256,7 +1256,7 @@ export default function Messages({ currentUser, unreadCounts }) {
                 className="flex-1 bg-transparent text-[15px] text-discord-text outline-none resize-none py-1 max-h-40 no-scrollbar"
                 rows={1}
                 onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
+                  if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches) {
                     e.preventDefault();
                     handleSend(e);
                   }

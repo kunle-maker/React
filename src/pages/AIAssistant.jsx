@@ -156,7 +156,7 @@ export default function AIAssistant({ currentUser, unreadCounts }) {
               placeholder="Ask Vesselx AI anything..."
               className="discord-input flex-1"
               disabled={sending}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleSend(e); }}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches) handleSend(e); }}
             />
             <button type="submit" disabled={!input.trim() || sending} className="discord-btn p-2.5 rounded-lg disabled:opacity-40">
               <FiSend size={16} />
