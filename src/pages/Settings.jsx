@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import Layout from '../components/Layout';
 import { SupaBadge } from '../components/UserBadge';
 import API from '../utils/api';
+import { showToast } from '../utils/toast';
 import { useI18n } from '../contexts/I18nContext';
 
 function CopyButton({ text, label }) {
@@ -591,7 +592,7 @@ export default function Settings({ currentUser, unreadCounts }) {
     try {
       await API.deleteAccount(pw);
       handleLogout();
-    } catch (err) { alert(err.message); }
+    } catch (err) { showToast(err.message || 'Something went wrong', { type: 'error' }); }
   };
 
   const SECTIONS = [

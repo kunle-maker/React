@@ -58,7 +58,7 @@ function CreateGameModal({ onClose }) {
       });
       navigate(`/game/room/${data.room._id}`, { replace: true });
     } catch (err) {
-      alert(err.message || 'Failed to create room');
+      showToast(err.message || 'Failed to create room', { type: 'error' });
     } finally {
       setCreating(false);
     }
@@ -165,7 +165,7 @@ function JoinModal({ onClose, inviteCode = '' }) {
       const data = await API.joinGameRoom(code.trim().toUpperCase());
       navigate(`/game/room/${data.room._id}`, { replace: true });
     } catch (err) {
-      alert(err.message || 'Invalid invite code');
+      showToast(err.message || 'Invalid invite code', { type: 'error' });
       if (inviteCode) onClose(); // Close if we were trying to join from URL and it failed
     } finally {
       setJoining(false);
@@ -388,7 +388,7 @@ function RoomLobby({ roomId, currentUser, onClose }) {
       if (err.message?.includes('at least 2 players')) {
         showToast(err.message);
       } else {
-        alert(err.message || 'Failed to start');
+        showToast(err.message || 'Failed to start', { type: 'error' });
       }
     } finally {
       setStarting(false);
@@ -402,7 +402,7 @@ function RoomLobby({ roomId, currentUser, onClose }) {
       await API.deleteGameRoom(room._id);
       onClose();
     } catch (err) {
-      alert(err.message || 'Failed to delete room');
+      showToast(err.message || 'Failed to delete room', { type: 'error' });
     } finally {
       setDeleting(false);
     }
@@ -416,7 +416,7 @@ function RoomLobby({ roomId, currentUser, onClose }) {
       await API.leaveGameRoom(room._id);
       onClose();
     } catch (err) {
-      alert(err.message || 'Failed to leave room');
+      showToast(err.message || 'Failed to leave room', { type: 'error' });
     } finally {
       setLeaving(false);
     }
@@ -428,7 +428,7 @@ function RoomLobby({ roomId, currentUser, onClose }) {
     try {
       await API.kickPlayer(room._id, username);
     } catch (err) {
-      alert(err.message || 'Failed to kick player');
+      showToast(err.message || 'Failed to kick player', { type: 'error' });
     } finally {
       setKicking(null);
     }
@@ -446,7 +446,7 @@ function RoomLobby({ roomId, currentUser, onClose }) {
          setRoom(r => r ? { ...r, lastActivity: new Date().toISOString() } : null);
       }
     } catch (err) {
-      alert(err.message || 'Guess failed');
+      showToast(err.message || 'Guess failed', { type: 'error' });
     } finally {
       setSubmitting(false);
     }

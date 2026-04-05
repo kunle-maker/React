@@ -13,6 +13,7 @@ import EmojiStickerPicker from '../components/EmojiStickerPicker';
 import { parseEmojisToHtml } from '../utils/emoji';
 import API from '../utils/api';
 import socket from '../utils/socket';
+import { showToast } from '../utils/toast';
 
 function VideoFullscreenModal({ src, onClose }) {
   const [showMenu, setShowMenu] = useState(false);
@@ -40,7 +41,7 @@ function VideoFullscreenModal({ src, onClose }) {
       } catch {}
     } else {
       navigator.clipboard?.writeText(src);
-      alert('Video link copied!');
+      showToast('Video link copied!');
     }
   };
 
@@ -159,7 +160,7 @@ function VideoMessage({ src }) {
       } catch {}
     } else {
       navigator.clipboard?.writeText(src);
-      alert('Video link copied!');
+      showToast('Video link copied!');
     }
   };
 
@@ -708,7 +709,7 @@ export default function Messages({ currentUser, unreadCounts }) {
       setIsRecording(true);
       setRecordDuration(0);
       recordIntervalRef.current = setInterval(() => setRecordDuration(d => d + 1), 1000);
-    } catch { alert('Microphone access denied'); }
+    } catch { showToast('Microphone access denied', { type: 'error' }); }
   };
 
   const stopRecording = () => {
@@ -770,7 +771,7 @@ export default function Messages({ currentUser, unreadCounts }) {
       } catch {
         setSending(false);
         setMessages(prev => prev.filter(m => m._id !== tempMsg._id));
-        alert('Image upload failed. Please try again.');
+        showToast('Image upload failed. Please try again.', { type: 'error' });
         return;
       }
     }

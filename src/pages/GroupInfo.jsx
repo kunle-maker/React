@@ -4,6 +4,7 @@ import { FiArrowLeft, FiUsers, FiLink, FiLogOut, FiTrash2, FiEdit2, FiCamera, Fi
 import { format } from 'date-fns';
 import Layout from '../components/Layout';
 import API from '../utils/api';
+import { showToast } from '../utils/toast';
 import ImageCropModal from '../components/ImageCropModal';
 
 export default function GroupInfo({ currentUser, unreadCounts }) {
@@ -48,7 +49,7 @@ export default function GroupInfo({ currentUser, unreadCounts }) {
       setEditing(false);
       setPicPreview(null);
       setPicFile(null);
-    } catch (err) { alert(err.message); }
+    } catch (err) { showToast(err.message || 'Something went wrong', { type: 'error' }); }
     finally { setEditLoading(false); }
   };
 
@@ -99,7 +100,7 @@ export default function GroupInfo({ currentUser, unreadCounts }) {
     try {
       await API.leaveGroup(groupId);
       navigate('/groups');
-    } catch (err) { alert(err.message); }
+    } catch (err) { showToast(err.message || 'Something went wrong', { type: 'error' }); }
   };
 
   const handleDelete = async () => {
@@ -107,7 +108,7 @@ export default function GroupInfo({ currentUser, unreadCounts }) {
     try {
       await API.deleteGroup(groupId);
       navigate('/groups');
-    } catch (err) { alert(err.message); }
+    } catch (err) { showToast(err.message || 'Something went wrong', { type: 'error' }); }
   };
 
   if (loading) {

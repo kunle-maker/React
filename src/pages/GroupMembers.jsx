@@ -5,6 +5,7 @@ import { HiShieldCheck } from 'react-icons/hi';
 import Layout from '../components/Layout';
 import Avatar from '../components/Avatar';
 import API from '../utils/api';
+import { showToast } from '../utils/toast';
 
 export default function GroupMembers({ currentUser, unreadCounts }) {
   const { groupId } = useParams();
@@ -42,7 +43,7 @@ export default function GroupMembers({ currentUser, unreadCounts }) {
       setAddUsername('');
       setShowAddMember(false);
     } catch (err) {
-      alert(err.message || 'Failed to add member');
+      showToast(err.message || 'Failed to add member', { type: 'error' });
     } finally { setAddLoading(false); }
   };
 
@@ -51,7 +52,7 @@ export default function GroupMembers({ currentUser, unreadCounts }) {
     try {
       await API.removeGroupMember(groupId, member._id);
       await fetchGroup();
-    } catch (err) { alert(err.message); }
+    } catch (err) { showToast(err.message || 'Something went wrong', { type: 'error' }); }
   };
 
   const handleTransferAdmin = async (member) => {
@@ -59,7 +60,7 @@ export default function GroupMembers({ currentUser, unreadCounts }) {
     try {
       await API.transferGroupAdmin(groupId, member._id);
       await fetchGroup();
-    } catch (err) { alert(err.message); }
+    } catch (err) { showToast(err.message || 'Something went wrong', { type: 'error' }); }
   };
 
   const handleLeave = async () => {
@@ -67,7 +68,7 @@ export default function GroupMembers({ currentUser, unreadCounts }) {
     try {
       await API.leaveGroup(groupId);
       navigate('/groups');
-    } catch (err) { alert(err.message); }
+    } catch (err) { showToast(err.message || 'Something went wrong', { type: 'error' }); }
   };
 
   const copyInvite = () => {

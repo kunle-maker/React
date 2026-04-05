@@ -4,6 +4,7 @@ import { FiUsers, FiPlus, FiSearch, FiLink, FiLock, FiGlobe } from 'react-icons/
 import Layout from '../components/Layout';
 import Avatar from '../components/Avatar';
 import API from '../utils/api';
+import { showToast } from '../utils/toast';
 
 export default function Groups({ currentUser, unreadCounts }) {
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ export default function Groups({ currentUser, unreadCounts }) {
       setShowCreate(false);
       setCreateForm({ name: '', description: '', privacy: 'private' });
       navigate(`/groups/${group._id}`);
-    } catch (err) { alert(err.message || 'Failed to create group'); }
+    } catch (err) { showToast(err.message || 'Failed to create group', { type: 'error' }); }
     finally { setCreating(false); }
   };
 
@@ -62,7 +63,7 @@ export default function Groups({ currentUser, unreadCounts }) {
       const group = data.group || data;
       fetchGroups();
       navigate(`/groups/${group._id}`);
-    } catch (err) { alert(err.message || 'Invalid invite code'); }
+    } catch (err) { showToast(err.message || 'Invalid invite code', { type: 'error' }); }
   };
 
   const displayGroups = searchQ ? searchResults : groups;

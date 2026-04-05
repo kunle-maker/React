@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import API from '../utils/api';
+import { showToast } from '../utils/toast';
 
 function VLogo({ size = 60 }) {
   return (
@@ -56,8 +57,8 @@ export default function Login() {
           <button
             className="text-discord-brand text-sm hover:underline"
             onClick={async () => {
-              try { await API.resendVerification(verifyEmail); alert('Verification email resent!'); }
-              catch { alert('Failed to resend'); }
+              try { await API.resendVerification(verifyEmail); showToast('Verification email resent!', { type: 'success' }); }
+              catch { showToast('Failed to resend', { type: 'error' }); }
             }}
           >
             Resend email

@@ -11,6 +11,7 @@ import PostCard from '../components/PostCard';
 import { VerifiedBadge, SupaBadge, getStoredVerifiedBadgeStyle, setStoredVerifiedBadgeStyle } from '../components/UserBadge';
 import VerificationBadgePicker, { getStoredSupaBadgeStyle } from '../components/VerificationBadgePicker';
 import API from '../utils/api';
+import { showToast } from '../utils/toast';
 import ImageCropModal from '../components/ImageCropModal';
 import { parseEmojisToHtml } from '../utils/emoji';
 
@@ -114,7 +115,7 @@ export default function Profile({ currentUser, unreadCounts }) {
         await API.blockUser(username);
         setBlocked(true);
       }
-    } catch (err) { alert(err.message); }
+    } catch (err) { showToast(err.message || 'Something went wrong', { type: 'error' }); }
   };
 
   const loadFriends = async () => {
@@ -198,7 +199,7 @@ export default function Profile({ currentUser, unreadCounts }) {
       localStorage.setItem('user', JSON.stringify(updated));
       window.dispatchEvent(new CustomEvent('profileUpdate', { detail: updated }));
       setEditing(false);
-    } catch (err) { alert(err.message); }
+    } catch (err) { showToast(err.message || 'Something went wrong', { type: 'error' }); }
     finally { setEditLoading(false); }
   };
 

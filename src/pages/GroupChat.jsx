@@ -14,6 +14,7 @@ import { parseEmojisToHtml } from '../utils/emoji';
 import { VerifiedBadge, SupaBadge } from '../components/UserBadge';
 import API from '../utils/api';
 import socket from '../utils/socket';
+import { showToast } from '../utils/toast';
 
 async function compressImage(file, maxW = 1280, quality = 0.82) {
   try {
@@ -301,7 +302,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
       try {
         const blob = dataURLToBlob(mediaAttachment.dataUrl);
         const formData = new FormData();
-        formData.append('image', blob, mediaAttachment.filename || 'image.jpg');
+        formData.append('file', blob, mediaAttachment.filename || 'image.jpg');
         const uploadData = await API.uploadMessageMedia(formData);
         const imageUrl =
           uploadData?.url || uploadData?.imageUrl || uploadData?.secure_url ||
@@ -313,7 +314,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
         setMediaAttachment(null);
       } catch (err) {
         setSending(false);
-        alert('Image upload failed. Please try again.');
+        showToast('Image upload failed. Please try again.', { type: 'error' });
         return;
       }
     }
@@ -440,7 +441,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
     try {
       await API.leaveGroup(groupId);
       navigate('/groups');
-    } catch (err) { alert(err.message); }
+    } catch (err) { showToast(err.message || 'Failed to leave group', { type: 'error' }); }
   };
 
   const handleMessageContextMenu = (e, msg) => {
