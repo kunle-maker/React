@@ -2,10 +2,43 @@ import React, { useState, useEffect } from 'react';
 
 const previewCache = new Map();
 
+const TRAILING_PUNCT = /[.,!?;:'")\]}>]+$/;
+const LEADING_PUNCT = /^[<("'[{]+/;
+
+function isValidTld(tld) {
+  return /^[a-zA-Z]{2,}$/.test(tld);
+}
+
+function normalizeUrl(raw) {
+  const stripped = raw.replace(LEADING_PUNCT, '').replace(TRAILING_PUNCT, '');
+  if (!stripped) return null;
+  if (/^https?:\/\//i.test(stripped)) return stripped;
+  if (/^www\./i.test(stripped)) return 'https://' + stripped;
+  const parts = stripped.split('/')[0].split('.');
+  if (parts.length >= 2) {
+    const tld = parts[parts.length - 1];
+    const sld = parts[parts.length - 2];
+    if (isValidTld(tld) && /[a-zA-Z]/.test(sld) && sld.length >= 2) {
+      return 'https://' + stripped;
+    }
+  }
+  return null;
+}
+
 function extractUrls(text) {
   if (!text) return [];
-  const urlRegex = /https?:\/\/[^\s]+/g;
-  return [...new Set(text.match(urlRegex) || [])].slice(0, 1);
+  if (/^\[vx:/.test(text)) return [];
+  const tokens = text.split(/[\s\n\r]+/);
+  const seen = new Set();
+  const results = [];
+  for (const token of tokens) {
+    const url = normalizeUrl(token);
+    if (url && !seen.has(url)) {
+      try { new URL(url); seen.add(url); results.push(url); } catch { }
+    }
+    if (results.length >= 1) break;
+  }
+  return results;
 }
 
 async function fetchPreview(url) {
