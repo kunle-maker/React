@@ -36,7 +36,7 @@ function XPBar({ xp, level }) {
 
 function CreateGameModal({ onClose }) {
   const navigate = useNavigate();
-  const [gameType, setGameType] = useState('word_sprint');
+  const [gameType, setGameType] = useState('word_chain');
   const [totalRounds, setTotalRounds] = useState(5);
   const [maxPlayers, setMaxPlayers] = useState(8);
   const [inviteUsernames, setInviteUsernames] = useState('');
@@ -76,7 +76,7 @@ function CreateGameModal({ onClose }) {
             <label className="text-discord-muted text-xs font-bold uppercase mb-2 block">Game Type</label>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { id: 'word_sprint', label: 'Word Sprint', icon: '🔤', desc: 'Guess words fast' },
+                { id: 'word_chain', label: 'Word Chain', icon: '🔗', desc: 'Chain words together' },
                 { id: 'emoji_trivia', label: 'Emoji Trivia', icon: '🎭', desc: 'Decode emoji clues' },
               ].map(g => (
                 <button
@@ -92,16 +92,18 @@ function CreateGameModal({ onClose }) {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-discord-muted text-xs font-bold uppercase mb-1 block">Rounds</label>
-              <input
-                type="number" min={1} max={20}
-                value={totalRounds}
-                onChange={e => setTotalRounds(e.target.value)}
-                className="discord-input w-full"
-              />
-            </div>
-            <div>
+            {gameType === 'emoji_trivia' && (
+              <div>
+                <label className="text-discord-muted text-xs font-bold uppercase mb-1 block">Rounds</label>
+                <input
+                  type="number" min={1} max={20}
+                  value={totalRounds}
+                  onChange={e => setTotalRounds(e.target.value)}
+                  className="discord-input w-full"
+                />
+              </div>
+            )}
+            <div className={gameType === 'emoji_trivia' ? '' : 'col-span-2'}>
               <label className="text-discord-muted text-xs font-bold uppercase mb-1 block">Max Players</label>
               <input
                 type="number" min={2} max={20}
@@ -219,8 +221,8 @@ function RoomCard({ room, currentUserId }) {
 
   const isHost = room.players?.[0]?.userId === currentUserId;
   const statusColor = room.status === 'waiting' ? 'text-yellow-400' : room.status === 'in_progress' ? 'text-discord-green' : 'text-discord-muted';
-  const gameIcon = room.gameType === 'word_sprint' ? '🔤' : '🎭';
-  const gameName = room.gameType === 'word_sprint' ? 'Word Sprint' : 'Emoji Trivia';
+  const gameIcon = room.gameType === 'word_chain' ? '🔗' : '🎭';
+  const gameName = room.gameType === 'word_chain' ? 'Word Chain' : 'Emoji Trivia';
 
   return (
     <div
@@ -249,11 +251,16 @@ function RoomCard({ room, currentUserId }) {
         <span className="flex items-center gap-1">
           <FiUsers size={11} /> {room.players?.length || 0} / {room.maxPlayers || 8} players
         </span>
-        <span>{room.totalRounds} rounds</span>
+        {room.gameType !== 'word_chain' && <span>{room.totalRounds} rounds</span>}
         {isHost && <span className="text-discord-brand font-semibold">Host</span>}
       </div>
     </div>
   );
+}
+
+function getRemainingSeconds(startedAt, timeLimitSecs) {
+  const elapsed = (Date.now() - new Date(startedAt).getTime()) / 1000;
+  return Math.max(0, timeLimitSecs - elapsed);
 }
 
 function RoomLobby({ roomId, currentUser, onClose }) {
@@ -271,6 +278,17 @@ function RoomLobby({ roomId, currentUser, onClose }) {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // WCG-specific state
+  const [currentTurn, setCurrentTurn] = useState(null);
+  const [wordChain, setWordChain] = useState([]);
+  const [wcgActivePlayers, setWcgActivePlayers] = useState([]);
+  const [wcgEliminatedPlayers, setWcgEliminatedPlayers] = useState([]);
+  const [turnError, setTurnError] = useState('');
+  const [isEliminated, setIsEliminated] = useState(false);
+  const [lastEliminated, setLastEliminated] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(null);
+  const timerRef = useRef(null);
 
   const myId = currentUser?._id || currentUser?.id;
 
@@ -318,9 +336,13 @@ function RoomLobby({ roomId, currentUser, onClose }) {
 
     const handleGameStarted = ({ room: r, round: rd }) => {
       setRoom(r);
-      setRound(rd);
+      if (rd) setRound(rd);
       setResult(null);
       setGameOver(null);
+      setCurrentTurn(null);
+      setWordChain([]);
+      setIsEliminated(false);
+      setLastEliminated(null);
     };
 
     const handleGuessResult = ({ roundResult, nextRound, gameOver: go }) => {
@@ -340,7 +362,51 @@ function RoomLobby({ roomId, currentUser, onClose }) {
       }
     };
 
+    // WCG events
+    const handleWcgTurnStarted = ({ turnNumber, playerId, playerUsername, letter, minWordLength, timeLimitSecs, startedAt, activePlayers: ap, eliminatedPlayers: ep, wordChainSoFar }) => {
+      setCurrentTurn({ turnNumber, playerId, playerUsername, letter, minWordLength, timeLimitSecs, startedAt });
+      setWordChain(wordChainSoFar || []);
+      setWcgActivePlayers(ap || []);
+      setWcgEliminatedPlayers(ep || []);
+      setTurnError('');
+      setLastEliminated(null);
+      setGuess('');
+      if (timerRef.current) clearInterval(timerRef.current);
+      const getLeft = () => getRemainingSeconds(startedAt, timeLimitSecs);
+      setTimeLeft(getLeft());
+      timerRef.current = setInterval(() => {
+        const left = getLeft();
+        setTimeLeft(left);
+        if (left <= 0) clearInterval(timerRef.current);
+      }, 500);
+    };
+
+    const handleWcgWordAccepted = ({ playerUsername, word, wordChainSoFar, score }) => {
+      setWordChain(wordChainSoFar || []);
+      setRoom(r => r ? { ...r, players: r.players.map(p => p.username === playerUsername ? { ...p, score } : p) } : null);
+    };
+
+    const handlePlayerEliminated = ({ username, eliminatedPlayers: ep, activePlayers: ap }) => {
+      setWcgEliminatedPlayers(ep || []);
+      setWcgActivePlayers(ap || []);
+      setLastEliminated(username);
+      if (username === currentUser.username) {
+        setIsEliminated(true);
+        if (timerRef.current) clearInterval(timerRef.current);
+        setTimeLeft(null);
+        showToast('You ran out of time and have been eliminated!', { type: 'error' });
+      } else {
+        showToast(`${username} was eliminated — ran out of time!`);
+      }
+    };
+
+    const handleWcgGameOver = ({ winner, players, wordChain: wc }) => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      setGameOver({ winner, players, wordChain: wc });
+    };
+
     const handleRoomCancelled = ({ reason }) => {
+      if (timerRef.current) clearInterval(timerRef.current);
       showToast(reason, { type: 'error' });
       onClose();
     };
@@ -363,15 +429,24 @@ function RoomLobby({ roomId, currentUser, onClose }) {
     socket.on('playerJoined', handlePlayerJoined);
     socket.on('gameStarted', handleGameStarted);
     socket.on('guessResult', handleGuessResult);
+    socket.on('wcgTurnStarted', handleWcgTurnStarted);
+    socket.on('wcgWordAccepted', handleWcgWordAccepted);
+    socket.on('playerEliminated', handlePlayerEliminated);
+    socket.on('gameOver', handleWcgGameOver);
     socket.on('roomCancelled', handleRoomCancelled);
     socket.on('playerKicked', handlePlayerKicked);
     socket.on('playerLeft', handlePlayerLeft);
 
     return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
       socket.emit('leaveGameRoom', room._id);
       socket.off('playerJoined', handlePlayerJoined);
       socket.off('gameStarted', handleGameStarted);
       socket.off('guessResult', handleGuessResult);
+      socket.off('wcgTurnStarted', handleWcgTurnStarted);
+      socket.off('wcgWordAccepted', handleWcgWordAccepted);
+      socket.off('playerEliminated', handlePlayerEliminated);
+      socket.off('gameOver', handleWcgGameOver);
       socket.off('roomCancelled', handleRoomCancelled);
       socket.off('playerKicked', handlePlayerKicked);
       socket.off('playerLeft', handlePlayerLeft);
@@ -438,17 +513,30 @@ function RoomLobby({ roomId, currentUser, onClose }) {
     e.preventDefault();
     if (!guess.trim() || submitting) return;
     setSubmitting(true);
-    try {
-      const data = await API.submitGameGuess(room._id, guess.trim());
-      // Most of the state update happens via socket guessResult
-      if (!data.roundResult && !data.gameOver) {
-         setGuess('');
-         setRoom(r => r ? { ...r, lastActivity: new Date().toISOString() } : null);
+    if (room?.gameType === 'word_chain') {
+      setTurnError('');
+      try {
+        await API.submitGameGuess(room._id, guess.trim());
+        setGuess('');
+      } catch (err) {
+        // WCG errors are inline — word rejected but turn continues
+        setTurnError(err.message || 'Invalid word. Try again!');
+        setGuess('');
+      } finally {
+        setSubmitting(false);
       }
-    } catch (err) {
-      showToast(err.message || 'Guess failed', { type: 'error' });
-    } finally {
-      setSubmitting(false);
+    } else {
+      try {
+        const data = await API.submitGameGuess(room._id, guess.trim());
+        if (!data.roundResult && !data.gameOver) {
+          setGuess('');
+          setRoom(r => r ? { ...r, lastActivity: new Date().toISOString() } : null);
+        }
+      } catch (err) {
+        showToast(err.message || 'Guess failed', { type: 'error' });
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -480,7 +568,8 @@ function RoomLobby({ roomId, currentUser, onClose }) {
 
   const isHost = room.hostId === myId;
   const canStart = isHost && room.players?.length >= 2 && room.status === 'waiting';
-  const gameIcon = room.gameType === 'word_sprint' ? '🔤' : '🎭';
+  const gameIcon = room.gameType === 'word_chain' ? '🔗' : '🎭';
+  const isWCG = room.gameType === 'word_chain';
 
   return (
     <div className="fixed inset-0 bg-discord-bg z-[100] flex flex-col">
@@ -499,8 +588,8 @@ function RoomLobby({ roomId, currentUser, onClose }) {
           </button>
         </div>
         <span className="font-bold text-discord-text flex items-center gap-1.5">
-          <TwemojiImg emoji={gameIcon} size={18} /> 
-          {room.gameType === 'word_sprint' ? 'Word Sprint' : 'Emoji Trivia'}
+          <TwemojiImg emoji={gameIcon} size={18} />
+          {isWCG ? 'Word Chain' : 'Emoji Trivia'}
         </span>
         <button onClick={copyCode} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-discord-brand/10 text-discord-brand text-xs font-mono font-bold border border-discord-brand/20">
           {copied ? <FiCheck size={12} /> : <FiCopy size={12} />} {room.inviteCode}
@@ -512,7 +601,13 @@ function RoomLobby({ roomId, currentUser, onClose }) {
           <div className="text-center py-8">
             <div className="flex justify-center mb-4 scale-125"><TwemojiImg emoji="🏆" size={64} /></div>
             <h2 className="text-3xl font-black text-discord-text mb-1">Game Over!</h2>
-            <p className="text-discord-muted mb-8 text-lg">Winner: <span className="text-discord-brand font-bold">@{gameOver.winner?.username}</span></p>
+            <p className="text-discord-muted mb-6 text-lg">Winner: <span className="text-discord-brand font-bold">@{gameOver.winner?.username}</span></p>
+            {isWCG && gameOver.wordChain?.length > 0 && (
+              <div className="mb-6 bg-discord-hover/40 border border-discord-hover rounded-2xl p-4 text-left">
+                <p className="text-discord-muted text-[10px] font-black uppercase tracking-wider mb-2">Full Chain ({gameOver.wordChain.length} words)</p>
+                <p className="text-discord-text text-sm font-semibold leading-relaxed break-words">{gameOver.wordChain.join(' → ')}</p>
+              </div>
+            )}
             <div className="space-y-2 mb-8">
               {gameOver.players?.sort((a,b) => b.score - a.score).map((p, i) => (
                 <div key={p.username} className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${p.userId === myId ? 'bg-discord-brand/10 border-discord-brand/30' : 'bg-discord-hover/50 border-discord-hover'}`}>
@@ -550,6 +645,110 @@ function RoomLobby({ roomId, currentUser, onClose }) {
               <p className="text-discord-muted text-sm font-semibold">Next round starting soon...</p>
             </div>
           </div>
+        ) : isWCG && currentTurn ? (
+          <div className="space-y-4">
+            {/* Brief "time's up" banner */}
+            {lastEliminated && (
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-bold">
+                <span>⏰</span> Time's up for @{lastEliminated}!
+              </div>
+            )}
+
+            {/* Turn header */}
+            <div className="flex items-center justify-between">
+              <span className="bg-discord-hover text-discord-text px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Turn {currentTurn.turnNumber}</span>
+              <span className={`font-black text-lg tabular-nums ${timeLeft <= 7 ? 'text-red-400' : timeLeft <= 15 ? 'text-yellow-400' : 'text-discord-green'}`}>
+                ⏱ {timeLeft !== null ? `${Math.floor(timeLeft / 60)}:${String(Math.ceil(timeLeft % 60)).padStart(2, '0')}` : '--'}
+              </span>
+            </div>
+
+            {/* Word chain so far */}
+            <div className="bg-discord-hover/40 border border-discord-hover rounded-2xl p-4">
+              <p className="text-discord-muted text-[10px] font-black uppercase tracking-wider mb-2">🔗 Chain so far</p>
+              {wordChain.length === 0 ? (
+                <p className="text-discord-muted text-sm italic">The chain starts here...</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {wordChain.map((w, i) => (
+                    <span key={i} className="inline-flex items-center gap-1">
+                      <span className={`px-2.5 py-1 rounded-lg text-sm font-bold ${i === wordChain.length - 1 ? 'bg-discord-brand text-white' : 'bg-discord-hover text-discord-text'}`}>{w}</span>
+                      {i < wordChain.length - 1 && <span className="text-discord-muted text-xs">→</span>}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {wordChain.length > 0 && (
+                <p className="text-discord-muted text-xs mt-2">Next word must start with <span className="text-discord-brand font-black">"{currentTurn.letter}"</span></p>
+              )}
+            </div>
+
+            {/* Active player input or watching */}
+            {currentTurn.playerId === myId && !isEliminated ? (
+              <div className="bg-discord-brand/5 border border-discord-brand/20 rounded-2xl p-4">
+                <p className="text-discord-brand text-xs font-black uppercase tracking-wider mb-3">🎯 Your turn!</p>
+                <p className="text-discord-text text-sm mb-3">
+                  Type a word starting with <span className="font-black text-discord-brand">"{currentTurn.letter}"</span>, at least <span className="font-black text-discord-brand">{currentTurn.minWordLength} letters</span>
+                </p>
+                <form onSubmit={handleGuess} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={guess}
+                    onChange={e => setGuess(e.target.value.toLowerCase())}
+                    placeholder={`${currentTurn.letter.toLowerCase()}...`}
+                    className="discord-input flex-1 text-lg font-bold"
+                    autoFocus
+                    disabled={submitting}
+                    autoComplete="off"
+                    autoCapitalize="none"
+                  />
+                  <button type="submit" disabled={!guess.trim() || submitting} className="bg-discord-brand text-white px-5 rounded-xl disabled:opacity-50 font-bold hover:bg-discord-brand/90 active:scale-95 transition-all">
+                    {submitting ? '...' : 'Send'}
+                  </button>
+                </form>
+                {turnError && (
+                  <p className="mt-2 text-red-400 text-sm font-semibold flex items-center gap-1.5">❌ {turnError}</p>
+                )}
+              </div>
+            ) : isEliminated ? (
+              <div className="bg-discord-hover/50 border border-discord-hover rounded-2xl p-4 text-center opacity-70">
+                <p className="text-discord-muted text-sm font-bold">You've been eliminated — watching the game</p>
+                <p className="text-discord-muted text-xs mt-1">@{currentTurn.playerUsername}'s turn...</p>
+              </div>
+            ) : (
+              <div className="bg-discord-hover/50 border border-discord-hover rounded-2xl p-4 text-center">
+                <div className="flex items-center justify-center gap-2 text-discord-text font-bold mb-1">
+                  <FiRefreshCw size={14} className="animate-spin text-discord-brand" />
+                  @{currentTurn.playerUsername} is thinking...
+                </div>
+                <p className="text-discord-muted text-xs">Start with <span className="font-bold text-discord-brand">"{currentTurn.letter}"</span>, min {currentTurn.minWordLength} letters</p>
+              </div>
+            )}
+
+            {/* Player list */}
+            <div className="bg-discord-hover/30 border border-discord-hover rounded-2xl overflow-hidden">
+              <div className="px-4 py-2 bg-discord-hover/50 border-b border-discord-hover">
+                <span className="text-[10px] font-black text-discord-muted uppercase tracking-wider">Players</span>
+              </div>
+              <div className="divide-y divide-discord-hover">
+                {room.players?.map(p => {
+                  const isActive = wcgActivePlayers.includes(p.username);
+                  const isCurrentTurnPlayer = p.username === currentTurn.playerUsername;
+                  const isMe = p.userId === myId || p.username === currentUser.username;
+                  return (
+                    <div key={p.userId} className={`flex items-center gap-3 px-4 py-2.5 ${isCurrentTurnPlayer ? 'bg-discord-brand/5' : ''}`}>
+                      <span className="text-sm w-5 flex-shrink-0">
+                        {!isActive ? '❌' : isCurrentTurnPlayer ? '🎯' : '✅'}
+                      </span>
+                      <span className={`flex-1 text-sm font-bold ${!isActive ? 'text-discord-muted line-through' : 'text-discord-text'}`}>
+                        @{p.username}{isMe ? ' (you)' : ''}
+                      </span>
+                      <span className={`text-sm font-black ${isCurrentTurnPlayer ? 'text-discord-brand' : 'text-discord-muted'}`}>{p.score ?? 0} pts</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         ) : round ? (
           <div className="text-center">
             <div className="flex justify-between items-center mb-4">
@@ -559,29 +758,16 @@ function RoomLobby({ roomId, currentUser, onClose }) {
               </div>
             </div>
             <div className="bg-discord-hover/50 border border-discord-hover rounded-3xl p-8 mb-8 shadow-inner">
-              {room.gameType === 'emoji_trivia' ? (
-                <div className="flex justify-center gap-3 flex-wrap">
-                  {round.emojis?.map((e, i) => <TwemojiImg key={i} emoji={e} size={64} className="drop-shadow-lg transition-transform hover:scale-110" />)}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-discord-text font-bold text-xl leading-relaxed">{round.prompt}</p>
-                  <div className="flex justify-center gap-1">
-                    {[...Array(round.wordLength)].map((_, i) => (
-                      <div key={i} className="w-8 h-10 border-b-4 border-discord-brand/40 bg-discord-brand/5 flex items-center justify-center text-xl font-black text-discord-text">
-                        {i === 0 ? round.startLetter : ''}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div className="flex justify-center gap-3 flex-wrap">
+                {round.emojis?.map((e, i) => <TwemojiImg key={i} emoji={e} size={64} className="drop-shadow-lg transition-transform hover:scale-110" />)}
+              </div>
             </div>
             <form onSubmit={handleGuess} className="flex gap-2 p-1.5 bg-discord-hover rounded-2xl border border-discord-hover focus-within:border-discord-brand/50 transition-all">
               <input
                 type="text"
                 value={guess}
                 onChange={e => setGuess(e.target.value)}
-                placeholder={room.gameType === 'emoji_trivia' ? 'Type your guess...' : 'Type the word...'}
+                placeholder="Type your guess..."
                 className="bg-transparent border-none text-discord-text px-4 py-3 flex-1 focus:ring-0 font-semibold placeholder:text-discord-muted/50"
                 autoFocus
                 disabled={submitting}
@@ -797,8 +983,8 @@ export default function Games({ currentUser, unreadCounts }) {
                 <XPBar xp={myStats.xp} level={myStats.level} />
                 <div className="grid grid-cols-2 gap-3 mt-3 text-center">
                   <div className="bg-discord-bg rounded-xl p-2">
-                    <p className="font-bold text-discord-text">{myStats.gameStats?.wordSprintWins || 0}</p>
-                    <p className="text-discord-muted text-[11px] flex items-center justify-center gap-1"><TwemojiImg emoji="🔤" size={13} /> Word Sprint Wins</p>
+                    <p className="font-bold text-discord-text">{myStats.gameStats?.wordChainWins || 0}</p>
+                    <p className="text-discord-muted text-[11px] flex items-center justify-center gap-1"><TwemojiImg emoji="🔗" size={13} /> Word Chain Wins</p>
                   </div>
                   <div className="bg-discord-bg rounded-xl p-2">
                     <p className="font-bold text-discord-text">{myStats.gameStats?.emojiTriviaWins || 0}</p>
@@ -857,7 +1043,7 @@ export default function Games({ currentUser, unreadCounts }) {
                   <p className="text-discord-muted text-xs">Lv.{entry.level} · {entry.xp} XP</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-discord-brand text-sm">{entry.gameStats?.wordSprintWins + entry.gameStats?.emojiTriviaWins || 0}</p>
+                  <p className="font-bold text-discord-brand text-sm">{(entry.gameStats?.wordChainWins || 0) + (entry.gameStats?.emojiTriviaWins || 0)}</p>
                   <p className="text-discord-muted text-[11px] font-bold uppercase">wins</p>
                 </div>
               </div>
