@@ -3,6 +3,8 @@ import { FiImage, FiX, FiSend, FiAtSign } from 'react-icons/fi';
 import Avatar from './Avatar';
 import API from '../utils/api';
 import ImageCropModal from './ImageCropModal';
+import SoundPicker from './SoundPicker';
+import { FiImage, FiX, FiSend, FiAtSign, FiMusic } from 'react-icons/fi';
 
 export default function CreatePost({ currentUser, onPost }) {
   const [caption, setCaption] = useState('');
@@ -15,6 +17,8 @@ export default function CreatePost({ currentUser, onPost }) {
   const [mentionResults, setMentionResults] = useState([]);
   const [cropSrc, setCropSrc] = useState(null);
   const [pendingFiles, setPendingFiles] = useState([]);
+  const [showSoundPicker, setShowSoundPicker] = useState(false);
+  const [selectedSound, setSelectedSound] = useState(null);
   const fileRef = useRef();
   const textRef = useRef();
 
@@ -108,11 +112,17 @@ export default function CreatePost({ currentUser, onPost }) {
     try {
       const fd = new FormData();
       if (caption) fd.append('caption', caption);
+      if (selectedSound) {
+        fd.append('soundUrl', selectedSound.url);
+        fd.append('soundName', selectedSound.name);
+        fd.append('soundArtist', selectedSound.artist);
+      }
       files.forEach(f => fd.append('media', f));
       const data = await API.createPost(fd);
       setCaption('');
       setFiles([]);
       setPreviews([]);
+      setSelectedSound(null);
       onPost?.(data.post || data);
     } catch (err) {
       setError(err.message || 'Failed to create post');
@@ -160,6 +170,23 @@ export default function CreatePost({ currentUser, onPost }) {
               )}
             </div>
 
+            {selectedSound && (
+              <div className="mt-3 flex items-center gap-3 bg-discord-dark/50 p-2 rounded-xl border border-brand-primary/20 animate-fade-in">
+                <img src={selectedSound.artwork} alt="" className="w-10 h-10 rounded-lg" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-discord-text truncate">{selectedSound.name}</p>
+                  <p className="text-[10px] text-discord-muted truncate">{selectedSound.artist}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedSound(null)}
+                  className="p-1.5 text-discord-muted hover:text-discord-red"
+                >
+                  <FiX size={14} />
+                </button>
+              </div>
+            )}
+
             {previews.length > 0 && (
               <div className={`grid gap-2.5 mt-4 ${previews.length === 1 ? 'grid-cols-1' : previews.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                 {previews.map((p, i) => (
@@ -199,6 +226,19 @@ export default function CreatePost({ currentUser, onPost }) {
                   <FiImage size={22} />
                 </button>
                 <input ref={fileRef} type="file" multiple accept="image/*,video/*" className="hidden" onChange={handleFileChange} />
+                
+                <button
+                  type="button"
+                  aria-label="Add music"
+                  className={`p-2.5 rounded-full transition-all active:scale-90 ${selectedSound ? 'text-green-400 bg-green-400/10' : 'text-brand-primary hover:bg-brand-primary/10'}`}
+                  onClick={() => {
+                    if (navigator.vibrate) navigator.vibrate(8);
+                    setShowSoundPicker(true);
+                  }}
+                >
+                  <FiMusic size={22} />
+                </button>
+
                 <button
                   type="button"
                   aria-label="Add mention"
@@ -236,6 +276,16 @@ export default function CreatePost({ currentUser, onPost }) {
           aspectRatio={1}
           onCrop={handleCropDone}
           onCancel={handleCropCancel}
+        />
+      )}
+
+      {showSoundPicker && (
+        <SoundPicker
+          onSelect={(sound) => {
+            setSelectedSound(sound);
+            setShowSoundPicker(false);
+          }}
+          onClose={() => setShowSoundPicker(false)}
         />
       )}
     </div>

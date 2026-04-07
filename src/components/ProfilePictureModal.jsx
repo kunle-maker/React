@@ -4,6 +4,7 @@ import API from '../utils/api';
 
 export default function ProfilePictureModal({ user, isOwnProfile, onClose, onChangePhoto, onMessage, onCopyLink }) {
   const avatarSrc = user?.profilePicture ? API.getAvatarUrl(user.profilePicture, 600) : null;
+  const animatedSrc = (user?.isSupa || user?.isVerified) && user?.animatedProfilePicture ? API.getMediaUrl(user.animatedProfilePicture) : null;
   const initials = (user?.name || user?.username || '?')[0].toUpperCase();
   const colors = ['#5865f2', '#3ba55c', '#faa61a', '#ed4245', '#eb459e', '#00b0f4'];
   const bgColor = colors[(user?.username?.charCodeAt(0) || 0) % colors.length];
@@ -52,7 +53,17 @@ export default function ProfilePictureModal({ user, isOwnProfile, onClose, onCha
 
       <div className="flex-1 flex items-center justify-center w-full px-6" onClick={e => e.stopPropagation()}>
         <div className="relative flex items-center justify-center" style={{ maxWidth: 320, width: '100%' }}>
-          {avatarSrc ? (
+          {animatedSrc ? (
+            <video
+              src={animatedSrc}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="rounded-full object-cover shadow-2xl"
+              style={{ width: '100%', maxWidth: 300, height: 'auto', aspectRatio: '1', border: '3px solid rgba(255,255,255,0.12)' }}
+            />
+          ) : avatarSrc ? (
             <img
               src={avatarSrc}
               alt={user?.name || user?.username}

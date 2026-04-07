@@ -3,6 +3,7 @@ import API from '../utils/api';
 
 export default function Avatar({ user, size = 40, showStatus = false, className = '', supaRing = false }) {
   const src = user?.profilePicture ? API.getAvatarUrl(user.profilePicture, size * 2) : null;
+  const animatedSrc = (user?.isSupa || user?.isVerified) && user?.animatedProfilePicture ? API.getMediaUrl(user.animatedProfilePicture) : null;
   const initials = (user?.name || user?.username || '?')[0].toUpperCase();
 
   const colors = ['#8b5cf6', '#10b981', '#faa61a', '#ed4245', '#3ba55c', '#00b0f4'];
@@ -15,7 +16,17 @@ export default function Avatar({ user, size = 40, showStatus = false, className 
   const statusColor = user?.isOnline ? '#10b981' : '#6b7280';
   const statusBorder = '#0d0f14';
 
-  const imgEl = src ? (
+  const imgEl = animatedSrc ? (
+    <video
+      src={animatedSrc}
+      autoPlay
+      loop
+      muted
+      playsInline
+      className="rounded-full object-cover"
+      style={{ width: innerSize, height: innerSize }}
+    />
+  ) : src ? (
     <img
       src={src}
       alt={`${user?.name || user?.username}'s avatar`}
@@ -36,7 +47,7 @@ export default function Avatar({ user, size = 40, showStatus = false, className 
         height: innerSize,
         backgroundColor: bgColor,
         fontSize: innerSize * 0.4,
-        display: src ? 'none' : 'flex'
+        display: (src || animatedSrc) ? 'none' : 'flex'
       }}
     >
       {initials}
@@ -76,7 +87,16 @@ export default function Avatar({ user, size = 40, showStatus = false, className 
 
   return (
     <div className={`relative inline-block flex-shrink-0 ${className}`} style={{ width: size, height: size }}>
-      {src ? (
+      {animatedSrc ? (
+        <video
+          src={animatedSrc}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="rounded-full object-cover w-full h-full shadow-sm"
+        />
+      ) : src ? (
         <img
           src={src}
           alt={`${user?.name || user?.username}'s avatar`}
@@ -90,7 +110,7 @@ export default function Avatar({ user, size = 40, showStatus = false, className 
           width: size, height: size,
           backgroundColor: bgColor,
           fontSize: size * 0.4,
-          display: src ? 'none' : 'flex'
+          display: (src || animatedSrc) ? 'none' : 'flex'
         }}
       >
         {initials}

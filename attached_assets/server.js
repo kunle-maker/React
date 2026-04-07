@@ -2296,7 +2296,11 @@ k7nle.get('/api/profile', authenticateToken, async (req, res) => {
 
 // Update user profile with Cloudinary
 k7nle.put('/api/profile', authenticateToken, (req, res, next) => {
-  upload.single('profilePicture')(req, res, (err) => {
+  upload.fields([
+    { name: 'profilePicture', maxCount: 1 },
+    { name: 'coverPhoto', maxCount: 1 },
+    { name: 'animatedProfilePicture', maxCount: 1 }
+  ])(req, res, (err) => {
     if (err instanceof multer.MulterError) {
       return res.status(400).json({ error: err.message });
     } else if (err) {
@@ -2309,30 +2313,42 @@ k7nle.put('/api/profile', authenticateToken, (req, res, next) => {
     const { name, bio } = req.body;
     const updateData = {};
 
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     if (name) updateData.name = name;
     if (bio !== undefined) updateData.bio = bio;
       
-    if (req.file) {
-      // Extract Cloudinary public ID and format the URL properly
-      let profilePictureUrl = req.file.path;
-      
-      // Cloudinary returns URL like: 
-      // https://res.cloudinary.com/cloudname/image/upload/v1234567890/vesselx/filename.jpg
-      
-      // Ensure it's a secure URL (https)
-      if (profilePictureUrl.startsWith('http://')) {
-        profilePictureUrl = profilePictureUrl.replace('http://', 'https://');
+    if (req.files) {
+      if (req.files['profilePicture']) {
+        let profilePictureUrl = req.files['profilePicture'][0].path;
+        if (profilePictureUrl.startsWith('http://')) {
+          profilePictureUrl = profilePictureUrl.replace('http://', 'https://');
+        }
+        updateData.profilePicture = profilePictureUrl;
       }
-      
-      // Store the optimized URL
-      updateData.profilePicture = profilePictureUrl;
-      
-      // Log for debugging
-      console.log('Profile picture uploaded:', {
-        originalName: req.file.originalname,
-        cloudinaryUrl: profilePictureUrl,
-        publicId: req.file.filename
-      });
+
+      if (req.files['coverPhoto']) {
+        let coverPhotoUrl = req.files['coverPhoto'][0].path;
+        if (coverPhotoUrl.startsWith('http://')) {
+          coverPhotoUrl = coverPhotoUrl.replace('http://', 'https://');
+        }
+        updateData.coverPhoto = coverPhotoUrl;
+      }
+
+      if (req.files['animatedProfilePicture']) {
+        // Only Supa and verified users can add animated profile pictures
+        const isSupa = user.isSupa && user.supaExpiresAt > new Date();
+        if (isSupa || user.isVerified) {
+          let animatedUrl = req.files['animatedProfilePicture'][0].path;
+          if (animatedUrl.startsWith('http://')) {
+            animatedUrl = animatedUrl.replace('http://', 'https://');
+          }
+          updateData.animatedProfilePicture = animatedUrl;
+        }
+      }
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -2342,14 +2358,10 @@ k7nle.put('/api/profile', authenticateToken, (req, res, next) => {
     ).populate('followers', 'username name profilePicture')
      .populate('following', 'username name profilePicture');
 
-    if (!updatedUser) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
     res.json({ 
       message: 'Profile updated successfully', 
       user: updatedUser,
-      profilePictureUpdated: !!req.file 
+      updatedFields: Object.keys(updateData)
     });
   } catch (error) {
     console.error('Profile update error:', error);
@@ -2427,7 +2439,7 @@ k7nle.post('/api/cleanup-old-posts', authenticateToken, async (req, res) => {
 // Create post endpoint with Cloudinary
 k7nle.post('/api/posts', authenticateVerifiedToken, upload.array('media', 10), async (req, res) => {
   try {
-    const { caption } = req.body;
+    const { caption, soundId, soundUrl, soundName, isOriginalSound } = req.body;
     const mediaFiles = req.files;
 
     if (!mediaFiles || mediaFiles.length === 0) {
@@ -2438,8 +2450,8 @@ k7nle.post('/api/posts', authenticateVerifiedToken, upload.array('media', 10), a
     const media = mediaFiles.map(file => {
       const mediaType = file.mimetype.startsWith('video/') ? 'video' : 'image';
       return {
-        url: file.path, // Cloudinary URL
-        public_id: file.filename, // Cloudinary public_id
+        url: file.path,
+        public_id: file.filename,
         filename: file.originalname,
         type: mediaType,
         originalName: file.originalname,
@@ -2455,6 +2467,26 @@ k7nle.post('/api/posts', authenticateVerifiedToken, upload.array('media', 10), a
       return text.trim().replace(/\n/g, '<br>');
     };
 
+    let resolvedSoundId = null;
+    let resolvedSoundName = null;
+    let resolvedSoundUrl = null;
+
+    if (soundId) {
+      try {
+        const Sound = require('./models/Sound');
+        const sound = await Sound.findById(soundId);
+        if (sound) {
+          resolvedSoundId = sound._id;
+          resolvedSoundName = sound.name;
+          resolvedSoundUrl = sound.url;
+          Sound.findByIdAndUpdate(soundId, { $inc: { usageCount: 1 } }).catch(() => {});
+        }
+      } catch (_) {}
+    } else if (soundUrl) {
+      resolvedSoundUrl = soundUrl;
+      resolvedSoundName = soundName || `Original Sound - ${user.username}`;
+    }
+
     const newPost = new Post({
       userId: req.user.userId,
       username: user.username,
@@ -2462,6 +2494,9 @@ k7nle.post('/api/posts', authenticateVerifiedToken, upload.array('media', 10), a
       caption: caption ? caption.trim() : '',
       formattedCaption: formatText(caption),
       media,
+      soundId: resolvedSoundId,
+      soundName: resolvedSoundName,
+      soundUrl: resolvedSoundUrl,
       likes: [],
       comments: [],
       createdAt: new Date()

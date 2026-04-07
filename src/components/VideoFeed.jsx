@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiHeart, FiMessageCircle, FiBookmark, FiVolume2, FiVolumeX, FiRepeat, FiSend, FiMoreVertical, FiShare2 } from 'react-icons/fi';
+import { FiHeart, FiMessageCircle, FiBookmark, FiVolume2, FiVolumeX, FiRepeat, FiSend, FiMoreVertical, FiShare2, FiMusic, FiPlus, FiArrowLeft } from 'react-icons/fi';
 import { HiHeart } from 'react-icons/hi';
 import { VerifiedBadge } from './UserBadge';
 import API from '../utils/api';
@@ -34,6 +34,7 @@ function timeAgo(iso) {
 function VideoCard({ post, isActive, onLike, onBookmark }) {
   const navigate = useNavigate();
   const videoRef = useRef(null);
+  const audioRef = useRef(null);
   const [muted, setMuted] = useState(true);
   const [progress, setProgress] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -55,15 +56,19 @@ function VideoCard({ post, isActive, onLike, onBookmark }) {
   const isLong = caption.length > 80;
 
   useEffect(() => {
-    const el = videoRef.current;
-    if (!el) return;
+    const vel = videoRef.current;
+    const ael = audioRef.current;
+    if (!vel) return;
     if (isActive) {
-      el.play().catch(() => {});
-      el.onplay = () => setPlaying(true);
-      el.onpause = () => setPlaying(false);
+      vel.play().catch(() => {});
+      if (ael) ael.play().catch(() => {});
+      vel.onplay = () => setPlaying(true);
+      vel.onpause = () => setPlaying(false);
     } else {
-      el.pause();
-      el.currentTime = 0;
+      vel.pause();
+      if (ael) ael.pause();
+      vel.currentTime = 0;
+      if (ael) ael.currentTime = 0;
       setPlaying(false);
     }
   }, [isActive]);
@@ -101,10 +106,13 @@ function VideoCard({ post, isActive, onLike, onBookmark }) {
 
   const toggleMute = (e) => {
     e.stopPropagation();
-    const el = videoRef.current;
-    if (!el) return;
-    el.muted = !el.muted;
-    setMuted(el.muted);
+    const vel = videoRef.current;
+    const ael = audioRef.current;
+    if (!vel) return;
+    const newMuted = !vel.muted;
+    vel.muted = newMuted;
+    if (ael) ael.muted = newMuted;
+    setMuted(newMuted);
   };
 
   if (!video) return null;
@@ -114,6 +122,15 @@ function VideoCard({ post, isActive, onLike, onBookmark }) {
 
   return (
     <div className="relative w-full h-full bg-black overflow-hidden select-none">
+      {post.soundUrl && (
+        <audio
+          ref={audioRef}
+          src={post.soundUrl}
+          loop
+          muted={muted}
+          playsInline
+        />
+      )}
       <video
         ref={videoRef}
         src={video.url}
@@ -266,11 +283,11 @@ function VideoCard({ post, isActive, onLike, onBookmark }) {
 
         {/* Music Info (Branding) */}
         <div className="flex items-center gap-2 mt-4 text-white/80 overflow-hidden max-w-[80%]">
-          <div className="animate-spin-slow">
-             <TwemojiImg emoji="🎵" size={14} />
+          <div className={post.soundUrl ? 'animate-spin-slow' : ''}>
+             <FiMusic size={14} className={post.soundUrl ? 'text-brand-primary' : ''} />
           </div>
           <div className="text-xs font-medium whitespace-nowrap animate-marquee">
-             VesselX Original Sound - {author.username}
+             {post.soundUrl ? `${post.soundName} - ${post.soundArtist}` : `VesselX Original Sound - ${author.username}`}
           </div>
         </div>
       </div>

@@ -185,6 +185,9 @@ class API {
   static async searchPostsByHashtag(tag) {
     return this.request(`/api/posts/search?tag=${encodeURIComponent(tag)}`);
   }
+  static async searchExternalSounds(query) {
+    return this.request(`/api/sounds/search/external?q=${encodeURIComponent(query)}`);
+  }
   static async getUserPosts(username) { return this.request(`/api/users/${username}/posts`); }
 
   static async getFeed(page = 1, limit = 20) {

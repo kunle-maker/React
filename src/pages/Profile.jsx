@@ -61,6 +61,8 @@ export default function Profile({ currentUser, unreadCounts }) {
   const [userStories, setUserStories] = useState([]);
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const fileRef = useRef();
+  const coverFileRef = useRef();
+  const animatedFileRef = useRef();
 
   const isMyProfile = currentUser?.username === username;
   const myId = currentUser?._id || currentUser?.id;
@@ -193,6 +195,8 @@ export default function Profile({ currentUser, unreadCounts }) {
       if (editForm.name) fd.append('name', editForm.name);
       if (editForm.bio !== undefined) fd.append('bio', editForm.bio);
       if (editForm._file) fd.append('profilePicture', editForm._file);
+      if (editForm._coverFile) fd.append('coverPhoto', editForm._coverFile);
+      if (editForm._animatedFile) fd.append('animatedProfilePicture', editForm._animatedFile);
       const data = await API.updateProfile(fd);
       const updated = data.user || data;
       setUser(updated);
@@ -254,7 +258,11 @@ export default function Profile({ currentUser, unreadCounts }) {
       <div className="max-w-2xl mx-auto">
         {/* Cover */}
         <div className="relative" style={{ overflow: 'visible' }}>
-          <div className={`h-32 relative overflow-hidden ${user.isSupa ? 'supa-profile-banner' : 'bg-gradient-to-r from-discord-brand to-purple-700'}`} />
+          <div className={`h-32 relative overflow-hidden ${user.isSupa ? 'supa-profile-banner' : 'bg-gradient-to-r from-discord-brand to-purple-700'}`}>
+            {user.coverPhoto && (
+              <img src={API.getMediaUrl(user.coverPhoto)} alt="" className="w-full h-full object-cover" />
+            )}
+          </div>
           <div className="absolute left-4" style={{ bottom: 0, transform: 'translateY(50%)', zIndex: 10 }}>
             {userStories.length > 0 ? (
               <button
@@ -393,9 +401,27 @@ export default function Profile({ currentUser, unreadCounts }) {
         {/* Edit Form */}
         {editing && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-            <div className="bg-discord-sidebar rounded-lg w-full max-w-md shadow-2xl overflow-hidden">
-              <div className="relative h-20 bg-gradient-to-r from-discord-brand to-purple-700">
-                <div className="absolute -bottom-10 left-1/2 -translate-x-1/2">
+            <div className="bg-discord-sidebar rounded-lg w-full max-w-md shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+              <div className="relative h-28 bg-gradient-to-r from-discord-brand to-purple-700">
+                {editForm._coverPreview ? (
+                  <img src={editForm._coverPreview} alt="" className="w-full h-full object-cover" />
+                ) : user.coverPhoto && (
+                  <img src={API.getMediaUrl(user.coverPhoto)} alt="" className="w-full h-full object-cover" />
+                )}
+                <button
+                  type="button"
+                  className="absolute top-2 right-2 bg-black/50 p-2 rounded-full text-white hover:bg-black/70"
+                  onClick={() => coverFileRef.current?.click()}
+                  title="Change cover photo"
+                >
+                  <FiCamera size={16} />
+                </button>
+                <input ref={coverFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) setEditForm(f => ({ ...f, _coverFile: file, _coverPreview: URL.createObjectURL(file) }));
+                }} />
+
+                <div className="absolute -bottom-10 left-6">
                   <div
                     className="relative cursor-pointer group"
                     onClick={() => fileRef.current?.click()}
@@ -417,9 +443,9 @@ export default function Profile({ currentUser, unreadCounts }) {
                   </div>
                 </div>
               </div>
+
               <div className="pt-14 px-6 pb-6">
-                <h2 className="text-lg font-bold text-discord-text mb-4 text-center">Edit Profile</h2>
-                <p className="text-discord-muted text-xs text-center mb-4 -mt-2">Tap the photo to change your profile picture</p>
+                <h2 className="text-lg font-bold text-discord-text mb-4">Edit Profile</h2>
                 <form onSubmit={handleEditSave} className="space-y-4">
                   <div>
                     <label className="block text-discord-muted text-xs font-bold uppercase mb-1.5">Display Name</label>
@@ -429,6 +455,33 @@ export default function Profile({ currentUser, unreadCounts }) {
                     <label className="block text-discord-muted text-xs font-bold uppercase mb-1.5">About Me</label>
                     <textarea value={editForm.bio} onChange={e => setEditForm(f => ({ ...f, bio: e.target.value }))} className="discord-input w-full resize-none" rows={3} maxLength={500} />
                   </div>
+
+                  {(user.isSupa || user.isVerified) && (
+                    <div>
+                      <label className="block text-discord-muted text-xs font-bold uppercase mb-1.5">Animated Profile Picture (Supa/Verified Only)</label>
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-discord-dark border border-discord-hover overflow-hidden">
+                          {editForm._animatedPreview ? (
+                            <video src={editForm._animatedPreview} className="w-full h-full object-cover" autoPlay loop muted />
+                          ) : user.animatedProfilePicture && (
+                            <video src={API.getMediaUrl(user.animatedProfilePicture)} className="w-full h-full object-cover" autoPlay loop muted />
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="discord-btn-ghost px-3 py-1.5 rounded-lg border border-discord-hover text-sm"
+                          onClick={() => animatedFileRef.current?.click()}
+                        >
+                          Upload GIF/Video
+                        </button>
+                        <input ref={animatedFileRef} type="file" accept="image/gif,video/*" className="hidden" onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) setEditForm(f => ({ ...f, _animatedFile: file, _animatedPreview: URL.createObjectURL(file) }));
+                        }} />
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex gap-2 pt-2">
                     <button type="button" className="discord-btn-ghost flex-1 py-2 rounded border border-discord-hover text-sm" onClick={() => setEditing(false)}>Cancel</button>
                     <button type="submit" disabled={editLoading} className="discord-btn flex-1 py-2 rounded text-sm disabled:opacity-50">

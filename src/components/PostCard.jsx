@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiHeart, FiMessageCircle, FiShare2, FiBookmark, FiMoreHorizontal, FiTrash2, FiCopy, FiExternalLink, FiSend, FiX, FiFlag, FiVolumeX, FiVolume2, FiDownload } from 'react-icons/fi';
+import { FiHeart, FiMessageCircle, FiShare2, FiBookmark, FiMoreHorizontal, FiTrash2, FiCopy, FiExternalLink, FiSend, FiX, FiFlag, FiVolumeX, FiVolume2, FiDownload, FiMusic } from 'react-icons/fi';
 import { HiHeart } from 'react-icons/hi';
 import { FaWhatsapp, FaFacebook, FaSnapchatGhost, FaTelegramPlane, FaSms } from 'react-icons/fa';
 import { formatDistanceToNow } from 'date-fns';
@@ -144,6 +144,7 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
   const [commentCount, setCommentCount] = useState(post.commentCount || post.comments?.length || 0);
 
   const videoRef = useRef(null);
+  const audioRef = useRef(null);
   const controlTimer = useRef(null);
 
   const author = post.userId || { username: post.username || 'user', profilePicture: post.userProfilePicture };
@@ -151,23 +152,35 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
   const isOwn = currentUser && (author?._id === currentUser?._id || username === currentUser?.username);
 
   useEffect(() => {
-    const el = videoRef.current;
-    if (!el) return;
+    const vel = videoRef.current;
+    const ael = audioRef.current;
+    
     const obs = new IntersectionObserver(
       ([entry]) => {
         if (entry.intersectionRatio >= 0.6) {
-          el.play().catch(() => {});
-          setPlaying(true);
+          if (vel) {
+            vel.play().catch(() => {});
+            setPlaying(true);
+          }
+          if (ael) {
+            ael.play().catch(() => {});
+          }
         } else {
-          el.pause();
-          setPlaying(false);
+          if (vel) {
+            vel.pause();
+            setPlaying(false);
+          }
+          if (ael) {
+            ael.pause();
+          }
         }
       },
       { threshold: [0.2, 0.6] }
     );
-    obs.observe(el);
+    if (vel) obs.observe(vel);
+    if (ael) obs.observe(ael);
     return () => obs.disconnect();
-  }, [mediaIndex]);
+  }, [mediaIndex, post.soundUrl]);
 
   const triggerBurst = (emoji) => {
     setBurst(emoji);
@@ -251,6 +264,16 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
             {post.location && <span className="text-[10px] text-discord-muted -mt-0.5">{post.location}</span>}
           </div>
         </div>
+        {post.soundUrl && (
+          <div className="flex-1 px-2 min-w-0 flex justify-end">
+            <div className="flex items-center gap-1.5 bg-discord-dark/50 px-2 py-1 rounded-full border border-discord-hover/50 max-w-fit">
+              <FiMusic size={10} className="text-brand-primary animate-pulse flex-shrink-0" />
+              <span className="text-[10px] font-bold text-discord-text truncate max-w-[80px]">
+                {post.soundName}
+              </span>
+            </div>
+          </div>
+        )}
         <button 
           onClick={() => setShowMenu(true)}
           className="p-2 text-discord-muted hover:text-discord-text transition-colors"
@@ -261,6 +284,15 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
 
       {/* Media Content */}
       <div className="relative aspect-square w-full bg-black overflow-hidden" onClick={handleMediaTap}>
+        {post.soundUrl && (
+          <audio
+            ref={audioRef}
+            src={post.soundUrl}
+            loop
+            muted={muted}
+            playsInline
+          />
+        )}
         {burst && (
           <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none animate-ping-once">
             <TwemojiIcon emoji={burst} size="80px" className="drop-shadow-2xl" />

@@ -7,6 +7,8 @@ import Avatar from '../components/Avatar';
 import API from '../utils/api';
 import ImageCropModal from '../components/ImageCropModal';
 import EmojiPicker from '../components/EmojiPicker';
+import SoundPicker from '../components/SoundPicker';
+import { FiImage, FiX, FiSend, FiAtSign, FiVideo, FiArrowLeft, FiSmile, FiMusic } from 'react-icons/fi';
 
 const RATIO_OPTIONS = [
   { label: '9:16', value: '9:16' },
@@ -39,6 +41,8 @@ export default function CreatePostPage({ currentUser, unreadCounts }) {
   const [pendingFile, setPendingFile] = useState(null);
   const [videoRatios, setVideoRatios] = useState({});
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showSoundPicker, setShowSoundPicker] = useState(false);
+  const [selectedSound, setSelectedSound] = useState(null);
   const textRef = React.useRef();
   const fileRef = React.useRef();
 
@@ -152,6 +156,11 @@ export default function CreatePostPage({ currentUser, unreadCounts }) {
     try {
       const fd = new FormData();
       if (caption) fd.append('caption', caption);
+      if (selectedSound) {
+        fd.append('soundUrl', selectedSound.url);
+        fd.append('soundName', selectedSound.name);
+        fd.append('soundArtist', selectedSound.artist);
+      }
       files.forEach(f => fd.append('media', f));
       await API.createPost(fd);
       setSuccess(true);
@@ -240,6 +249,23 @@ export default function CreatePostPage({ currentUser, unreadCounts }) {
                   </div>
                 )}
               </div>
+
+              {selectedSound && (
+                <div className="mt-3 flex items-center gap-3 bg-discord-dark/50 p-2 rounded-xl border border-brand-primary/20 animate-fade-in">
+                  <img src={selectedSound.artwork} alt="" className="w-10 h-10 rounded-lg" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-discord-text truncate">{selectedSound.name}</p>
+                    <p className="text-[10px] text-discord-muted truncate">{selectedSound.artist}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSound(null)}
+                    className="p-1.5 text-discord-muted hover:text-discord-red"
+                  >
+                    <FiX size={14} />
+                  </button>
+                </div>
+              )}
 
               {/* Media previews */}
               {previews.length > 0 && (
@@ -373,6 +399,14 @@ export default function CreatePostPage({ currentUser, unreadCounts }) {
           >
             <FiSmile size={20} />
           </button>
+          <button
+            type="button"
+            className={`p-2.5 rounded-full transition-all active:scale-90 ${selectedSound ? 'text-green-400 bg-green-400/10' : 'text-discord-muted hover:text-discord-brand hover:bg-discord-brand/10'}`}
+            onClick={() => setShowSoundPicker(true)}
+            title="Add Music"
+          >
+            <FiMusic size={20} />
+          </button>
           {showEmojiPicker && (
             <div className="absolute bottom-full left-0 mb-2">
               <EmojiPicker
@@ -394,6 +428,16 @@ export default function CreatePostPage({ currentUser, unreadCounts }) {
           aspectRatio={1}
           onCrop={handleCropDone}
           onCancel={handleCropCancel}
+        />
+      )}
+
+      {showSoundPicker && (
+        <SoundPicker
+          onSelect={(sound) => {
+            setSelectedSound(sound);
+            setShowSoundPicker(false);
+          }}
+          onClose={() => setShowSoundPicker(false)}
         />
       )}
     </Layout>
