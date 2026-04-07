@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiImage, FiX, FiSend, FiAtSign, FiVideo, FiArrowLeft, FiSmile } from 'react-icons/fi';
+import { FiImage, FiX, FiSend, FiAtSign, FiVideo, FiArrowLeft, FiSmile, FiMusic } from 'react-icons/fi';
 import { MdAspectRatio } from 'react-icons/md';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
@@ -8,7 +8,6 @@ import API from '../utils/api';
 import ImageCropModal from '../components/ImageCropModal';
 import EmojiPicker from '../components/EmojiPicker';
 import SoundPicker from '../components/SoundPicker';
-import { FiImage, FiX, FiSend, FiAtSign, FiVideo, FiArrowLeft, FiSmile, FiMusic } from 'react-icons/fi';
 
 const RATIO_OPTIONS = [
   { label: '9:16', value: '9:16' },

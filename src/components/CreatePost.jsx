@@ -1,10 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { FiImage, FiX, FiSend, FiAtSign } from 'react-icons/fi';
+import { FiImage, FiX, FiSend, FiAtSign, FiMusic } from 'react-icons/fi';
 import Avatar from './Avatar';
 import API from '../utils/api';
 import ImageCropModal from './ImageCropModal';
 import SoundPicker from './SoundPicker';
-import { FiImage, FiX, FiSend, FiAtSign, FiMusic } from 'react-icons/fi';
 
 export default function CreatePost({ currentUser, onPost }) {
   const [caption, setCaption] = useState('');
