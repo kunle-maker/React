@@ -2,6 +2,23 @@ import React, { useState } from 'react';
 import { FiX, FiAlertTriangle } from 'react-icons/fi';
 import API from '../utils/api';
 
+function TwemojiIcon({ emoji, size = '1.2em' }) {
+  if (!emoji || typeof emoji !== 'string') return null;
+  try {
+    const cp = [...emoji].map(c => c.codePointAt(0).toString(16)).filter(x => x !== 'fe0f').join('-');
+    return (
+      <img
+        src={`https://twemoji.maxcdn.com/v/latest/svg/${cp}.svg`}
+        alt={emoji}
+        style={{ width: size, height: size }}
+        className="select-none object-contain inline-block"
+      />
+    );
+  } catch {
+    return <span>{emoji}</span>;
+  }
+}
+
 const REASONS = [
   { value: 'spam', label: 'Spam', icon: '🚫' },
   { value: 'harassment', label: 'Harassment', icon: '😤' },
@@ -55,7 +72,7 @@ export default function ReportModal({ type, targetId, targetName, onClose }) {
 
         {done ? (
           <div className="px-5 pb-6 pt-2 text-center">
-            <div className="text-4xl mb-3">✅</div>
+            <div className="text-4xl mb-3"><TwemojiIcon emoji="✅" size="2.5rem" /></div>
             <p className="text-discord-text font-semibold mb-1">Report submitted</p>
             <p className="text-discord-muted text-sm">Our moderation team will review it. If it violates our guidelines, action will be taken.</p>
             <button
@@ -84,7 +101,7 @@ export default function ReportModal({ type, targetId, targetName, onClose }) {
                         : 'border-transparent hover:bg-discord-hover text-discord-text'
                     }`}
                   >
-                    <span className="text-base w-5 text-center">{r.icon}</span>
+                    <span className="w-5 flex items-center justify-center"><TwemojiIcon emoji={r.icon} size="1.1rem" /></span>
                     {r.label}
                   </button>
                 ))}

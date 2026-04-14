@@ -583,7 +583,7 @@ export default function Profile({ currentUser, unreadCounts }) {
                   <div className="flex items-center gap-1.5">
                     <button
                       className="discord-btn-ghost p-2 rounded-full border border-discord-hover text-discord-muted hover:text-discord-brand hover:border-discord-brand/50 transition-all"
-                      onClick={() => navigate(`/messages/${username}`)}
+                      onClick={() => navigate(`/messages/chat/${username}`)}
                       title="Send message"
                     >
                       <FiMessageSquare size={14} />

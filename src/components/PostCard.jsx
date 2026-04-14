@@ -468,7 +468,7 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
               <div
                 className="absolute inset-0 flex"
                 style={{
-                  transform: `translateX(calc(${-activeIdx * 100}% + ${dragOffset}px))`,
+                  transform: `translateX(calc(${-activeIdx * (100 / photoCount)}% + ${dragOffset}px))`,
                   transition: isDragging ? 'none' : 'transform 0.28s cubic-bezier(0.32, 0.72, 0, 1)',
                   width: `${photoCount * 100}%`,
                 }}
