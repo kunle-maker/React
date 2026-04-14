@@ -52,6 +52,9 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [interactedUsers, setInteractedUsers] = useState([]);
   const [showReport, setShowReport] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [commentLikesMap, setCommentLikesMap] = useState({});
+  const [showPauseIndicator, setShowPauseIndicator] = useState(null);
 
   const media = post.media || [];
   const [mediaIndex, setMediaIndex] = useState(0);
@@ -126,10 +129,37 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
       const mediaUrl = API.getMediaUrl(currentMedia.url);
       const response = await fetch(mediaUrl);
       const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
+
+      let downloadBlob = blob;
+      const extension = currentMedia.type === 'video' ? 'mp4' : 'jpg';
+
+      if (currentMedia.type !== 'video') {
+        const imgBitmap = await createImageBitmap(blob);
+        const canvas = document.createElement('canvas');
+        canvas.width = imgBitmap.width;
+        canvas.height = imgBitmap.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(imgBitmap, 0, 0);
+
+        const watermarkText = `@${username}`;
+        const fontSize = Math.max(22, Math.round(imgBitmap.width * 0.048));
+        ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, Arial, sans-serif`;
+        ctx.textBaseline = 'bottom';
+        ctx.textAlign = 'left';
+        const padding = Math.round(fontSize * 0.75);
+        ctx.shadowColor = 'rgba(0,0,0,0.75)';
+        ctx.shadowBlur = fontSize * 0.6;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        ctx.fillStyle = 'white';
+        ctx.fillText(watermarkText, padding, canvas.height - padding);
+
+        downloadBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+      }
+
+      const blobUrl = window.URL.createObjectURL(downloadBlob);
       const a = document.createElement('a');
       a.href = blobUrl;
-      const extension = currentMedia.type === 'video' ? 'mp4' : 'jpg';
       a.download = `vesselx_${post._id}_${Date.now()}.${extension}`;
       document.body.appendChild(a);
       a.click();
@@ -176,6 +206,7 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
   const touchStartX = useRef(null);
   const touchStartY = useRef(null);
   const swipedRef = useRef(false);
+  const tapTimeoutRef = useRef(null);
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [loadedImages, setLoadedImages] = useState({});
@@ -299,11 +330,29 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
     const now = Date.now();
     const DOUBLE_TAP_DELAY = 300;
     if (now - lastTap < DOUBLE_TAP_DELAY) {
+      clearTimeout(tapTimeoutRef.current);
       if (!liked) handleLike(false);
       triggerBurst('❤️');
       setLastTap(0);
     } else {
       setLastTap(now);
+      tapTimeoutRef.current = setTimeout(() => {
+        const vel = videoRef.current;
+        const ael = audioRef.current;
+        const isPlaying = vel ? !vel.paused : (ael ? !ael.paused : false);
+        if (isPlaying) {
+          if (vel) vel.pause();
+          if (ael) ael.pause();
+          setPlaying(false);
+          setShowPauseIndicator('pause');
+        } else {
+          if (vel) vel.play().catch(() => {});
+          if (ael) ael.play().catch(() => {});
+          setPlaying(true);
+          setShowPauseIndicator('play');
+        }
+        setTimeout(() => setShowPauseIndicator(null), 700);
+      }, DOUBLE_TAP_DELAY);
     }
   };
 
@@ -363,21 +412,72 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
     setTimeout(() => commentInputRef.current?.focus(), 400);
   };
 
+
+  const handleCommentLike = async (commentId, currentLikes) => {
+    const prev = commentLikesMap[commentId] || { liked: false, likeCount: currentLikes };
+    const optimistic = { liked: !prev.liked, likeCount: prev.liked ? prev.likeCount - 1 : prev.likeCount + 1 };
+    setCommentLikesMap(m => ({ ...m, [commentId]: optimistic }));
+    try {
+      const data = await API.likeComment(post._id, commentId);
+      setCommentLikesMap(m => ({ ...m, [commentId]: { liked: data.liked, likeCount: data.likeCount } }));
+    } catch {
+      setCommentLikesMap(m => ({ ...m, [commentId]: prev }));
+    }
+  };
+
   const handleComment = async (e) => {
     e?.preventDefault();
     if (!commentText.trim() || submittingComment) return;
     setSubmittingComment(true);
+    const text = commentText.trim();
+    setCommentText('');
+
+    if (replyingTo) {
+      const { commentId } = replyingTo;
+      setReplyingTo(null);
+      const optimisticReply = {
+        _id: `optimistic-reply-${Date.now()}`,
+        text,
+        userId: currentUser,
+        createdAt: new Date().toISOString(),
+      };
+      setSheetComments(prev => prev.map(c =>
+        c._id === commentId
+          ? { ...c, replies: [...(c.replies || []), optimisticReply] }
+          : c
+      ));
+      try {
+        const data = await API.replyToComment(post._id, commentId, text);
+        const newReply = data && (data.reply || data.comment || (data._id ? data : null));
+        if (newReply) {
+          setSheetComments(prev => prev.map(c =>
+            c._id === commentId
+              ? {
+                  ...c,
+                  replies: (c.replies || []).map(r =>
+                    r._id === optimisticReply._id
+                      ? { ...newReply, userId: (newReply.userId && typeof newReply.userId === 'object') ? newReply.userId : currentUser }
+                      : r
+                  ),
+                }
+              : c
+          ));
+        }
+      } catch { }
+      finally { setSubmittingComment(false); }
+      return;
+    }
+
     const optimisticComment = {
       _id: `optimistic-${Date.now()}`,
-      text: commentText.trim(),
+      text,
       userId: currentUser,
       createdAt: new Date().toISOString(),
     };
     setSheetComments(prev => [...prev, optimisticComment]);
     setCommentCount(c => c + 1);
-    setCommentText('');
     try {
-      const data = await API.commentOnPost(post._id, optimisticComment.text);
+      const data = await API.commentOnPost(post._id, text);
       const savedComment = data.comment || data || null;
       if (savedComment) {
         const withUser = {
@@ -555,6 +655,33 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
               })()
             )}
 
+            {/* Pause / play indicator */}
+            {showPauseIndicator && (
+              <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+                <div className="w-16 h-16 rounded-full bg-black/50 flex items-center justify-center animate-ping-once">
+                  {showPauseIndicator === 'pause'
+                    ? <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><rect x="5" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="4" height="16" rx="1"/></svg>
+                    : <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg>
+                  }
+                </div>
+              </div>
+            )}
+
+            {/* Watermark overlay */}
+            <div className="absolute bottom-3 left-3 z-20 pointer-events-none select-none">
+              <span
+                className="text-white font-bold tracking-tight"
+                style={{
+                  fontSize: 'clamp(11px, 3.5vw, 15px)',
+                  textShadow: '0 1px 4px rgba(0,0,0,0.85), 0 0px 8px rgba(0,0,0,0.6)',
+                  letterSpacing: '-0.01em',
+                  opacity: 0.9,
+                }}
+              >
+                @{username}
+              </span>
+            </div>
+
             {/* Mute button */}
             {(currentMedia?.type === 'video' || post.soundUrl) && !muteVideo && (
               <button
@@ -709,15 +836,6 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
               <span key={tag} className="text-brand-primary text-xs font-bold">#{tag}</span>
             ))}
           </div>
-        )}
-
-        {commentCount > 0 && (
-          <button 
-            onClick={openCommentSheet}
-            className="text-discord-muted text-sm block hover:underline"
-          >
-            View all {commentCount} comments
-          </button>
         )}
 
         <div className="flex items-center gap-3">
@@ -898,54 +1016,82 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
                   {sheetComments.map((c, i) => {
                     const cAuthor = c.userId || c.user || { username: c.username };
                     const cTime = c.createdAt ? formatDistanceToNow(new Date(c.createdAt), { addSuffix: true }) : '';
-                    const cLikeCount = c.likeCount || c.likes?.length || 0;
-                    const cReplyCount = c.replyCount || c.replies?.length || 0;
+                    const baseLikeCount = c.likeCount ?? c.likes?.length ?? 0;
+                    const likeState = commentLikesMap[c._id] || { liked: false, likeCount: baseLikeCount };
+                    const replies = c.replies || [];
                     return (
-                      <div key={c._id || i} className="flex gap-3 px-4 py-3 border-b border-discord-hover/30 hover:bg-discord-hover/10 transition-colors">
-                        <div className="flex-shrink-0 cursor-pointer" onClick={() => { setShowCommentSheet(false); navigate(`/profile/${cAuthor.username}`); }}>
-                          <Avatar user={cAuthor} size={36} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-baseline gap-2 mb-0.5">
-                            <span
-                              className="font-black text-discord-text text-sm cursor-pointer hover:opacity-70"
-                              onClick={() => { setShowCommentSheet(false); navigate(`/profile/${cAuthor.username}`); }}
-                            >
-                              {cAuthor.username || cAuthor.name}
-                            </span>
-                            <span className="text-discord-muted text-[10px]">{cTime}</span>
+                      <div key={c._id || i} className="border-b border-discord-hover/30">
+                        <div className="flex gap-3 px-4 py-3 hover:bg-discord-hover/10 transition-colors">
+                          <div className="flex-shrink-0 cursor-pointer" onClick={() => { setShowCommentSheet(false); navigate(`/profile/${cAuthor.username}`); }}>
+                            <Avatar user={cAuthor} size={36} />
                           </div>
-                          <div className="text-discord-text text-sm whitespace-pre-wrap break-words leading-snug">
-                            <FormattedText text={c.text || c.content || ''} />
-                          </div>
-                          <div className="flex items-center gap-4 mt-1.5">
-                            <button className="text-xs font-bold text-discord-muted hover:text-discord-text flex items-center gap-1">
-                              <FiCornerDownRight size={11} /> Reply
-                            </button>
-                            {cReplyCount > 0 && (
-                              <span className="text-xs font-bold text-discord-muted">
-                                View {cReplyCount} {cReplyCount === 1 ? 'reply' : 'replies'}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline gap-2 mb-0.5">
+                              <span
+                                className="font-black text-discord-text text-sm cursor-pointer hover:opacity-70"
+                                onClick={() => { setShowCommentSheet(false); navigate(`/profile/${cAuthor.username}`); }}
+                              >
+                                {cAuthor.username || cAuthor.name}
                               </span>
-                            )}
+                              <span className="text-discord-muted text-[10px]">{cTime}</span>
+                            </div>
+                            <div className="text-discord-text text-sm whitespace-pre-wrap break-words leading-snug">
+                              <FormattedText text={c.text || c.content || ''} />
+                            </div>
+                            <div className="flex items-center gap-4 mt-1.5">
+                              <button
+                                className="text-xs font-bold text-discord-muted hover:text-discord-text flex items-center gap-1 active:scale-95 transition-transform"
+                                onClick={() => {
+                                  setReplyingTo({ commentId: c._id, username: cAuthor.username });
+                                  setTimeout(() => commentInputRef.current?.focus(), 100);
+                                }}
+                              >
+                                <FiCornerDownRight size={11} /> Reply
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                            <button
+                              className={`transition-colors active:scale-90 ${likeState.liked ? 'text-red-400' : 'text-discord-muted hover:text-red-400'}`}
+                              onClick={() => handleCommentLike(c._id, baseLikeCount)}
+                            >
+                              {likeState.liked
+                                ? <FiHeart size={14} className="fill-current" />
+                                : <FiHeart size={14} />
+                              }
+                            </button>
+                            {likeState.likeCount > 0 && <span className="text-[10px] text-discord-muted">{likeState.likeCount.toLocaleString()}</span>}
                           </div>
                         </div>
-                        <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                          <button className="text-discord-muted hover:text-red-400 transition-colors">
-                            <FiHeart size={14} />
-                          </button>
-                          {cLikeCount > 0 && <span className="text-[10px] text-discord-muted">{cLikeCount.toLocaleString()}</span>}
-                        </div>
+                        {replies.length > 0 && (
+                          <div className="ml-14 pr-4 pb-3 space-y-2.5">
+                            {replies.map((r, ri) => {
+                              const rAuthor = r.userId && typeof r.userId === 'object' ? r.userId : { username: r.username, profilePicture: r.userProfilePicture };
+                              return (
+                                <div key={r._id || ri} className="flex gap-2.5 items-start">
+                                  <div className="flex-shrink-0 cursor-pointer" onClick={() => { setShowCommentSheet(false); navigate(`/profile/${rAuthor.username}`); }}>
+                                    <Avatar user={rAuthor} size={26} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-baseline gap-2 mb-0.5">
+                                      <span className="font-black text-discord-text text-xs cursor-pointer hover:opacity-70" onClick={() => { setShowCommentSheet(false); navigate(`/profile/${rAuthor.username}`); }}>
+                                        {rAuthor.username}
+                                      </span>
+                                      {r.createdAt && <span className="text-discord-muted text-[10px]">{formatDistanceToNow(new Date(r.createdAt), { addSuffix: true })}</span>}
+                                    </div>
+                                    <div className="text-discord-text text-xs whitespace-pre-wrap break-words leading-snug">
+                                      <FormattedText text={r.text || ''} />
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
-                  <div className="py-4 text-center">
-                    <button
-                      className="text-discord-brand text-sm font-bold hover:underline"
-                      onClick={() => { setShowCommentSheet(false); navigate(`/post/${post._id}`, { state: { post } }); }}
-                    >
-                      View all comments
-                    </button>
-                  </div>
+                  <div className="pb-4" />
                 </div>
               )}
             </div>
@@ -962,6 +1108,16 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
                   </button>
                 ))}
               </div>
+              {replyingTo && (
+                <div className="flex items-center justify-between px-4 py-1.5 bg-discord-hover/20 border-t border-discord-hover/30">
+                  <span className="text-xs text-discord-muted">
+                    Replying to <span className="font-bold text-discord-brand">@{replyingTo.username}</span>
+                  </span>
+                  <button className="text-discord-muted hover:text-discord-text p-0.5" onClick={() => setReplyingTo(null)}>
+                    <FiX size={13} />
+                  </button>
+                </div>
+              )}
               <form onSubmit={handleComment} className="flex items-center gap-3 px-4 pb-6 pt-2">
                 <Avatar user={currentUser} size={32} />
                 <div className="flex-1 flex items-center bg-discord-hover/30 rounded-full px-4 py-2.5 gap-2">
@@ -969,7 +1125,7 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
                     ref={commentInputRef}
                     value={commentText}
                     onChange={e => setCommentText(e.target.value)}
-                    placeholder="Join the conversation..."
+                    placeholder={replyingTo ? `Reply to @${replyingTo.username}...` : 'Join the conversation...'}
                     className="flex-1 bg-transparent text-discord-text text-sm outline-none placeholder-discord-muted"
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleComment(e)}
                   />

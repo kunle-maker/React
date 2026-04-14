@@ -11,7 +11,7 @@ import API from '../utils/api';
 
 function CommentItem({ c, index, currentUser, postId, onReplyPosted }) {
   const navigate = useNavigate();
-  const author = c.userId || c.user || { username: c.username };
+  const author = (c.userId && typeof c.userId === 'object') ? c.userId : (c.user && typeof c.user === 'object') ? c.user : { username: c.username, profilePicture: c.userProfilePicture };
   const [liked, setLiked] = useState(c.isLiked || false);
   const [likeCount, setLikeCount] = useState(c.likeCount || c.likes?.length || 0);
   const [showReplies, setShowReplies] = useState(false);
@@ -39,7 +39,7 @@ function CommentItem({ c, index, currentUser, postId, onReplyPosted }) {
     setSubmittingReply(true);
     try {
       const data = await API.replyToComment(postId, c._id, replyText.trim());
-      const newReply = data.reply || data.comment || { text: replyText.trim(), userId: currentUser, createdAt: new Date().toISOString() };
+      const newReply = (data && (data.reply || data.comment || (data._id ? data : null))) || { text: replyText.trim(), userId: currentUser, createdAt: new Date().toISOString() };
       setReplies(prev => [...prev, newReply]);
       setReplyText('');
       setReplying(false);
@@ -93,8 +93,9 @@ function CommentItem({ c, index, currentUser, postId, onReplyPosted }) {
                 onClick={async () => {
                   if (!showReplies && replies.length === 0) {
                     try {
-                      const data = await API.replyToComment(postId, c._id, null);
-                      if (data?.replies) setReplies(data.replies);
+                      const data = await API.getCommentReplies(postId, c._id);
+                      const fetched = Array.isArray(data) ? data : data?.replies || [];
+                      if (fetched.length > 0) setReplies(fetched);
                     } catch {}
                   }
                   setShowReplies(r => !r);
@@ -128,7 +129,7 @@ function CommentItem({ c, index, currentUser, postId, onReplyPosted }) {
       {showReplies && replies.length > 0 && (
         <div className="pl-12 border-l-2 border-discord-hover/30 ml-7">
           {replies.map((r, ri) => {
-            const ra = r.userId || r.user || { username: r.username };
+            const ra = (r.userId && typeof r.userId === 'object') ? r.userId : (r.user && typeof r.user === 'object') ? r.user : { username: r.username, profilePicture: r.userProfilePicture };
             return (
               <div key={r._id || ri} className="flex gap-3 px-3 py-2.5 hover:bg-discord-hover/20 transition-colors">
                 <Avatar user={ra} size={28} onClick={() => navigate(`/profile/${ra.username}`)} />

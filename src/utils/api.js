@@ -273,6 +273,9 @@ class API {
   static async replyToComment(postId, commentId, text) {
     return this.request(`/api/posts/${postId}/comments/${commentId}/reply`, { method: 'POST', body: JSON.stringify({ text }) });
   }
+  static async getCommentReplies(postId, commentId) {
+    return this.request(`/api/posts/${postId}/comments/${commentId}/replies`);
+  }
 
   static async getFeed(page = 1, limit = 20) {
     const data = await this.getPosts(page, limit);
