@@ -1,4 +1,4 @@
-const BASE_URL = 'https://vesselx.onrender.com';
+const BASE_URL = 'https://vessel-xbackendzip--ayokunleayodele.replit.app';
 
 class API {
   static baseURL = BASE_URL;
@@ -101,6 +101,20 @@ class API {
     this.clearCache('/api/users');
     return data;
   }
+  static async updateCoverPhoto(file) {
+    const fd = new FormData();
+    fd.append('coverPhoto', file);
+    const data = await this.request('/api/profile/cover-photo', { method: 'PUT', body: fd });
+    this.clearCache('/api/profile');
+    this.clearCache('/api/users');
+    return data;
+  }
+  static async removeCoverPhoto() {
+    const data = await this.request('/api/profile/cover-photo', { method: 'DELETE' });
+    this.clearCache('/api/profile');
+    this.clearCache('/api/users');
+    return data;
+  }
   static async deleteAccount(password) {
     return this.request('/api/account', { method: 'DELETE', body: JSON.stringify({ password }) });
   }
@@ -185,10 +199,80 @@ class API {
   static async searchPostsByHashtag(tag) {
     return this.request(`/api/posts/search?tag=${encodeURIComponent(tag)}`);
   }
-  static async searchExternalSounds(query) {
-    return this.request(`/api/sounds/search/external?q=${encodeURIComponent(query)}`);
+  static async getHashtagPosts(tag, page = 1, limit = 20) {
+    const cleanTag = tag.replace(/^#/, '');
+    return this.request(`/api/hashtags/${encodeURIComponent(cleanTag)}/posts?page=${page}&limit=${limit}`);
   }
-  static async getUserPosts(username) { return this.request(`/api/users/${username}/posts`); }
+  static async searchMusic(query, limit = 25) {
+    return this.request(`/api/music/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+  }
+  static async getMusicPreview(url) {
+    return `${this.baseURL}/api/music/preview?url=${encodeURIComponent(url)}`;
+  }
+  static async unifiedSearch(q, type = null, limit = 15) {
+    const typeParam = type ? `&type=${type}` : '';
+    return this.request(`/api/search?q=${encodeURIComponent(q)}&limit=${limit}${typeParam}`);
+  }
+  static async getUserSuggestions(limit = 10) {
+    try { return this.request(`/api/users/suggestions?limit=${limit}`); } catch { return { suggestions: [] }; }
+  }
+  static async getTrending() {
+    try { return this.request('/api/trending'); } catch { return { hashtags: [], posts: [], sounds: [] }; }
+  }
+  static async togglePrivacy() {
+    const data = await this.request('/api/profile/privacy', { method: 'PATCH' });
+    this.clearCache('/api/profile'); this.clearCache('/api/users');
+    return data;
+  }
+  static async getFollowRequests() {
+    return this.request('/api/users/me/follow-requests');
+  }
+  static async acceptFollowRequest(username) {
+    const data = await this.request(`/api/users/${username}/follow-request/accept`, { method: 'POST' });
+    this.clearCache('/api/users/me/follow-requests');
+    return data;
+  }
+  static async declineFollowRequest(username) {
+    const data = await this.request(`/api/users/${username}/follow-request`, { method: 'DELETE' });
+    this.clearCache('/api/users/me/follow-requests');
+    return data;
+  }
+  static async updateNotificationPreferences(prefs) {
+    return this.request('/api/profile/notification-preferences', { method: 'PATCH', body: JSON.stringify(prefs) });
+  }
+  static async sendHeartbeat() {
+    try { return this.request('/api/users/heartbeat', { method: 'POST' }); } catch { return null; }
+  }
+  static async getUserPosts(username) {
+    const data = await this.request(`/api/users/${username}/posts`);
+    if (data && typeof data === 'object' && !Array.isArray(data)) return data;
+    return { posts: Array.isArray(data) ? data : [] };
+  }
+  static async editPost(postId, caption) {
+    const data = await this.request(`/api/posts/${postId}`, { method: 'PUT', body: JSON.stringify({ caption }) });
+    this.clearCache('/api/posts'); this.clearCache('/api/feed');
+    return data;
+  }
+  static async sharePost(postId) {
+    return this.request(`/api/posts/${postId}/share`, { method: 'POST' });
+  }
+  static async viewPost(postId) {
+    return this.request(`/api/posts/${postId}/view`, { method: 'POST' });
+  }
+  static async pinPost(postId) {
+    const data = await this.request(`/api/posts/${postId}/pin`, { method: 'POST' });
+    this.clearCache('/api/posts'); this.clearCache('/api/feed'); this.clearCache('/api/users');
+    return data;
+  }
+  static async getBookmarkedPosts(page = 1, limit = 20) {
+    return this.request(`/api/posts/bookmarked?page=${page}&limit=${limit}`);
+  }
+  static async likeComment(postId, commentId) {
+    return this.request(`/api/posts/${postId}/comments/${commentId}/like`, { method: 'POST' });
+  }
+  static async replyToComment(postId, commentId, text) {
+    return this.request(`/api/posts/${postId}/comments/${commentId}/reply`, { method: 'POST', body: JSON.stringify({ text }) });
+  }
 
   static async getFeed(page = 1, limit = 20) {
     const data = await this.getPosts(page, limit);
@@ -444,6 +528,9 @@ class API {
   static async createGameRoom(data) {
     return this.request('/api/games/create', { method: 'POST', body: JSON.stringify(data) });
   }
+  static async createVsAI(data) {
+    return this.request('/api/games/create-vs-ai', { method: 'POST', body: JSON.stringify(data) });
+  }
   static async joinGameRoom(inviteCode) {
     return this.request('/api/games/join', { method: 'POST', body: JSON.stringify({ inviteCode }) });
   }
@@ -466,6 +553,22 @@ class API {
   }
   static async leaveGameRoom(roomId) {
     return this.request(`/api/games/room/${roomId}/leave`, { method: 'POST' });
+  }
+
+  static async createTTT(data = {}) {
+    return this.request('/api/games/ttt/create', { method: 'POST', body: JSON.stringify(data) });
+  }
+  static async joinTTT(inviteCode) {
+    return this.request(`/api/games/ttt/join/${inviteCode}`, { method: 'POST' });
+  }
+  static async makeTTTMove(roomId, cellIndex) {
+    return this.request(`/api/games/ttt/${roomId}/move`, { method: 'POST', body: JSON.stringify({ cellIndex }) });
+  }
+  static async getTTTRoom(roomId) {
+    return this.request(`/api/games/ttt/${roomId}`);
+  }
+  static async rematchTTT(roomId) {
+    return this.request(`/api/games/ttt/${roomId}/rematch`, { method: 'POST' });
   }
 
   static getMediaUrl(url) {

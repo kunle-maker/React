@@ -157,6 +157,13 @@ function AppInner() {
   }, [token]);
 
   useEffect(() => {
+    if (!token) return;
+    API.sendHeartbeat().catch(() => {});
+    const hbInterval = setInterval(() => API.sendHeartbeat().catch(() => {}), 60000);
+    return () => clearInterval(hbInterval);
+  }, [token]);
+
+  useEffect(() => {
     const handler = () => {
       const t = localStorage.getItem('token');
       setToken(t);

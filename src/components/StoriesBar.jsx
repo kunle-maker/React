@@ -164,7 +164,10 @@ const StoriesBar = forwardRef(function StoriesBar({ currentUser, onOpenViewer },
           </span>
         </div>
 
-        {groups.map((group, idx) => {
+        {groups.filter(group => {
+          const myId = currentUser?._id || currentUser?.id;
+          return group.user?._id !== myId && group.user?.username !== currentUser?.username;
+        }).map((group, idx) => {
           const { user, hasUnviewed } = group;
           return (
             <div

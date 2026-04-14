@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { FiHeart, FiMessageCircle, FiShare2, FiBookmark, FiMoreHorizontal, FiTrash2, FiCopy, FiExternalLink, FiSend, FiX, FiFlag, FiVolumeX, FiVolume2, FiDownload, FiMusic } from 'react-icons/fi';
+import { FiHeart, FiMessageCircle, FiShare2, FiBookmark, FiMoreHorizontal, FiTrash2, FiCopy, FiExternalLink, FiSend, FiX, FiFlag, FiVolumeX, FiVolume2, FiDownload, FiMusic, FiEdit2, FiCheck, FiMapPin, FiEye, FiCornerDownRight } from 'react-icons/fi';
 import { HiHeart } from 'react-icons/hi';
 import { FaWhatsapp, FaFacebook, FaSnapchatGhost, FaTelegramPlane, FaSms } from 'react-icons/fa';
 import { formatDistanceToNow } from 'date-fns';
@@ -30,6 +31,7 @@ function TwemojiIcon({ emoji, size = '1.4em', className = '' }) {
 }
 
 const REACTIONS = ['❤️', '🔥', '😂', '😮', '😢', '👍'];
+const COMMENT_REACTIONS = ['❤️', '🙌', '🔥', '👏', '😢', '😍', '😮', '😂'];
 
 export default function PostCard({ post, currentUser, onDelete, onUpdate, onClickMedia }) {
   if (!post) return null;
@@ -85,6 +87,13 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
   const shareText = `Check out this post on Vesselx! ${window.location.origin}/#/post/${post._id}`;
   const postUrl = `${window.location.origin}/#/post/${post._id}`;
 
+  const trackShare = () => {
+    API.sharePost?.(post._id).then(res => {
+      if (res?.shareCount !== undefined) setShareCount(res.shareCount);
+      else setShareCount(c => c + 1);
+    }).catch(() => setShareCount(c => c + 1));
+  };
+
   const handleSocialShare = (platform) => {
     let url = '';
     switch (platform) {
@@ -104,6 +113,7 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
         break;
     }
     if (url) {
+      trackShare();
       window.open(url, '_blank');
       setShowShareSheet(false);
     }
@@ -140,47 +150,82 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
   const [muted, setMuted] = useState(true);
   const [playing, setPlaying] = useState(false);
   const [showVideoControl, setShowVideoControl] = useState(false);
+  const [slideshowIndex, setSlideshowIndex] = useState(0);
 
   const [commentCount, setCommentCount] = useState(post.commentCount || post.comments?.length || 0);
+  const [viewCount, setViewCount] = useState(post.viewCount || post.views || 0);
+  const [shareCount, setShareCount] = useState(post.shareCount || post.shares || 0);
+  const [editingCaption, setEditingCaption] = useState(false);
+  const [captionDraft, setCaptionDraft] = useState(post.caption || '');
+  const [caption, setCaption] = useState(post.caption || '');
+  const [isEdited, setIsEdited] = useState(post.isEdited || false);
+  const viewTrackedRef = useRef(false);
+
+  const [showCommentSheet, setShowCommentSheet] = useState(false);
+  const [sheetComments, setSheetComments] = useState([]);
+  const [loadingSheetComments, setLoadingSheetComments] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const commentInputRef = useRef(null);
 
   const videoRef = useRef(null);
   const audioRef = useRef(null);
+  const articleRef = useRef(null);
   const controlTimer = useRef(null);
+  const slideshowRef = useRef(null);
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+  const swipedRef = useRef(false);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [loadedImages, setLoadedImages] = useState({});
 
   const author = post.userId || { username: post.username || 'user', profilePicture: post.userProfilePicture };
   const username = author.username || post.username || 'user';
   const isOwn = currentUser && (author?._id === currentUser?._id || username === currentUser?.username);
 
+  const isPhotoSlideshow = post.isPhotoSlideshow && post.soundUrl;
+  const muteVideo = post.muteVideo && post.soundUrl;
+  const isOriginalSound = post.isOriginalSound;
+  const slideshowPhotos = isPhotoSlideshow ? media.filter(m => m.type === 'image') : [];
+  const slideshowDuration = post.slideshowDuration || 10;
+
   useEffect(() => {
     const vel = videoRef.current;
     const ael = audioRef.current;
-    
+
+    const onVisible = () => {
+      if (vel) {
+        vel.muted = muteVideo ? true : muted;
+        vel.play().catch(() => {});
+        setPlaying(true);
+      }
+      if (ael) {
+        ael.play().catch(() => {});
+      }
+    };
+
+    const onHidden = () => {
+      if (vel) { vel.pause(); setPlaying(false); }
+      if (ael) { ael.pause(); }
+    };
+
     const obs = new IntersectionObserver(
       ([entry]) => {
-        if (entry.intersectionRatio >= 0.6) {
-          if (vel) {
-            vel.play().catch(() => {});
-            setPlaying(true);
-          }
-          if (ael) {
-            ael.play().catch(() => {});
-          }
-        } else {
-          if (vel) {
-            vel.pause();
-            setPlaying(false);
-          }
-          if (ael) {
-            ael.pause();
-          }
-        }
+        if (entry.intersectionRatio >= 0.6) onVisible();
+        else onHidden();
       },
       { threshold: [0.2, 0.6] }
     );
-    if (vel) obs.observe(vel);
-    if (ael) obs.observe(ael);
-    return () => obs.disconnect();
-  }, [mediaIndex, post.soundUrl]);
+
+    if (vel) {
+      obs.observe(vel);
+    } else if (articleRef.current) {
+      obs.observe(articleRef.current);
+    }
+
+    return () => { obs.disconnect(); };
+  }, [mediaIndex, post.soundUrl, muteVideo, isPhotoSlideshow]);
 
   const triggerBurst = (emoji) => {
     setBurst(emoji);
@@ -201,27 +246,64 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
     }
   };
 
+  const handleSwipeStart = (e) => {
+    const touch = e.touches[0];
+    touchStartX.current = touch.clientX;
+    touchStartY.current = touch.clientY;
+    swipedRef.current = false;
+    setIsDragging(false);
+    setDragOffset(0);
+  };
+
+  const handleSwipeMove = (e) => {
+    if (touchStartX.current === null) return;
+    const dx = e.touches[0].clientX - touchStartX.current;
+    const dy = Math.abs(e.touches[0].clientY - touchStartY.current);
+    if (Math.abs(dx) > 8 && Math.abs(dx) > dy) {
+      setIsDragging(true);
+      const multiPhoto = media.length > 1 || (isPhotoSlideshow && slideshowPhotos.length > 1);
+      if (multiPhoto) {
+        const activeCount = isPhotoSlideshow ? slideshowPhotos.length : media.length;
+        const activeIndex = isPhotoSlideshow ? slideshowIndex : mediaIndex;
+        if ((dx > 0 && activeIndex === 0) || (dx < 0 && activeIndex === activeCount - 1)) {
+          setDragOffset(dx * 0.2);
+        } else {
+          setDragOffset(dx);
+        }
+      }
+    }
+  };
+
+  const handleSwipeEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const dx = touchStartX.current - e.changedTouches[0].clientX;
+    const dy = Math.abs(touchStartY.current - e.changedTouches[0].clientY);
+    setIsDragging(false);
+    setDragOffset(0);
+    if (Math.abs(dx) > 40 && Math.abs(dx) > dy) {
+      swipedRef.current = true;
+      if (isPhotoSlideshow) {
+        if (dx > 0 && slideshowIndex < slideshowPhotos.length - 1) setSlideshowIndex(i => i + 1);
+        else if (dx < 0 && slideshowIndex > 0) setSlideshowIndex(i => i - 1);
+      } else {
+        if (dx > 0 && mediaIndex < media.length - 1) setMediaIndex(i => i + 1);
+        else if (dx < 0 && mediaIndex > 0) setMediaIndex(i => i - 1);
+      }
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
   const handleMediaTap = (e) => {
+    if (swipedRef.current) { swipedRef.current = false; return; }
     const now = Date.now();
     const DOUBLE_TAP_DELAY = 300;
-    
     if (now - lastTap < DOUBLE_TAP_DELAY) {
-      // Double tap -> Like
       if (!liked) handleLike(false);
       triggerBurst('❤️');
       setLastTap(0);
     } else {
       setLastTap(now);
-      // Single tap -> Toggle Mute (Professional default)
-      if (videoRef.current) {
-        const newMuted = !muted;
-        videoRef.current.muted = newMuted;
-        setMuted(newMuted);
-        
-        setShowVideoControl(true);
-        clearTimeout(controlTimer.current);
-        controlTimer.current = setTimeout(() => setShowVideoControl(false), 1500);
-      }
     }
   };
 
@@ -239,16 +321,90 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
   const timeAgo = post.createdAt ? formatDistanceToNow(new Date(post.createdAt), { addSuffix: true }) : '';
   const hashtags = post.hashtags || (post.caption?.match(/#[a-z0-9_]+/gi) || []).map(t => t.slice(1));
 
+  useEffect(() => {
+    if (!articleRef.current || viewTrackedRef.current) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.intersectionRatio >= 0.5 && !viewTrackedRef.current) {
+        viewTrackedRef.current = true;
+        API.viewPost?.(post._id).then(res => {
+          if (res?.viewCount !== undefined) setViewCount(res.viewCount);
+        }).catch(() => {});
+      }
+    }, { threshold: 0.5 });
+    obs.observe(articleRef.current);
+    return () => obs.disconnect();
+  }, [post._id]);
+
+  const handleSaveCaption = async () => {
+    if (!captionDraft.trim()) return;
+    try {
+      const mentions = [...captionDraft.matchAll(/@(\w+)/g)].map(m => m[1]);
+      const data = await API.editPost(post._id, { caption: captionDraft, mentions });
+      setCaption(captionDraft);
+      setIsEdited(true);
+      setEditingCaption(false);
+      onUpdate?.({ ...post, caption: captionDraft, isEdited: true });
+      toast.success('Caption updated');
+    } catch { toast.error('Failed to update caption'); }
+  };
+
+  const loadComments = async () => {
+    setLoadingSheetComments(true);
+    try {
+      const data = await API.getPostComments(post._id);
+      setSheetComments(Array.isArray(data) ? data : data?.comments || []);
+    } catch {}
+    finally { setLoadingSheetComments(false); }
+  };
+
+  const openCommentSheet = () => {
+    setShowCommentSheet(true);
+    if (sheetComments.length === 0) loadComments();
+    setTimeout(() => commentInputRef.current?.focus(), 400);
+  };
+
+  const handleComment = async (e) => {
+    e?.preventDefault();
+    if (!commentText.trim() || submittingComment) return;
+    setSubmittingComment(true);
+    const optimisticComment = {
+      _id: `optimistic-${Date.now()}`,
+      text: commentText.trim(),
+      userId: currentUser,
+      createdAt: new Date().toISOString(),
+    };
+    setSheetComments(prev => [...prev, optimisticComment]);
+    setCommentCount(c => c + 1);
+    setCommentText('');
+    try {
+      const data = await API.commentOnPost(post._id, optimisticComment.text);
+      const savedComment = data.comment || data || null;
+      if (savedComment) {
+        const withUser = {
+          ...savedComment,
+          userId: (savedComment.userId && typeof savedComment.userId === 'object')
+            ? savedComment.userId
+            : currentUser,
+        };
+        setSheetComments(prev => prev.map(c => c._id === optimisticComment._id ? withUser : c));
+      }
+    } catch {
+      setSheetComments(prev => prev.filter(c => c._id !== optimisticComment._id));
+      setCommentCount(c => Math.max(0, c - 1));
+    } finally { setSubmittingComment(false); }
+  };
+
   return (
-    <article className="bg-discord-bg border-b border-discord-hover/30 pb-4 animate-fade-in">
+    <>
+    <article ref={articleRef} className="bg-discord-bg border-b border-discord-hover/30 pb-4 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-3">
         <div className="flex items-center gap-3">
-          <div 
-            className={`p-[2px] rounded-full ${(author.isSupa || post.isSupa) ? 'bg-gradient-to-tr from-yellow-400 to-brand-primary' : 'border border-discord-hover'}`}
+          <div
+            className="cursor-pointer flex-shrink-0"
             onClick={() => navigate(`/profile/${author.username || post.username}`)}
           >
-            <Avatar user={author} size={34} className="border-2 border-discord-bg cursor-pointer" />
+            <Avatar user={author} size={38} supaRing={true} className="cursor-pointer" />
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
@@ -283,62 +439,190 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
       </div>
 
       {/* Media Content */}
-      <div className="relative aspect-square w-full bg-black overflow-hidden" onClick={handleMediaTap}>
-        {post.soundUrl && (
-          <audio
-            ref={audioRef}
-            src={post.soundUrl}
-            loop
-            muted={muted}
-            playsInline
-          />
-        )}
-        {burst && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none animate-ping-once">
-            <TwemojiIcon emoji={burst} size="80px" className="drop-shadow-2xl" />
-          </div>
-        )}
+      {(() => {
+        const photos = isPhotoSlideshow ? slideshowPhotos : media.filter(m => m.type === 'image');
+        const activeIdx = isPhotoSlideshow ? slideshowIndex : mediaIndex;
+        const setActiveIdx = isPhotoSlideshow ? setSlideshowIndex : setMediaIndex;
+        const photoCount = isPhotoSlideshow ? slideshowPhotos.length : media.length;
+        const isMulti = photoCount > 1;
 
-        {currentMedia?.type === 'video' ? (
-          <>
-            <video
-              ref={videoRef}
-              src={API.getMediaUrl(currentMedia.url)}
-              playsInline
-              muted={muted}
-              loop
-              className="w-full h-full object-cover"
-            />
-            {/* Custom Video Overlay */}
-            <div className="absolute bottom-4 right-4 z-20">
-               <div className={`p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-opacity duration-300 ${showVideoControl ? 'opacity-100' : 'opacity-0'}`}>
-                  {muted ? <FiVolumeX size={16} /> : <FiVolume2 size={16} />}
-               </div>
-            </div>
-            {/* Reels Navigation Trigger - Commented out as requested
-            <button 
-              onClick={(e) => { e.stopPropagation(); onClickMedia?.(post, mediaIndex); }}
-              className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white active:scale-90 transition-transform"
-            >
-               <FiSend size={16} className="rotate-[-10deg]" />
-            </button>
-            */}
-          </>
-        ) : (
-          <img
-            src={API.getMediaUrl(currentMedia?.url)}
-            alt=""
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        )}
+        return (
+          <div
+            className="relative aspect-square w-full bg-black overflow-hidden"
+            onClick={handleMediaTap}
+            onTouchStart={handleSwipeStart}
+            onTouchMove={handleSwipeMove}
+            onTouchEnd={handleSwipeEnd}
+          >
+            {post.soundUrl && (
+              <audio ref={audioRef} src={post.soundUrl} loop muted={muted} playsInline />
+            )}
+            {burst && (
+              <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none animate-ping-once">
+                <TwemojiIcon emoji={burst} size="80px" className="drop-shadow-2xl" />
+              </div>
+            )}
 
-        {media.length > 1 && (
-          <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-bold text-white z-20">
-            {mediaIndex + 1}/{media.length}
+            {/* Sliding strip for multi-photo posts */}
+            {isMulti && !currentMedia?.type === 'video' || isMulti ? (
+              <div
+                className="absolute inset-0 flex"
+                style={{
+                  transform: `translateX(calc(${-activeIdx * 100}% + ${dragOffset}px))`,
+                  transition: isDragging ? 'none' : 'transform 0.28s cubic-bezier(0.32, 0.72, 0, 1)',
+                  width: `${photoCount * 100}%`,
+                }}
+              >
+                {isPhotoSlideshow ? slideshowPhotos.map((photo, i) => {
+                  const src = API.getMediaUrl(photo?.url);
+                  const loaded = loadedImages[src];
+                  return (
+                    <div key={i} className="relative flex-shrink-0 h-full" style={{ width: `${100 / photoCount}%` }}>
+                      {!loaded && (
+                        <div className="absolute inset-0 bg-black flex items-center justify-center z-10">
+                          <div className="w-8 h-8 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
+                        </div>
+                      )}
+                      <img
+                        src={src}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onLoad={() => setLoadedImages(p => ({ ...p, [src]: true }))}
+                      />
+                    </div>
+                  );
+                }) : media.map((m, i) => {
+                  if (m.type === 'video') {
+                    return (
+                      <div key={i} className="relative flex-shrink-0 h-full" style={{ width: `${100 / photoCount}%` }}>
+                        <video
+                          ref={i === activeIdx ? videoRef : null}
+                          src={API.getMediaUrl(m.url)}
+                          playsInline
+                          muted={muteVideo ? true : muted}
+                          loop
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    );
+                  }
+                  const src = API.getMediaUrl(m?.url);
+                  const loaded = loadedImages[src];
+                  return (
+                    <div key={i} className="relative flex-shrink-0 h-full" style={{ width: `${100 / photoCount}%` }}>
+                      {!loaded && (
+                        <div className="absolute inset-0 bg-black flex items-center justify-center z-10">
+                          <div className="w-8 h-8 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
+                        </div>
+                      )}
+                      <img
+                        src={src}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onLoad={() => setLoadedImages(p => ({ ...p, [src]: true }))}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : currentMedia?.type === 'video' ? (
+              <video
+                ref={videoRef}
+                src={API.getMediaUrl(currentMedia.url)}
+                playsInline
+                muted={muteVideo ? true : muted}
+                loop
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              (() => {
+                const src = API.getMediaUrl(currentMedia?.url);
+                return (
+                  <>
+                    {!loadedImages[src] && (
+                      <div className="absolute inset-0 bg-black flex items-center justify-center z-10">
+                        <div className="w-8 h-8 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
+                      </div>
+                    )}
+                    <img
+                      src={src}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onLoad={() => setLoadedImages(p => ({ ...p, [src]: true }))}
+                    />
+                  </>
+                );
+              })()
+            )}
+
+            {/* Mute button */}
+            {(currentMedia?.type === 'video' || post.soundUrl) && !muteVideo && (
+              <button
+                className="absolute bottom-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-white active:scale-90 transition-transform"
+                onClick={e => {
+                  e.stopPropagation();
+                  const newMuted = !muted;
+                  if (videoRef.current) videoRef.current.muted = newMuted;
+                  if (audioRef.current) audioRef.current.muted = newMuted;
+                  setMuted(newMuted);
+                }}
+                aria-label={muted ? 'Unmute' : 'Mute'}
+              >
+                {muted ? <FiVolumeX size={14} /> : <FiVolume2 size={14} />}
+              </button>
+            )}
+
+            {/* Photo counter & arrows */}
+            {isMulti && (
+              <>
+                <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-bold text-white z-20">
+                  {activeIdx + 1}/{photoCount}
+                </div>
+                {activeIdx > 0 && (
+                  <button
+                    className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-black/70 active:scale-95 transition-all"
+                    onClick={e => { e.stopPropagation(); setActiveIdx(i => i - 1); }}
+                    aria-label="Previous"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                  </button>
+                )}
+                {activeIdx < photoCount - 1 && (
+                  <button
+                    className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-black/70 active:scale-95 transition-all"
+                    onClick={e => { e.stopPropagation(); setActiveIdx(i => i + 1); }}
+                    aria-label="Next"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
+                )}
+                {/* Dots at bottom */}
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1 z-20">
+                  {Array.from({ length: photoCount }).map((_, i) => (
+                    <div key={i} className="rounded-full transition-all duration-200" style={{
+                      width: i === activeIdx ? 14 : 6,
+                      height: 6,
+                      background: i === activeIdx ? '#fff' : 'rgba(255,255,255,0.4)',
+                    }} />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
+
+      {/* Sound Label */}
+      {post.soundName && (
+        <div className="px-4 pt-2 pb-0">
+          <div className="flex items-center gap-1.5">
+            <FiMusic size={10} className="text-brand-primary animate-pulse flex-shrink-0" />
+            <span className="text-[11px] font-bold text-discord-muted truncate max-w-[200px]">
+              {post.soundName}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Action Bar */}
       <div className="flex items-center justify-between px-3 pt-3 pb-2">
@@ -350,7 +634,7 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
             {liked ? <HiHeart size={28} /> : <FiHeart size={26} strokeWidth={2} />}
           </button>
           <button 
-            onClick={() => navigate(`/post/${post._id}`, { state: { post } })}
+            onClick={openCommentSheet}
             className="text-discord-text hover:text-discord-muted transition-transform active:scale-110"
           >
             <FiMessageCircle size={26} strokeWidth={2} />
@@ -381,6 +665,11 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
 
       {/* Post Info */}
       <div className="px-4 space-y-1.5">
+        {post.isPinned && (
+          <div className="flex items-center gap-1 text-[10px] font-bold text-discord-brand uppercase tracking-wider">
+            <FiMapPin size={10} /> Pinned Post
+          </div>
+        )}
         {likeCount > 0 && (
           <p className="text-sm font-black text-discord-text">
             {likeCount.toLocaleString()} {likeCount === 1 ? 'like' : 'likes'}
@@ -391,12 +680,30 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
           <span className="font-black text-discord-text mr-2 hover:opacity-70 cursor-pointer" onClick={() => navigate(`/profile/${author.username}`)}>
             {author.username}
           </span>
-          <span className="text-discord-text whitespace-pre-wrap break-words">
-            <FormattedText text={post.caption || ''} />
-          </span>
+          {editingCaption ? (
+            <div className="mt-1 space-y-2">
+              <textarea
+                value={captionDraft}
+                onChange={e => setCaptionDraft(e.target.value)}
+                className="discord-input w-full resize-none text-sm"
+                rows={3}
+                maxLength={2200}
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button onClick={handleSaveCaption} className="discord-btn text-xs px-3 py-1 rounded-lg flex items-center gap-1"><FiCheck size={12} /> Save</button>
+                <button onClick={() => { setEditingCaption(false); setCaptionDraft(caption); }} className="discord-btn-ghost text-xs px-3 py-1 rounded-lg border border-discord-hover">Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <span className="text-discord-text whitespace-pre-wrap break-words">
+              <FormattedText text={caption || ''} />
+              {isEdited && <span className="text-[10px] text-discord-muted ml-1">(edited)</span>}
+            </span>
+          )}
         </div>
 
-        {hashtags.length > 0 && (
+        {hashtags.length > 0 && !editingCaption && (
           <div className="flex flex-wrap gap-x-2">
             {hashtags.map(tag => (
               <span key={tag} className="text-brand-primary text-xs font-bold">#{tag}</span>
@@ -406,21 +713,35 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
 
         {commentCount > 0 && (
           <button 
-            onClick={() => navigate(`/post/${post._id}`, { state: { post } })}
+            onClick={openCommentSheet}
             className="text-discord-muted text-sm block hover:underline"
           >
             View all {commentCount} comments
           </button>
         )}
 
-        <p className="text-[10px] text-discord-muted font-bold uppercase tracking-tight opacity-60">
-          {timeAgo}
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-[10px] text-discord-muted font-bold uppercase tracking-tight opacity-60">
+            {timeAgo}
+          </p>
+          {viewCount > 0 && (
+            <span className="flex items-center gap-0.5 text-[10px] text-discord-muted opacity-60">
+              <FiEye size={9} /> {viewCount.toLocaleString()}
+            </span>
+          )}
+          {shareCount > 0 && (
+            <span className="flex items-center gap-0.5 text-[10px] text-discord-muted opacity-60">
+              <FiShare2 size={9} /> {shareCount.toLocaleString()}
+            </span>
+          )}
+        </div>
       </div>
 
-      {showMenu && (
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end justify-center animate-fade-in" onClick={() => setShowMenu(false)}>
-           <div className="w-full max-w-sm bg-discord-sidebar rounded-t-3xl p-3 space-y-1.5 animate-slide-up" onClick={e => e.stopPropagation()}>
+    </article>
+
+    {showMenu && createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-end' }} onClick={() => setShowMenu(false)}>
+           <div className="w-full bg-discord-sidebar rounded-t-3xl p-3 space-y-1.5 sheet-slide-up" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }} onClick={e => e.stopPropagation()}>
               <div className="w-10 h-1 bg-discord-hover rounded-full mx-auto mb-4" />
               <button onClick={() => { navigate(`/post/${post._id}`); setShowMenu(false); }} className="w-full py-2.5 text-left px-4 text-discord-text text-sm font-bold hover:bg-discord-hover rounded-xl flex items-center gap-3">
                  <FiExternalLink size={16} /> Open post
@@ -434,9 +755,24 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
                 </button>
               )}
               {isOwn ? (
-                <button onClick={handleDelete} className="w-full py-2.5 text-left px-4 text-red-400 text-sm font-bold hover:bg-red-400/10 rounded-xl flex items-center gap-3">
-                  <FiTrash2 size={16} /> Delete post
-                </button>
+                <>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await API.pinPost(post._id);
+                        setShowMenu(false);
+                        toast.success(post.isPinned ? 'Post unpinned' : 'Post pinned');
+                        onUpdate?.({ ...post, isPinned: !post.isPinned });
+                      } catch { toast.error('Failed to pin post'); }
+                    }}
+                    className="w-full py-2.5 text-left px-4 text-discord-text text-sm font-bold hover:bg-discord-hover rounded-xl flex items-center gap-3"
+                  >
+                    <FiMapPin size={16} /> {post.isPinned ? 'Unpin post' : 'Pin post'}
+                  </button>
+                  <button onClick={handleDelete} className="w-full py-2.5 text-left px-4 text-red-400 text-sm font-bold hover:bg-red-400/10 rounded-xl flex items-center gap-3">
+                    <FiTrash2 size={16} /> Delete post
+                  </button>
+                </>
               ) : (
                 <button onClick={() => { setShowReport(true); setShowMenu(false); }} className="w-full py-2.5 text-left px-4 text-orange-400 text-sm font-bold hover:bg-orange-400/10 rounded-xl flex items-center gap-3">
                   <FiFlag size={16} /> Report post
@@ -445,11 +781,11 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
               <button onClick={() => setShowMenu(false)} className="w-full py-2.5 text-center text-discord-muted text-sm font-bold mt-2">Cancel</button>
            </div>
         </div>
-      )}
+      , document.body)}
 
-      {showShareSheet && (
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end justify-center animate-fade-in" onClick={() => setShowShareSheet(false)}>
-           <div className="w-full max-w-lg bg-discord-sidebar rounded-t-3xl p-6 space-y-6 animate-slide-up" onClick={e => e.stopPropagation()}>
+    {showShareSheet && createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-end' }} onClick={() => setShowShareSheet(false)}>
+           <div className="w-full bg-discord-sidebar rounded-t-3xl p-6 space-y-6 sheet-slide-up" style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }} onClick={e => e.stopPropagation()}>
               <div className="w-12 h-1 bg-discord-hover rounded-full mx-auto" />
               
               <div className="flex flex-col gap-4">
@@ -513,16 +849,145 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
               <button onClick={() => setShowShareSheet(false)} className="w-full py-4 text-center text-discord-muted font-bold pt-4 border-t border-discord-hover/30">Cancel</button>
            </div>
         </div>
-      )}
+      , document.body)}
 
-      {showReport && (
-        <ReportModal
-          type="post"
-          targetId={post._id}
-          targetName={author.username}
-          onClose={() => setShowReport(false)}
-        />
-      )}
-    </article>
+    {showReport && (
+      <ReportModal
+        type="post"
+        targetId={post._id}
+        targetName={author.username}
+        onClose={() => setShowReport(false)}
+      />
+    )}
+
+    {showCommentSheet && createPortal(
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-end' }}
+          onClick={() => setShowCommentSheet(false)}
+        >
+          <div
+            className="w-full bg-discord-sidebar rounded-t-3xl flex flex-col sheet-slide-up"
+            style={{ maxHeight: '92dvh', paddingBottom: 'env(safe-area-inset-bottom)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex-shrink-0 flex flex-col items-center pt-3 pb-2 border-b border-discord-hover/40">
+              <div className="w-10 h-1 bg-discord-hover rounded-full mb-3" />
+              <span className="text-discord-text font-black text-base tracking-tight">Comments</span>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {loadingSheetComments ? (
+                <div className="flex flex-col gap-3 p-4">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="flex gap-3 animate-pulse">
+                      <div className="w-9 h-9 rounded-full bg-discord-hover/40 flex-shrink-0" />
+                      <div className="flex-1 space-y-2 pt-1">
+                        <div className="h-2.5 w-24 bg-discord-hover/40 rounded-full" />
+                        <div className="h-2.5 w-48 bg-discord-hover/30 rounded-full" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : sheetComments.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-discord-muted gap-3">
+                  <FiMessageCircle size={36} className="opacity-30" />
+                  <p className="text-sm font-bold opacity-50">No comments yet. Be the first!</p>
+                </div>
+              ) : (
+                <div>
+                  {sheetComments.map((c, i) => {
+                    const cAuthor = c.userId || c.user || { username: c.username };
+                    const cTime = c.createdAt ? formatDistanceToNow(new Date(c.createdAt), { addSuffix: true }) : '';
+                    const cLikeCount = c.likeCount || c.likes?.length || 0;
+                    const cReplyCount = c.replyCount || c.replies?.length || 0;
+                    return (
+                      <div key={c._id || i} className="flex gap-3 px-4 py-3 border-b border-discord-hover/30 hover:bg-discord-hover/10 transition-colors">
+                        <div className="flex-shrink-0 cursor-pointer" onClick={() => { setShowCommentSheet(false); navigate(`/profile/${cAuthor.username}`); }}>
+                          <Avatar user={cAuthor} size={36} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2 mb-0.5">
+                            <span
+                              className="font-black text-discord-text text-sm cursor-pointer hover:opacity-70"
+                              onClick={() => { setShowCommentSheet(false); navigate(`/profile/${cAuthor.username}`); }}
+                            >
+                              {cAuthor.username || cAuthor.name}
+                            </span>
+                            <span className="text-discord-muted text-[10px]">{cTime}</span>
+                          </div>
+                          <div className="text-discord-text text-sm whitespace-pre-wrap break-words leading-snug">
+                            <FormattedText text={c.text || c.content || ''} />
+                          </div>
+                          <div className="flex items-center gap-4 mt-1.5">
+                            <button className="text-xs font-bold text-discord-muted hover:text-discord-text flex items-center gap-1">
+                              <FiCornerDownRight size={11} /> Reply
+                            </button>
+                            {cReplyCount > 0 && (
+                              <span className="text-xs font-bold text-discord-muted">
+                                View {cReplyCount} {cReplyCount === 1 ? 'reply' : 'replies'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                          <button className="text-discord-muted hover:text-red-400 transition-colors">
+                            <FiHeart size={14} />
+                          </button>
+                          {cLikeCount > 0 && <span className="text-[10px] text-discord-muted">{cLikeCount.toLocaleString()}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="py-4 text-center">
+                    <button
+                      className="text-discord-brand text-sm font-bold hover:underline"
+                      onClick={() => { setShowCommentSheet(false); navigate(`/post/${post._id}`, { state: { post } }); }}
+                    >
+                      View all comments
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex-shrink-0 border-t border-discord-hover/40">
+              <div className="flex gap-3 px-4 py-2 overflow-x-auto scrollbar-hide">
+                {COMMENT_REACTIONS.map(r => (
+                  <button
+                    key={r}
+                    className="text-2xl flex-shrink-0 hover:scale-125 active:scale-90 transition-transform"
+                    onClick={() => setCommentText(t => t + r)}
+                  >
+                    <TwemojiIcon emoji={r} size="26px" />
+                  </button>
+                ))}
+              </div>
+              <form onSubmit={handleComment} className="flex items-center gap-3 px-4 pb-6 pt-2">
+                <Avatar user={currentUser} size={32} />
+                <div className="flex-1 flex items-center bg-discord-hover/30 rounded-full px-4 py-2.5 gap-2">
+                  <input
+                    ref={commentInputRef}
+                    value={commentText}
+                    onChange={e => setCommentText(e.target.value)}
+                    placeholder="Join the conversation..."
+                    className="flex-1 bg-transparent text-discord-text text-sm outline-none placeholder-discord-muted"
+                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleComment(e)}
+                  />
+                  {commentText.trim() && (
+                    <button
+                      type="submit"
+                      disabled={submittingComment}
+                      className="text-brand-primary font-black text-sm disabled:opacity-40 flex-shrink-0"
+                    >
+                      {submittingComment ? '...' : 'Post'}
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      , document.body)}
+    </>
   );
 }

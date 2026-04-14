@@ -4,7 +4,7 @@ import API from '../utils/api';
 
 export default function ProfilePictureModal({ user, isOwnProfile, onClose, onChangePhoto, onMessage, onCopyLink }) {
   const avatarSrc = user?.profilePicture ? API.getAvatarUrl(user.profilePicture, 600) : null;
-  const animatedSrc = (user?.isSupa || user?.isVerified) && user?.animatedProfilePicture ? API.getMediaUrl(user.animatedProfilePicture) : null;
+  const animatedSrc = null;
   const initials = (user?.name || user?.username || '?')[0].toUpperCase();
   const colors = ['#5865f2', '#3ba55c', '#faa61a', '#ed4245', '#eb459e', '#00b0f4'];
   const bgColor = colors[(user?.username?.charCodeAt(0) || 0) % colors.length];

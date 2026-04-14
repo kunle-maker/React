@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const AD_INTERVAL_MS = 5 * 60 * 1000;
-const FIRST_SHOW_MS = 90 * 1000;
+const AD_INTERVAL_MS = 20 * 60 * 1000;
+const FIRST_SHOW_MS = 10 * 60 * 1000;
 
 export default function DigitalPlatAd({ currentUser }) {
   const [visible, setVisible] = useState(false);

@@ -155,6 +155,102 @@ function CreateGameModal({ onClose }) {
   );
 }
 
+function VsAIModal({ onClose }) {
+  const navigate = useNavigate();
+  const [difficulty, setDifficulty] = useState('medium');
+  const [totalRounds, setTotalRounds] = useState(5);
+  const [creating, setCreating] = useState(false);
+
+  const handleStart = async (gameType) => {
+    setCreating(true);
+    try {
+      const payload = { gameType, difficulty };
+      if (gameType === 'emoji_trivia') payload.totalRounds = parseInt(totalRounds);
+      const data = await API.createVsAI(payload);
+      navigate(`/game/room/${data.room._id}`, { replace: true });
+    } catch (err) {
+      showToast(err.message || 'Failed to start AI game', { type: 'error' });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const difficulties = [
+    { id: 'easy', label: 'Easy', desc: 'AI makes mistakes', icon: '😴' },
+    { id: 'medium', label: 'Medium', desc: 'Balanced challenge', icon: '🤖' },
+    { id: 'hard', label: 'Hard', desc: 'Nearly unbeatable', icon: '💀' },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[110] p-4">
+      <div className="bg-discord-sidebar rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-discord-hover">
+          <h2 className="font-bold text-discord-text text-lg flex items-center gap-2">
+            <TwemojiImg emoji="🤖" size={22} /> Play vs AI
+          </h2>
+          <p className="text-discord-muted text-sm mt-0.5">Choose your AI difficulty</p>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          <div>
+            <label className="text-discord-muted text-xs font-bold uppercase mb-2 block">Difficulty</label>
+            <div className="space-y-2">
+              {difficulties.map(d => (
+                <button
+                  key={d.id}
+                  onClick={() => setDifficulty(d.id)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${difficulty === d.id ? 'border-discord-brand bg-discord-brand/10' : 'border-discord-hover hover:border-discord-brand/40'}`}
+                >
+                  <TwemojiImg emoji={d.icon} size={24} />
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-discord-text">{d.label}</div>
+                    <div className="text-[11px] text-discord-muted">{d.desc}</div>
+                  </div>
+                  {difficulty === d.id && <div className="w-2 h-2 rounded-full bg-discord-brand flex-shrink-0" />}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-discord-muted text-xs font-bold uppercase mb-1 block">Rounds (Emoji Trivia only)</label>
+            <input
+              type="number" min={1} max={20}
+              value={totalRounds}
+              onChange={e => setTotalRounds(e.target.value)}
+              className="discord-input w-full"
+            />
+          </div>
+          <div>
+            <label className="text-discord-muted text-xs font-bold uppercase mb-2 block">Choose Game</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleStart('word_chain')}
+                disabled={creating}
+                className="flex flex-col items-center gap-2 py-4 rounded-xl bg-discord-brand text-white font-bold text-sm disabled:opacity-60 hover:bg-discord-brand/90 active:scale-95 transition-all shadow-lg"
+              >
+                <TwemojiImg emoji="🔗" size={26} />
+                Word Chain
+              </button>
+              <button
+                onClick={() => handleStart('emoji_trivia')}
+                disabled={creating}
+                className="flex flex-col items-center gap-2 py-4 rounded-xl border-2 border-discord-brand text-discord-brand font-bold text-sm disabled:opacity-60 hover:bg-discord-brand/10 active:scale-95 transition-all"
+              >
+                <TwemojiImg emoji="🎭" size={26} />
+                Emoji Trivia
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="px-5 pb-5">
+          <button onClick={onClose} disabled={creating} className="w-full py-2.5 rounded-xl border border-discord-hover text-discord-muted text-sm font-semibold hover:bg-discord-hover disabled:opacity-50">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function JoinModal({ onClose, inviteCode = '' }) {
   const navigate = useNavigate();
   const [code, setCode] = useState(inviteCode);
@@ -164,11 +260,16 @@ function JoinModal({ onClose, inviteCode = '' }) {
     if (!code.trim()) return;
     setJoining(true);
     try {
-      const data = await API.joinGameRoom(code.trim().toUpperCase());
+      let data;
+      try {
+        data = await API.joinGameRoom(code.trim().toUpperCase());
+      } catch {
+        data = await API.joinTTT(code.trim().toUpperCase());
+      }
       navigate(`/game/room/${data.room._id}`, { replace: true });
     } catch (err) {
       showToast(err.message || 'Invalid invite code', { type: 'error' });
-      if (inviteCode) onClose(); // Close if we were trying to join from URL and it failed
+      if (inviteCode) onClose();
     } finally {
       setJoining(false);
     }
@@ -208,6 +309,156 @@ function JoinModal({ onClose, inviteCode = '' }) {
   );
 }
 
+function TicTacToeModal({ onClose, currentUser }) {
+  const navigate = useNavigate();
+  const [mode, setMode] = useState(currentUser?.isVerified ? 'ai' : 'human');
+  const [difficulty, setDifficulty] = useState('medium');
+  const [creating, setCreating] = useState(false);
+  const [waitingRoom, setWaitingRoom] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCreate = async () => {
+    setCreating(true);
+    try {
+      const payload = mode === 'ai' ? { difficulty } : {};
+      const data = await API.createTTT(payload);
+      if (mode === 'ai' || data.room.status === 'in_progress') {
+        navigate(`/game/room/${data.room._id}`, { replace: true });
+      } else {
+        setWaitingRoom(data);
+      }
+    } catch (err) {
+      showToast(err.message || 'Failed to create game', { type: 'error' });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const copyCode = () => {
+    if (!waitingRoom?.inviteCode) return;
+    navigator.clipboard?.writeText(waitingRoom.inviteCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (waitingRoom) {
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[110] p-4">
+        <div className="bg-discord-sidebar rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-discord-hover">
+            <h2 className="font-bold text-discord-text text-lg flex items-center gap-2">
+              <TwemojiImg emoji="❌" size={22} /> Tic-Tac-Toe
+            </h2>
+            <p className="text-discord-muted text-sm mt-0.5">Share the code with your opponent</p>
+          </div>
+          <div className="px-5 py-6 text-center space-y-4">
+            <div className="bg-discord-hover/50 border border-discord-hover rounded-2xl p-6">
+              <p className="text-discord-muted text-xs font-bold uppercase tracking-wider mb-2">Invite Code</p>
+              <p className="text-3xl font-black text-discord-text tracking-widest font-mono mb-4">{waitingRoom.inviteCode}</p>
+              <button
+                onClick={copyCode}
+                className="flex items-center gap-2 mx-auto px-5 py-2.5 rounded-xl bg-discord-brand text-white text-sm font-bold shadow-md hover:bg-discord-brand/90 active:scale-95 transition-all"
+              >
+                {copied ? <FiCheck size={14} /> : <FiCopy size={14} />}
+                {copied ? 'Copied!' : 'Copy Code'}
+              </button>
+            </div>
+            <p className="text-discord-muted text-xs">You are <span className="font-bold text-discord-brand">X</span> and go first once your opponent joins</p>
+            <button
+              onClick={() => navigate(`/game/room/${waitingRoom.room._id}`, { replace: true })}
+              className="w-full py-3 rounded-xl bg-discord-brand/10 border border-discord-brand/20 text-discord-brand font-bold text-sm hover:bg-discord-brand/20 transition-all"
+            >
+              Go to Waiting Room
+            </button>
+          </div>
+          <div className="px-5 pb-5">
+            <button onClick={onClose} className="w-full py-2.5 rounded-xl border border-discord-hover text-discord-muted text-sm font-semibold hover:bg-discord-hover">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const difficulties = [
+    { id: 'easy', label: 'Easy', desc: 'AI makes mistakes', icon: '😴' },
+    { id: 'medium', label: 'Medium', desc: 'Balanced challenge', icon: '🤖' },
+    { id: 'hard', label: 'Hard', desc: 'Unbeatable minimax', icon: '💀' },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[110] p-4">
+      <div className="bg-discord-sidebar rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-discord-hover">
+          <h2 className="font-bold text-discord-text text-lg flex items-center gap-2">
+            <TwemojiImg emoji="❌" size={22} /> Tic-Tac-Toe
+          </h2>
+          <p className="text-discord-muted text-sm mt-0.5">Classic 1v1 game</p>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          <div>
+            <label className="text-discord-muted text-xs font-bold uppercase mb-2 block">Mode</label>
+            <div className={`grid gap-2 ${currentUser?.isVerified ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {[
+                { id: 'ai', label: 'vs VesselBot', icon: '🤖', requiresVerified: true },
+                { id: 'human', label: 'vs Friend', icon: '👥', requiresVerified: false },
+              ].filter(m => !m.requiresVerified || currentUser?.isVerified).map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => setMode(m.id)}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${mode === m.id ? 'border-discord-brand bg-discord-brand/10' : 'border-discord-hover hover:border-discord-brand/40'}`}
+                >
+                  <div className="mb-1"><TwemojiImg emoji={m.icon} size={24} /></div>
+                  <div className="text-sm font-bold text-discord-text">{m.label}</div>
+                </button>
+              ))}
+            </div>
+            {!currentUser?.isVerified && (
+              <p className="text-discord-muted text-xs text-center mt-1 flex items-center justify-center gap-1">
+                <span>🔒</span> vs VesselBot is available for Verified users only
+              </p>
+            )}
+          </div>
+          {mode === 'ai' && (
+            <div>
+              <label className="text-discord-muted text-xs font-bold uppercase mb-2 block">Difficulty</label>
+              <div className="space-y-2">
+                {difficulties.map(d => (
+                  <button
+                    key={d.id}
+                    onClick={() => setDifficulty(d.id)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${difficulty === d.id ? 'border-discord-brand bg-discord-brand/10' : 'border-discord-hover hover:border-discord-brand/40'}`}
+                  >
+                    <TwemojiImg emoji={d.icon} size={22} />
+                    <div className="flex-1">
+                      <div className="text-sm font-bold text-discord-text">{d.label}</div>
+                      <div className="text-[11px] text-discord-muted">{d.desc}</div>
+                    </div>
+                    {difficulty === d.id && <div className="w-2 h-2 rounded-full bg-discord-brand flex-shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="px-5 pb-5 flex gap-2">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-discord-hover text-discord-text text-sm font-semibold hover:bg-discord-hover">
+            Cancel
+          </button>
+          <button
+            onClick={handleCreate}
+            disabled={creating}
+            className="flex-1 py-2.5 rounded-xl bg-discord-brand text-white text-sm font-semibold disabled:opacity-60 hover:bg-discord-brand/90 active:scale-95 transition-all"
+          >
+            {creating ? 'Creating...' : mode === 'ai' ? 'Play vs Bot' : 'Create Room'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RoomCard({ room, currentUserId }) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
@@ -221,8 +472,8 @@ function RoomCard({ room, currentUserId }) {
 
   const isHost = room.players?.[0]?.userId === currentUserId;
   const statusColor = room.status === 'waiting' ? 'text-yellow-400' : room.status === 'in_progress' ? 'text-discord-green' : 'text-discord-muted';
-  const gameIcon = room.gameType === 'word_chain' ? '🔗' : '🎭';
-  const gameName = room.gameType === 'word_chain' ? 'Word Chain' : 'Emoji Trivia';
+  const gameIcon = room.gameType === 'word_chain' ? '🔗' : room.gameType === 'tic_tac_toe' ? '❌' : '🎭';
+  const gameName = room.gameType === 'word_chain' ? 'Word Chain' : room.gameType === 'tic_tac_toe' ? 'Tic-Tac-Toe' : 'Emoji Trivia';
 
   return (
     <div
@@ -264,6 +515,7 @@ function getRemainingSeconds(startedAt, timeLimitSecs) {
 }
 
 function RoomLobby({ roomId, currentUser, onClose }) {
+  const navigate = useNavigate();
   const [room, setRoom] = useState(null);
   const [round, setRound] = useState(null);
   const [guess, setGuess] = useState('');
@@ -288,14 +540,42 @@ function RoomLobby({ roomId, currentUser, onClose }) {
   const [isEliminated, setIsEliminated] = useState(false);
   const [lastEliminated, setLastEliminated] = useState(null);
   const [timeLeft, setTimeLeft] = useState(null);
+  const [lastAIWord, setLastAIWord] = useState(null);
+  const [aiAnsweredMsg, setAiAnsweredMsg] = useState(null);
   const timerRef = useRef(null);
+  const tttPollRef = useRef(null);
+
+  // TTT-specific state
+  const [tttBoard, setTttBoard] = useState(Array(9).fill(''));
+  const [tttCurrentSymbol, setTttCurrentSymbol] = useState('X');
+  const [tttResult, setTttResult] = useState(null);
+  const [tttWinningLine, setTttWinningLine] = useState(null);
+  const [tttMoving, setTttMoving] = useState(false);
+  const [tttGameOver, setTttGameOver] = useState(null);
+  const [tttRematching, setTttRematching] = useState(false);
 
   const myId = currentUser?._id || currentUser?.id;
 
   const fetchRoom = useCallback(async () => {
     try {
-      const data = await API.getGameRoom(roomId);
-      setRoom(data.room);
+      let data;
+      try {
+        data = await API.getGameRoom(roomId);
+      } catch {
+        data = await API.getTTTRoom(roomId);
+      }
+      const r = data.room;
+      setRoom(r);
+      if (r.gameType === 'tic_tac_toe') {
+        setTttBoard(r.tttBoard || Array(9).fill(''));
+        setTttCurrentSymbol(r.tttCurrentSymbol || 'X');
+        setTttResult(r.tttResult || null);
+        setTttWinningLine(r.tttWinningLine || null);
+        if (r.tttResult) {
+          const winner = r.players?.find(p => p.symbol === r.tttResult);
+          setTttGameOver({ result: r.tttResult, winnerUsername: winner?.username || null, winningLine: r.tttWinningLine, players: r.players });
+        }
+      }
     } catch (err) {
       setError(err.message || 'Failed to load room');
     } finally {
@@ -328,10 +608,15 @@ function RoomLobby({ roomId, currentUser, onClose }) {
   useEffect(() => {
     if (!room?._id) return;
 
-    socket.emit('joinGameRoom', room._id);
+    if (room.gameType === 'tic_tac_toe') {
+      socket.emit('joinGame', room._id);
+    } else {
+      socket.emit('joinGameRoom', room._id);
+    }
 
-    const handlePlayerJoined = ({ players }) => {
-      setRoom(r => r ? { ...r, players, lastActivity: new Date().toISOString() } : null);
+    const handlePlayerJoined = ({ players, room: updatedRoom }) => {
+      if (updatedRoom) setRoom(updatedRoom);
+      else setRoom(r => r ? { ...r, players, lastActivity: new Date().toISOString() } : null);
     };
 
     const handleGameStarted = ({ room: r, round: rd }) => {
@@ -364,12 +649,15 @@ function RoomLobby({ roomId, currentUser, onClose }) {
 
     // WCG events
     const handleWcgTurnStarted = ({ turnNumber, playerId, playerUsername, letter, minWordLength, timeLimitSecs, startedAt, activePlayers: ap, eliminatedPlayers: ep, wordChainSoFar }) => {
-      setCurrentTurn({ turnNumber, playerId, playerUsername, letter, minWordLength, timeLimitSecs, startedAt });
+      const turnPlayer = room?.players?.find(p => p.userId === playerId || p.username === playerUsername);
+      setCurrentTurn({ turnNumber, playerId, playerUsername, letter, minWordLength, timeLimitSecs, startedAt, isAI: turnPlayer?.isAI || false });
       setWordChain(wordChainSoFar || []);
       setWcgActivePlayers(ap || []);
       setWcgEliminatedPlayers(ep || []);
       setTurnError('');
       setLastEliminated(null);
+      setLastAIWord(null);
+      setAiAnsweredMsg(null);
       setGuess('');
       if (timerRef.current) clearInterval(timerRef.current);
       const getLeft = () => getRemainingSeconds(startedAt, timeLimitSecs);
@@ -381,9 +669,20 @@ function RoomLobby({ roomId, currentUser, onClose }) {
       }, 500);
     };
 
-    const handleWcgWordAccepted = ({ playerUsername, word, wordChainSoFar, score }) => {
+    const handleWcgWordAccepted = ({ playerUsername, word, wordChainSoFar, score, isAI }) => {
       setWordChain(wordChainSoFar || []);
       setRoom(r => r ? { ...r, players: r.players.map(p => p.username === playerUsername ? { ...p, score } : p) } : null);
+      if (isAI && word) {
+        setLastAIWord({ username: playerUsername, word });
+        setTimeout(() => setLastAIWord(null), 4000);
+      }
+    };
+
+    const handleAiAnswered = ({ username, isAI, difficulty: diff }) => {
+      if (isAI) {
+        setAiAnsweredMsg(`🤖 ${username} has answered...`);
+        setTimeout(() => setAiAnsweredMsg(null), 4000);
+      }
     };
 
     const handlePlayerEliminated = ({ username, eliminatedPlayers: ep, activePlayers: ap }) => {
@@ -426,30 +725,63 @@ function RoomLobby({ roomId, currentUser, onClose }) {
       showToast(`${username} left the room`);
     };
 
+    // TTT socket handlers
+    const handleTTTMoveMade = ({ board, currentSymbol, result, winningLine, players }) => {
+      if (tttPollRef.current) { clearInterval(tttPollRef.current); tttPollRef.current = null; }
+      setTttBoard(board || Array(9).fill(''));
+      setTttCurrentSymbol(currentSymbol || 'X');
+      if (winningLine) setTttWinningLine(winningLine);
+      if (result) {
+        setTttResult(result);
+        setTttGameOver(prev => prev || { result, winnerUsername: null, winningLine: winningLine || null, players: players || [] });
+      }
+    };
+
+    const handleTTTGameOver = ({ result, winnerUsername, winningLine, board, players }) => {
+      if (tttPollRef.current) { clearInterval(tttPollRef.current); tttPollRef.current = null; }
+      if (board) setTttBoard(board);
+      if (winningLine) setTttWinningLine(winningLine);
+      setTttResult(result);
+      setTttGameOver({ result, winnerUsername, winningLine, players });
+    };
+
+    const handleTTTRematch = ({ newRoomId }) => {
+      navigate(`/game/room/${newRoomId}`, { replace: true });
+    };
+
     socket.on('playerJoined', handlePlayerJoined);
     socket.on('gameStarted', handleGameStarted);
     socket.on('guessResult', handleGuessResult);
     socket.on('wcgTurnStarted', handleWcgTurnStarted);
     socket.on('wcgWordAccepted', handleWcgWordAccepted);
+    socket.on('aiAnswered', handleAiAnswered);
     socket.on('playerEliminated', handlePlayerEliminated);
     socket.on('gameOver', handleWcgGameOver);
     socket.on('roomCancelled', handleRoomCancelled);
     socket.on('playerKicked', handlePlayerKicked);
     socket.on('playerLeft', handlePlayerLeft);
+    socket.on('tttMoveMade', handleTTTMoveMade);
+    socket.on('tttGameOver', handleTTTGameOver);
+    socket.on('tttRematch', handleTTTRematch);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (tttPollRef.current) { clearInterval(tttPollRef.current); tttPollRef.current = null; }
       socket.emit('leaveGameRoom', room._id);
       socket.off('playerJoined', handlePlayerJoined);
       socket.off('gameStarted', handleGameStarted);
       socket.off('guessResult', handleGuessResult);
       socket.off('wcgTurnStarted', handleWcgTurnStarted);
       socket.off('wcgWordAccepted', handleWcgWordAccepted);
+      socket.off('aiAnswered', handleAiAnswered);
       socket.off('playerEliminated', handlePlayerEliminated);
       socket.off('gameOver', handleWcgGameOver);
       socket.off('roomCancelled', handleRoomCancelled);
       socket.off('playerKicked', handlePlayerKicked);
       socket.off('playerLeft', handlePlayerLeft);
+      socket.off('tttMoveMade', handleTTTMoveMade);
+      socket.off('tttGameOver', handleTTTGameOver);
+      socket.off('tttRematch', handleTTTRematch);
     };
   }, [room?._id, currentUser.username, onClose]);
 
@@ -540,6 +872,75 @@ function RoomLobby({ roomId, currentUser, onClose }) {
     }
   };
 
+  const handleTTTMove = async (cellIndex) => {
+    if (tttMoving || tttGameOver) return;
+    const myPlayer = room?.players?.find(p => p.userId === myId);
+    if (!myPlayer) return;
+    if (myPlayer.symbol !== tttCurrentSymbol) return;
+    if (tttBoard[cellIndex] !== '') return;
+    setTttMoving(true);
+    try {
+      const data = await API.makeTTTMove(room._id, cellIndex);
+      // Apply human move immediately from HTTP response
+      setTttBoard(data.board || tttBoard);
+      setTttCurrentSymbol(data.currentSymbol || tttCurrentSymbol);
+      if (data.result) {
+        setTttResult(data.result);
+      }
+
+      // If vs AI and game not over, poll for the AI's reply as a fallback
+      // (socket tttMoveMade should fire, but polling catches it if socket misses)
+      const vsAI = room?.players?.some(p => p.isAI);
+      if (vsAI && !data.result) {
+        if (tttPollRef.current) clearInterval(tttPollRef.current);
+        let attempts = 0;
+        const humanSymbol = data.currentSymbol; // AI is now playing, so current = AI's symbol
+        tttPollRef.current = setInterval(async () => {
+          attempts++;
+          try {
+            const roomData = await API.getTTTRoom(room._id);
+            const r = roomData.room;
+            // AI has moved when currentSymbol flips back, or game ended
+            const aiMoved = r.tttCurrentSymbol !== humanSymbol || r.tttResult;
+            if (aiMoved) {
+              clearInterval(tttPollRef.current);
+              tttPollRef.current = null;
+              setTttBoard(r.tttBoard || Array(9).fill(''));
+              setTttCurrentSymbol(r.tttCurrentSymbol || 'X');
+              if (r.tttWinningLine) setTttWinningLine(r.tttWinningLine);
+              if (r.tttResult) {
+                setTttResult(r.tttResult);
+                const winner = r.players?.find(p => p.symbol === r.tttResult);
+                setTttGameOver({ result: r.tttResult, winnerUsername: winner?.username || null, winningLine: r.tttWinningLine, players: r.players });
+              }
+            }
+          } catch {}
+          // Stop polling after 12 seconds regardless
+          if (attempts >= 8 && tttPollRef.current) {
+            clearInterval(tttPollRef.current);
+            tttPollRef.current = null;
+          }
+        }, 1500);
+      }
+    } catch (err) {
+      showToast(err.message || 'Invalid move', { type: 'error' });
+    } finally {
+      setTttMoving(false);
+    }
+  };
+
+  const handleTTTRematch = async () => {
+    setTttRematching(true);
+    try {
+      const data = await API.rematchTTT(room._id);
+      navigate(`/game/room/${data.room._id}`, { replace: true });
+    } catch (err) {
+      showToast(err.message || 'Failed to start rematch', { type: 'error' });
+    } finally {
+      setTttRematching(false);
+    }
+  };
+
   const copyCode = () => {
     if (!room) return;
     navigator.clipboard?.writeText(room.inviteCode);
@@ -567,9 +968,13 @@ function RoomLobby({ roomId, currentUser, onClose }) {
   }
 
   const isHost = room.hostId === myId;
-  const canStart = isHost && room.players?.length >= 2 && room.status === 'waiting';
-  const gameIcon = room.gameType === 'word_chain' ? '🔗' : '🎭';
+  const isVsAI = room.players?.some(p => p.isAI);
+  const canStart = isHost && room.players?.length >= 2 && room.status === 'waiting' && !isVsAI;
+  const gameIcon = room.gameType === 'word_chain' ? '🔗' : room.gameType === 'tic_tac_toe' ? '❌' : '🎭';
   const isWCG = room.gameType === 'word_chain';
+  const isTTT = room.gameType === 'tic_tac_toe';
+  const myTTTPlayer = isTTT ? room.players?.find(p => p.userId === myId) : null;
+  const isMyTTTTurn = isTTT && myTTTPlayer && myTTTPlayer.symbol === tttCurrentSymbol && !tttGameOver;
 
   return (
     <div className="fixed inset-0 bg-discord-bg z-[100] flex flex-col">
@@ -578,26 +983,172 @@ function RoomLobby({ roomId, currentUser, onClose }) {
           <button onClick={onClose} className="text-discord-muted hover:text-discord-text transition-colors">
             <FiArrowLeft size={20} />
           </button>
-          <button 
-            onClick={isHost ? handleDeleteRoom : handleLeaveRoom}
-            disabled={room.status === 'in_progress' || deleting || leaving}
-            className="flex items-center gap-1.5 text-red-400 hover:text-red-300 text-xs font-bold uppercase tracking-wide disabled:opacity-40 disabled:cursor-not-allowed ml-2"
-            title={room.status === 'in_progress' ? 'Cannot leave mid-game' : ''}
-          >
-            {isHost ? <FiX size={14} /> : <FiLogOut size={14} />} {isHost ? 'Close Room' : 'Leave'}
-          </button>
+          {!isTTT && (
+            <button 
+              onClick={isHost ? handleDeleteRoom : handleLeaveRoom}
+              disabled={room.status === 'in_progress' || deleting || leaving}
+              className="flex items-center gap-1.5 text-red-400 hover:text-red-300 text-xs font-bold uppercase tracking-wide disabled:opacity-40 disabled:cursor-not-allowed ml-2"
+              title={room.status === 'in_progress' ? 'Cannot leave mid-game' : ''}
+            >
+              {isHost ? <FiX size={14} /> : <FiLogOut size={14} />} {isHost ? 'Close Room' : 'Leave'}
+            </button>
+          )}
         </div>
         <span className="font-bold text-discord-text flex items-center gap-1.5">
           <TwemojiImg emoji={gameIcon} size={18} />
-          {isWCG ? 'Word Chain' : 'Emoji Trivia'}
+          {isWCG ? 'Word Chain' : isTTT ? 'Tic-Tac-Toe' : 'Emoji Trivia'}
         </span>
-        <button onClick={copyCode} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-discord-brand/10 text-discord-brand text-xs font-mono font-bold border border-discord-brand/20">
-          {copied ? <FiCheck size={12} /> : <FiCopy size={12} />} {room.inviteCode}
-        </button>
+        {room.inviteCode ? (
+          <button onClick={copyCode} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-discord-brand/10 text-discord-brand text-xs font-mono font-bold border border-discord-brand/20">
+            {copied ? <FiCheck size={12} /> : <FiCopy size={12} />} {room.inviteCode}
+          </button>
+        ) : <div className="w-16" />}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-6 max-w-lg mx-auto w-full">
-        {gameOver ? (
+        {isTTT ? (
+          <div className="space-y-6">
+            {/* Players */}
+            <div className="flex items-center justify-between gap-2">
+              {room.players?.map(p => {
+                const isMe = p.userId === myId;
+                const isTurn = p.symbol === tttCurrentSymbol && !tttGameOver;
+                const isWinner = tttGameOver && tttGameOver.result === p.symbol;
+                const isDraw = tttGameOver && tttGameOver.result === 'draw';
+                return (
+                  <div key={p.userId || p.username} className={`flex-1 flex flex-col items-center gap-1.5 py-3 px-2 rounded-2xl border-2 transition-all ${isWinner ? 'border-yellow-400 bg-yellow-400/10' : isDraw ? 'border-discord-muted/30 bg-discord-hover/30' : isTurn ? 'border-discord-brand bg-discord-brand/10' : 'border-discord-hover bg-discord-hover/30'}`}>
+                    <div className={`text-2xl font-black ${p.symbol === 'X' ? 'text-red-400' : 'text-blue-400'}`}>{p.symbol}</div>
+                    <div className="text-xs font-bold text-discord-text flex items-center gap-1">
+                      {p.isAI && <TwemojiImg emoji="🤖" size={12} />}
+                      @{p.username}{isMe ? ' (you)' : ''}
+                    </div>
+                    {isWinner && <span className="text-[10px] font-black text-yellow-400 uppercase tracking-wider">Winner!</span>}
+                    {isTurn && !tttGameOver && <span className="text-[10px] font-black text-discord-brand uppercase tracking-wider animate-pulse">Your turn</span>}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Waiting for second player (human vs human) */}
+            {room.status === 'waiting' && (
+              <div className="bg-discord-brand/5 border border-discord-brand/20 rounded-2xl p-5 text-center space-y-3">
+                <FiRefreshCw size={24} className="mx-auto text-discord-brand animate-spin" />
+                <p className="text-discord-text font-bold">Waiting for opponent...</p>
+                <p className="text-discord-muted text-xs">Share the code in the top bar with your friend</p>
+              </div>
+            )}
+
+            {/* Board */}
+            {room.status !== 'waiting' && (
+              <div className="flex flex-col items-center">
+                <div className="grid grid-cols-3 gap-2 w-full max-w-[300px]">
+                  {tttBoard.map((cell, i) => {
+                    const isWinCell = tttWinningLine?.includes(i);
+                    const isEmpty = cell === '';
+                    const canClick = isEmpty && isMyTTTTurn && !tttMoving && !tttGameOver;
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => canClick && handleTTTMove(i)}
+                        disabled={!canClick}
+                        className={`aspect-square rounded-2xl border-2 text-4xl font-black flex items-center justify-center transition-all active:scale-95 ${
+                          isWinCell
+                            ? 'border-yellow-400 bg-yellow-400/20 shadow-lg shadow-yellow-400/20'
+                            : cell !== '' 
+                              ? 'border-discord-hover bg-discord-hover/50 cursor-default'
+                              : canClick
+                                ? 'border-discord-brand/40 bg-discord-brand/5 hover:bg-discord-brand/15 hover:border-discord-brand cursor-pointer'
+                                : 'border-discord-hover/40 bg-discord-hover/20 cursor-default'
+                        }`}
+                      >
+                        {cell === 'X' && <span className={`${isWinCell ? 'text-yellow-400' : 'text-red-400'} drop-shadow`}>✕</span>}
+                        {cell === 'O' && <span className={`${isWinCell ? 'text-yellow-400' : 'text-blue-400'} drop-shadow`}>○</span>}
+                        {cell === '' && canClick && !tttMoving && <span className="text-discord-brand/20 text-2xl">·</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Status message */}
+                <div className="mt-4 text-center">
+                  {tttGameOver ? (
+                    tttGameOver.result === 'draw' ? (
+                      <p className="text-discord-muted font-bold text-lg">It's a draw!</p>
+                    ) : (
+                      <p className="font-bold text-lg">
+                        <span className={tttGameOver.result === 'X' ? 'text-red-400' : 'text-blue-400'}>{tttGameOver.result}</span>
+                        {' '}<span className="text-discord-text">wins!</span>
+                        {tttGameOver.winnerUsername && <span className="text-discord-muted text-sm block mt-0.5">@{tttGameOver.winnerUsername}</span>}
+                      </p>
+                    )
+                  ) : isMyTTTTurn ? (
+                    <p className="text-discord-brand font-bold animate-pulse">Your turn — pick a square</p>
+                  ) : tttMoving ? (
+                    <p className="text-discord-muted font-bold flex items-center justify-center gap-2"><FiRefreshCw size={14} className="animate-spin" /> Making move...</p>
+                  ) : (
+                    <p className="text-discord-muted font-bold flex items-center justify-center gap-2">
+                      {room.players?.find(p => p.symbol === tttCurrentSymbol)?.isAI
+                        ? <><TwemojiImg emoji="🤖" size={14} /> VesselBot is thinking...</>
+                        : <><FiRefreshCw size={14} className="animate-spin text-discord-brand" /> Opponent's turn...</>
+                      }
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* XP info */}
+            {room.status !== 'waiting' && !tttGameOver && (
+              <div className="bg-discord-hover/30 border border-discord-hover rounded-xl px-4 py-2 text-center">
+                <p className="text-discord-muted text-xs font-semibold">Win +55 XP · Draw/Loss +5 XP</p>
+              </div>
+            )}
+
+            {/* Game over actions */}
+            {tttGameOver && (
+              <div className="space-y-3">
+                <div className="bg-discord-hover/30 border border-discord-hover rounded-xl px-4 py-3">
+                  <p className="text-discord-muted text-xs font-bold uppercase tracking-wider mb-2">Result</p>
+                  {room.players?.map(p => {
+                    const won = tttGameOver.result === p.symbol;
+                    const drew = tttGameOver.result === 'draw';
+                    return (
+                      <div key={p.userId || p.username} className="flex items-center justify-between py-1.5">
+                        <span className="font-bold text-discord-text text-sm flex items-center gap-1.5">
+                          {p.isAI && <TwemojiImg emoji="🤖" size={13} />}
+                          @{p.username}
+                          {p.userId === myId && <span className="text-discord-muted">(you)</span>}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          {drew ? (
+                            <span className="text-discord-muted text-xs font-bold">Draw · +5 XP</span>
+                          ) : won ? (
+                            <span className="text-yellow-400 text-xs font-black">🏆 Win · +55 XP</span>
+                          ) : (
+                            <span className="text-discord-muted text-xs font-bold">Loss · +5 XP</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {isHost && (
+                  <button
+                    onClick={handleTTTRematch}
+                    disabled={tttRematching}
+                    className="w-full py-3.5 rounded-2xl font-black text-sm bg-discord-brand text-white shadow-lg hover:bg-discord-brand/90 active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    <FiRefreshCw size={16} className={tttRematching ? 'animate-spin' : ''} />
+                    {tttRematching ? 'Starting...' : 'Rematch (swap symbols)'}
+                  </button>
+                )}
+                <button onClick={onClose} className="w-full py-3 rounded-2xl border border-discord-hover text-discord-muted text-sm font-bold hover:bg-discord-hover transition-all">
+                  Back to Games
+                </button>
+              </div>
+            )}
+          </div>
+        ) : gameOver ? (
           <div className="text-center py-8">
             <div className="flex justify-center mb-4 scale-125"><TwemojiImg emoji="🏆" size={64} /></div>
             <h2 className="text-3xl font-black text-discord-text mb-1">Game Over!</h2>
@@ -651,6 +1202,18 @@ function RoomLobby({ roomId, currentUser, onClose }) {
             {lastEliminated && (
               <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-bold">
                 <span>⏰</span> Time's up for @{lastEliminated}!
+              </div>
+            )}
+            {/* AI played a word */}
+            {lastAIWord && (
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-bold">
+                <TwemojiImg emoji="🤖" size={16} /> {lastAIWord.username} played: <em>{lastAIWord.word}</em>
+              </div>
+            )}
+            {/* AI answered (Emoji Trivia) */}
+            {aiAnsweredMsg && (
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-bold">
+                {aiAnsweredMsg}
               </div>
             )}
 
@@ -715,10 +1278,12 @@ function RoomLobby({ roomId, currentUser, onClose }) {
                 <p className="text-discord-muted text-xs mt-1">@{currentTurn.playerUsername}'s turn...</p>
               </div>
             ) : (
-              <div className="bg-discord-hover/50 border border-discord-hover rounded-2xl p-4 text-center">
+              <div className={`border rounded-2xl p-4 text-center ${currentTurn.isAI ? 'bg-purple-500/5 border-purple-500/20' : 'bg-discord-hover/50 border-discord-hover'}`}>
                 <div className="flex items-center justify-center gap-2 text-discord-text font-bold mb-1">
-                  <FiRefreshCw size={14} className="animate-spin text-discord-brand" />
-                  @{currentTurn.playerUsername} is thinking...
+                  {currentTurn.isAI
+                    ? <><TwemojiImg emoji="🤖" size={16} /> {currentTurn.playerUsername} is calculating...</>
+                    : <><FiRefreshCw size={14} className="animate-spin text-discord-brand" /> @{currentTurn.playerUsername} is thinking...</>
+                  }
                 </div>
                 <p className="text-discord-muted text-xs">Start with <span className="font-bold text-discord-brand">"{currentTurn.letter}"</span>, min {currentTurn.minWordLength} letters</p>
               </div>
@@ -739,8 +1304,12 @@ function RoomLobby({ roomId, currentUser, onClose }) {
                       <span className="text-sm w-5 flex-shrink-0">
                         {!isActive ? '❌' : isCurrentTurnPlayer ? '🎯' : '✅'}
                       </span>
-                      <span className={`flex-1 text-sm font-bold ${!isActive ? 'text-discord-muted line-through' : 'text-discord-text'}`}>
+                      <span className={`flex-1 text-sm font-bold flex items-center gap-1 ${!isActive ? 'text-discord-muted line-through' : 'text-discord-text'}`}>
+                        {p.isAI && <TwemojiImg emoji="🤖" size={14} />}
                         @{p.username}{isMe ? ' (you)' : ''}
+                        {p.isAI && p.aiDifficulty && (
+                          <span className="text-[10px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded-full font-bold ml-1 normal-case">{p.aiDifficulty}</span>
+                        )}
                       </span>
                       <span className={`text-sm font-black ${isCurrentTurnPlayer ? 'text-discord-brand' : 'text-discord-muted'}`}>{p.score ?? 0} pts</span>
                     </div>
@@ -795,29 +1364,36 @@ function RoomLobby({ roomId, currentUser, onClose }) {
             <div className="bg-discord-hover/30 border border-discord-hover rounded-2xl overflow-hidden mb-8">
               <div className="px-4 py-2 bg-discord-hover/50 border-b border-discord-hover flex justify-between items-center">
                 <span className="text-[10px] font-black text-discord-muted uppercase tracking-wider">
-                  {room.players?.length || 0} / {room.maxPlayers || 8} players
+                  {room.players?.length || 0} {isVsAI ? 'players' : `/ ${room.maxPlayers || 8} players`}
                 </span>
                 <span className="text-[10px] font-black text-discord-brand uppercase tracking-wider">
-                  {room.players?.length < 2 ? 'Waiting for players...' : 'Ready to start!'}
+                  {isVsAI ? 'VS AI Match' : room.players?.length < 2 ? 'Waiting for players...' : 'Ready to start!'}
                 </span>
               </div>
               <div className="divide-y divide-discord-hover">
                 {room.players?.map((p, i) => (
                   <div key={p.userId || i} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-discord-hover/20 group">
-                    <div className="w-9 h-9 rounded-full bg-discord-brand/20 flex items-center justify-center text-discord-brand font-black text-sm border-2 border-discord-brand/10">
-                      {(p.username || '?')[0].toUpperCase()}
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-sm border-2 ${p.isAI ? 'bg-purple-500/20 border-purple-500/20 text-purple-400' : 'bg-discord-brand/20 border-discord-brand/10 text-discord-brand'}`}>
+                      {p.isAI ? <TwemojiImg emoji="🤖" size={20} /> : (p.username || '?')[0].toUpperCase()}
                     </div>
                     <div className="flex-1">
-                      <p className="font-bold text-discord-text text-sm">@{p.username}</p>
-                      <p className="text-[10px] text-discord-muted font-semibold">{i === 0 ? 'Room Leader' : 'Challenger'}</p>
+                      <p className="font-bold text-discord-text text-sm flex items-center gap-1.5">
+                        {p.isAI && <TwemojiImg emoji="🤖" size={14} />}
+                        @{p.username}
+                      </p>
+                      <p className="text-[10px] text-discord-muted font-semibold">
+                        {p.isAI ? `AI · ${p.aiDifficulty || ''} difficulty` : i === 0 ? 'Room Leader' : 'Challenger'}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      {i === 0 ? (
+                      {p.isAI ? (
+                        <span className="bg-purple-500/20 text-purple-400 text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase">Bot</span>
+                      ) : i === 0 ? (
                         <span className="bg-discord-brand text-white text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase">Host</span>
                       ) : p.userId === myId ? (
                         <span className="bg-discord-muted text-white text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase">You</span>
-                      ) : isHost && (
-                        <button 
+                      ) : isHost && !isVsAI && (
+                        <button
                           onClick={() => handleKickPlayer(p.username)}
                           disabled={kicking === p.username}
                           className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-discord-muted hover:text-red-400 hover:bg-red-400/10 transition-all"
@@ -832,7 +1408,13 @@ function RoomLobby({ roomId, currentUser, onClose }) {
               </div>
             </div>
 
-            {canStart ? (
+            {isVsAI ? (
+              <div className="text-center p-6 bg-discord-brand/5 border border-discord-brand/20 rounded-2xl">
+                <FiRefreshCw size={24} className="mx-auto text-discord-brand animate-spin mb-3" />
+                <p className="text-discord-text font-bold">Game is starting...</p>
+                <p className="text-discord-muted text-xs mt-1">VesselBot is getting ready to play!</p>
+              </div>
+            ) : canStart ? (
               <button onClick={handleStart} disabled={starting} className="discord-btn w-full py-4 rounded-2xl font-black text-lg shadow-xl shadow-discord-brand/20 hover:shadow-discord-brand/40 active:scale-95 transition-all">
                 {starting ? 'Initializing...' : <span className="flex items-center justify-center gap-2"><TwemojiImg emoji="🚀" size={20} /> Launch Game</span>}
               </button>
@@ -880,6 +1462,8 @@ export default function Games({ currentUser, unreadCounts }) {
   const [myStats, setMyStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showVsAI, setShowVsAI] = useState(false);
+  const [showTTT, setShowTTT] = useState(false);
 
   const myId = currentUser?._id || currentUser?.id;
 
@@ -931,6 +1515,12 @@ export default function Games({ currentUser, unreadCounts }) {
       {isJoin && (
         <JoinModal inviteCode={inviteCode} onClose={() => navigate('/game', { replace: true })} />
       )}
+      {showVsAI && (
+        <VsAIModal onClose={() => setShowVsAI(false)} />
+      )}
+      {showTTT && (
+        <TicTacToeModal currentUser={currentUser} onClose={() => setShowTTT(false)} />
+      )}
 
       <div className="sticky top-0 z-10 bg-discord-bg/95 backdrop-blur border-b border-discord-hover">
         <div className="flex items-center justify-between px-4 py-3 max-w-2xl mx-auto">
@@ -958,7 +1548,7 @@ export default function Games({ currentUser, unreadCounts }) {
       <div className="max-w-2xl mx-auto w-full px-4 py-4">
         {tab === 'play' && (
           <>
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="grid grid-cols-2 gap-3 mb-3">
               <button onClick={() => navigate('/game/create')}
                 className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-discord-brand text-white font-bold shadow-lg hover:bg-discord-brand/90 active:scale-95 transition-all">
                 <FiPlus size={18} /> Create Game
@@ -968,6 +1558,13 @@ export default function Games({ currentUser, unreadCounts }) {
                 <FiHash size={18} /> Join with Code
               </button>
             </div>
+            <button
+              onClick={() => setShowTTT(true)}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-discord-hover/80 border border-discord-hover hover:border-discord-brand/40 text-discord-text font-bold mb-6 active:scale-95 transition-all relative"
+            >
+              <TwemojiImg emoji="❌" size={20} /> Tic-Tac-Toe
+              <span className="absolute right-3 text-[10px] font-bold bg-discord-green/20 text-discord-green px-2 py-0.5 rounded-full">New</span>
+            </button>
 
             {myStats && (
               <div className="bg-discord-hover/50 border border-discord-hover rounded-2xl p-4 mb-6">
@@ -981,14 +1578,18 @@ export default function Games({ currentUser, unreadCounts }) {
                   </div>
                 </div>
                 <XPBar xp={myStats.xp} level={myStats.level} />
-                <div className="grid grid-cols-2 gap-3 mt-3 text-center">
+                <div className="grid grid-cols-3 gap-2 mt-3 text-center">
                   <div className="bg-discord-bg rounded-xl p-2">
                     <p className="font-bold text-discord-text">{myStats.gameStats?.wordChainWins || 0}</p>
-                    <p className="text-discord-muted text-[11px] flex items-center justify-center gap-1"><TwemojiImg emoji="🔗" size={13} /> Word Chain Wins</p>
+                    <p className="text-discord-muted text-[11px] flex items-center justify-center gap-1"><TwemojiImg emoji="🔗" size={12} /> Word Chain</p>
                   </div>
                   <div className="bg-discord-bg rounded-xl p-2">
                     <p className="font-bold text-discord-text">{myStats.gameStats?.emojiTriviaWins || 0}</p>
-                    <p className="text-discord-muted text-[11px] flex items-center justify-center gap-1"><TwemojiImg emoji="🎭" size={13} /> Emoji Trivia Wins</p>
+                    <p className="text-discord-muted text-[11px] flex items-center justify-center gap-1"><TwemojiImg emoji="🎭" size={12} /> Emoji Trivia</p>
+                  </div>
+                  <div className="bg-discord-bg rounded-xl p-2">
+                    <p className="font-bold text-discord-text">{myStats.gameStats?.ticTacToeWins || 0}</p>
+                    <p className="text-discord-muted text-[11px] flex items-center justify-center gap-1"><TwemojiImg emoji="❌" size={12} /> Tic-Tac-Toe</p>
                   </div>
                 </div>
               </div>

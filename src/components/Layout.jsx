@@ -30,7 +30,7 @@ const POPUP_ITEMS = [
   { path: '/settings',      icon: FiSettings,  label: 'Settings',      badgeKey: null },
 ];
 
-export default function Layout({ children, currentUser, unreadCounts = {}, contentClass = '' }) {
+export default function Layout({ children, currentUser, unreadCounts = {}, contentClass = '', hideNav = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useI18n();
@@ -209,7 +209,7 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
       )}
 
       {/* Mobile Floating Pill Nav — 5 items: Home | Messages | FAB | Groups | Profile */}
-      {!isChatRoute && (
+      {!isChatRoute && !hideNav && (
         <nav className="mobile-pill-nav">
           {/* Home */}
           <Link

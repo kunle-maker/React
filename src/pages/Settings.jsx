@@ -8,7 +8,8 @@ import {
 import { HiSparkles } from 'react-icons/hi';
 import { format } from 'date-fns';
 import Layout from '../components/Layout';
-import { SupaBadge } from '../components/UserBadge';
+import Avatar from '../components/Avatar';
+import { SupaBadge, VerifiedBadge } from '../components/UserBadge';
 import API from '../utils/api';
 import { showToast } from '../utils/toast';
 import { useI18n } from '../contexts/I18nContext';
@@ -577,6 +578,12 @@ function LanguageSection({ currentUser }) {
 export default function Settings({ currentUser, unreadCounts }) {
   const navigate = useNavigate();
   const [section, setSection] = useState('account');
+  const [isPrivate, setIsPrivate] = useState(currentUser?.isPrivate || false);
+  const [privacyLoading, setPrivacyLoading] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState(currentUser?.notificationPreferences || {
+    likes: true, comments: true, follows: true, messages: true, mentions: true, groups: true, stories: true
+  });
+  const [notifSaving, setNotifSaving] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -595,8 +602,33 @@ export default function Settings({ currentUser, unreadCounts }) {
     } catch (err) { showToast(err.message || 'Something went wrong', { type: 'error' }); }
   };
 
+  const handleTogglePrivacy = async () => {
+    setPrivacyLoading(true);
+    try {
+      const data = await API.togglePrivacy();
+      const newVal = data?.isPrivate ?? !isPrivate;
+      setIsPrivate(newVal);
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      localStorage.setItem('user', JSON.stringify({ ...user, isPrivate: newVal }));
+      window.dispatchEvent(new CustomEvent('profileUpdate', { detail: { ...user, isPrivate: newVal } }));
+      showToast(newVal ? 'Account set to private' : 'Account set to public', { type: 'success' });
+    } catch (err) { showToast(err.message || 'Failed to update privacy', { type: 'error' }); }
+    finally { setPrivacyLoading(false); }
+  };
+
+  const handleSaveNotifPrefs = async () => {
+    setNotifSaving(true);
+    try {
+      await API.updateNotificationPreferences(notifPrefs);
+      showToast('Notification preferences saved', { type: 'success' });
+    } catch (err) { showToast(err.message || 'Failed to save preferences', { type: 'error' }); }
+    finally { setNotifSaving(false); }
+  };
+
   const SECTIONS = [
     { id: 'account', icon: FiUser, label: 'My Account' },
+    { id: 'privacy', icon: FiLock, label: 'Privacy' },
+    { id: 'notifications', icon: FiBell, label: 'Notifications' },
     { id: 'security', icon: FiShield, label: 'Security' },
     { id: 'language', icon: FiGlobe, label: 'Language' },
     { id: 'supa', icon: FiZap, label: 'Supa Premium' },
@@ -604,110 +636,233 @@ export default function Settings({ currentUser, unreadCounts }) {
 
   return (
     <Layout currentUser={currentUser} unreadCounts={unreadCounts}>
-      <div className="flex h-full">
-        <div className="w-64 border-r border-discord-hover bg-discord-sidebar p-3 flex flex-col hidden md:flex">
-          <p className="text-discord-muted text-xs font-bold uppercase px-2 py-1.5 mb-1">User Settings</p>
-          {SECTIONS.map(s => (
-            <button key={s.id} className={`nav-item mb-0.5 ${section === s.id ? 'active' : ''}`} onClick={() => setSection(s.id)}>
-              <s.icon size={16} /> {s.label}
-            </button>
-          ))}
-          <div className="mt-auto space-y-0.5">
-            <button
-              className="nav-item w-full text-discord-muted hover:text-orange-400 hover:bg-orange-400/10"
-              onClick={() => navigate('/mod-bot')}
-            >
-              <FiShield size={16} /> Moderator Bot
-            </button>
-            <button className="nav-item text-discord-red hover:bg-discord-red/10 w-full" onClick={handleLogout}>
-              <FiLogOut size={16} /> Log Out
-            </button>
+      <div className="max-w-2xl mx-auto pb-20">
+
+        {/* Hero Profile Card */}
+        <div className={`relative overflow-hidden ${currentUser?.isSupa ? 'supa-profile-banner' : 'bg-gradient-to-br from-discord-brand/30 via-purple-700/20 to-discord-bg'}`}>
+          <div className="px-5 pt-8 pb-6 flex items-center gap-4">
+            <div className="relative flex-shrink-0">
+              <Avatar user={currentUser} size={72} showStatus supaRing={currentUser?.isSupa} className="border-4 border-discord-bg rounded-full shadow-xl" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className={`text-xl font-black truncate ${currentUser?.isSupa ? 'supa-username supa-sparkle' : 'text-discord-text'}`}>
+                  {currentUser?.name}
+                </h1>
+                {currentUser?.isVerified && <VerifiedBadge size={18} username={currentUser?.username} />}
+                {currentUser?.isSupa && <SupaBadge size={18} username={currentUser?.username} />}
+              </div>
+              <p className="text-discord-muted text-sm">@{currentUser?.username}</p>
+              <button
+                onClick={() => navigate(`/profile/${currentUser?.username}`)}
+                className="mt-2 text-xs font-semibold text-discord-brand bg-discord-brand/10 border border-discord-brand/20 px-3 py-1 rounded-full hover:bg-discord-brand/20 transition-all"
+              >
+                View Profile
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 max-w-2xl">
+        {/* Section Tabs — horizontal scrollable */}
+        <div className="sticky top-0 z-20 bg-discord-bg/95 backdrop-blur border-b border-discord-hover px-2">
+          <div className="flex overflow-x-auto no-scrollbar gap-1 py-2">
+            {SECTIONS.map(s => {
+              const active = section === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setSection(s.id)}
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
+                    active
+                      ? 'bg-discord-brand text-white shadow-md shadow-discord-brand/30'
+                      : 'text-discord-muted hover:text-discord-text hover:bg-discord-hover'
+                  }`}
+                >
+                  <s.icon size={14} />
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Section Content */}
+        <div className="px-4 py-5 space-y-4">
+
+          {/* ── Account ── */}
           {section === 'account' && (
-            <div>
-              <h2 className="text-xl font-bold text-discord-text mb-6">My Account</h2>
-              <div className="bg-discord-sidebar rounded-lg p-4 mb-6">
-                <div className="flex items-center gap-4">
-                  <div>
-                    <p className="font-bold text-discord-text">{currentUser?.name}</p>
-                    <p className="text-discord-muted text-sm">@{currentUser?.username}</p>
-                    {currentUser?.isSupa && (
-                      <span className="mt-1 inline-flex"><SupaBadge size={15} username={currentUser?.username} /></span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="bg-discord-sidebar rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-discord-text font-semibold text-sm">Display Name</p>
-                      <p className="text-discord-muted text-sm">{currentUser?.name}</p>
-                    </div>
-                    <button className="text-discord-brand text-sm hover:underline" onClick={() => navigate(`/profile/${currentUser?.username}`)}>Edit</button>
-                  </div>
-                </div>
-                <div className="bg-discord-sidebar rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-discord-text font-semibold text-sm">Username</p>
-                      <p className="text-discord-muted text-sm">@{currentUser?.username}</p>
-                    </div>
-                  </div>
-                </div>
+            <div className="space-y-3 animate-fade-in">
+              <h2 className="text-lg font-bold text-discord-text flex items-center gap-2">
+                <FiUser size={18} className="text-discord-brand" /> My Account
+              </h2>
+
+              <div className="bg-discord-sidebar border border-white/5 rounded-2xl overflow-hidden">
                 <div
-                  className="bg-discord-sidebar rounded-lg p-4 flex items-center justify-between cursor-pointer hover:bg-discord-hover transition-colors group"
+                  className="flex items-center justify-between p-4 hover:bg-discord-hover/50 transition-colors cursor-pointer group"
+                  onClick={() => navigate(`/profile/${currentUser?.username}`)}
+                >
+                  <div>
+                    <p className="text-discord-muted text-xs font-bold uppercase tracking-wide mb-0.5">Display Name</p>
+                    <p className="text-discord-text font-semibold">{currentUser?.name}</p>
+                  </div>
+                  <span className="text-discord-brand text-xs font-bold group-hover:underline flex items-center gap-1">
+                    Edit <FiChevronRight size={13} />
+                  </span>
+                </div>
+                <div className="h-px bg-discord-hover mx-4" />
+                <div className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-discord-muted text-xs font-bold uppercase tracking-wide mb-0.5">Username</p>
+                    <p className="text-discord-text font-semibold font-mono">@{currentUser?.username}</p>
+                  </div>
+                </div>
+                <div className="h-px bg-discord-hover mx-4" />
+                <div
+                  className="flex items-center gap-3 p-4 cursor-pointer hover:bg-discord-hover/50 transition-colors group"
                   onClick={() => navigate('/mod-bot')}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-orange-500/15 flex items-center justify-center flex-shrink-0">
-                      <FiShield size={18} className="text-orange-400" />
-                    </div>
-                    <div>
-                      <p className="text-discord-text font-semibold text-sm">Community Safety Bot</p>
-                      <p className="text-discord-muted text-xs">Report, moderate and manage community safety</p>
-                    </div>
+                  <div className="w-10 h-10 rounded-2xl bg-orange-500/15 flex items-center justify-center flex-shrink-0">
+                    <FiShield size={18} className="text-orange-400" />
                   </div>
-                  <FiChevronRight size={16} className="text-discord-muted group-hover:text-discord-text transition-colors" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-discord-text font-semibold text-sm">Community Safety Bot</p>
+                    <p className="text-discord-muted text-xs">Report, moderate & manage community safety</p>
+                  </div>
+                  <FiChevronRight size={15} className="text-discord-muted group-hover:text-discord-text transition-colors flex-shrink-0" />
                 </div>
               </div>
 
-              <div className="mt-6 md:hidden space-y-2">
-                <p className="text-discord-muted text-xs font-bold uppercase px-1 mb-2">More Settings</p>
-                <button className="nav-item w-full" onClick={() => setSection('security')}><FiShield size={16} /> Security</button>
-                <button className="nav-item w-full" onClick={() => setSection('language')}><FiGlobe size={16} /> Language</button>
-                <button className="nav-item w-full" onClick={() => setSection('supa')}><FiZap size={16} /> Supa Premium</button>
-              </div>
-
-              <div className="mt-8 pt-6 border-t border-discord-hover space-y-3">
-                <h3 className="text-discord-red font-semibold">Danger Zone</h3>
-                <button className="flex items-center gap-2 w-full text-discord-muted hover:bg-discord-hover transition-colors px-4 py-3 rounded-lg text-sm font-semibold" onClick={handleLogout}>
-                  <FiLogOut size={14} /> Log Out
+              <div className="bg-discord-sidebar border border-discord-red/20 rounded-2xl overflow-hidden mt-6">
+                <div className="px-4 pt-4 pb-2">
+                  <p className="text-discord-red text-xs font-bold uppercase tracking-wide">Danger Zone</p>
+                </div>
+                <button
+                  className="flex items-center gap-3 w-full px-4 py-3.5 text-discord-muted hover:bg-discord-hover hover:text-discord-text transition-colors text-sm font-semibold"
+                  onClick={handleLogout}
+                >
+                  <FiLogOut size={16} className="text-discord-muted" /> Log Out
                 </button>
-                <button className="flex items-center gap-2 text-discord-red hover:bg-discord-red/10 px-4 py-2 rounded-lg transition-colors text-sm font-semibold border border-discord-red/30" onClick={handleDeleteAccount}>
-                  <FiTrash2 size={14} /> Delete Account
+                <div className="h-px bg-discord-hover mx-4" />
+                <button
+                  className="flex items-center gap-3 w-full px-4 py-3.5 text-discord-red hover:bg-discord-red/10 transition-colors text-sm font-semibold"
+                  onClick={handleDeleteAccount}
+                >
+                  <FiTrash2 size={16} /> Delete Account
                 </button>
               </div>
             </div>
           )}
 
+          {/* ── Privacy ── */}
+          {section === 'privacy' && (
+            <div className="space-y-3 animate-fade-in">
+              <h2 className="text-lg font-bold text-discord-text flex items-center gap-2">
+                <FiLock size={18} className="text-discord-brand" /> Privacy
+              </h2>
+              <div className="bg-discord-sidebar border border-white/5 rounded-2xl p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <p className="text-discord-text font-semibold mb-0.5">Private Account</p>
+                    <p className="text-discord-muted text-sm leading-relaxed">Only people you approve can see your posts. New followers will send a follow request first.</p>
+                  </div>
+                  <button
+                    disabled={privacyLoading}
+                    onClick={handleTogglePrivacy}
+                    className={`relative flex-shrink-0 w-12 h-6 rounded-full transition-colors duration-200 focus:outline-none ${isPrivate ? 'bg-discord-brand' : 'bg-discord-hover'} ${privacyLoading ? 'opacity-50' : ''}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${isPrivate ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+                {isPrivate && (
+                  <div className="mt-4 p-3 bg-discord-brand/10 border border-discord-brand/20 rounded-xl flex items-center gap-2">
+                    <FiLock size={13} className="text-discord-brand flex-shrink-0" />
+                    <p className="text-discord-brand text-xs font-semibold">Your account is private. New followers must be approved.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Notifications ── */}
+          {section === 'notifications' && (
+            <div className="space-y-3 animate-fade-in">
+              <h2 className="text-lg font-bold text-discord-text flex items-center gap-2">
+                <FiBell size={18} className="text-discord-brand" /> Notifications
+              </h2>
+              <div className="bg-discord-sidebar border border-white/5 rounded-2xl overflow-hidden">
+                <p className="text-discord-muted text-sm px-5 pt-4 pb-2">Choose which notifications you want to receive.</p>
+                {[
+                  { key: 'likes', label: 'Likes', desc: 'When someone likes your post' },
+                  { key: 'comments', label: 'Comments', desc: 'When someone comments on your post' },
+                  { key: 'follows', label: 'Follows', desc: 'When someone follows you' },
+                  { key: 'mentions', label: 'Mentions', desc: 'When someone mentions you' },
+                  { key: 'messages', label: 'Messages', desc: 'When you receive a direct message' },
+                  { key: 'groups', label: 'Groups', desc: 'Group activity and announcements' },
+                  { key: 'stories', label: 'Stories', desc: 'Views and replies to your story' },
+                ].map(({ key, label, desc }, i, arr) => (
+                  <div key={key}>
+                    <div className="flex items-center justify-between px-5 py-3.5">
+                      <div>
+                        <p className="text-discord-text font-semibold text-sm">{label}</p>
+                        <p className="text-discord-muted text-xs">{desc}</p>
+                      </div>
+                      <button
+                        onClick={() => setNotifPrefs(p => ({ ...p, [key]: !p[key] }))}
+                        className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${notifPrefs[key] !== false ? 'bg-discord-brand' : 'bg-discord-hover'}`}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${notifPrefs[key] !== false ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                    {i < arr.length - 1 && <div className="h-px bg-discord-hover mx-5" />}
+                  </div>
+                ))}
+                <div className="px-5 pb-5 pt-3">
+                  <button onClick={handleSaveNotifPrefs} disabled={notifSaving} className="discord-btn w-full py-2.5 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
+                    {notifSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiCheck size={14} />}
+                    Save Preferences
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Security ── */}
           {section === 'security' && (
-            <div>
-              <h2 className="text-xl font-bold text-discord-text mb-6">Security</h2>
-              <div className="bg-discord-sidebar rounded-lg p-4">
-                <p className="text-discord-text font-semibold mb-1">Change Password</p>
-                <p className="text-discord-muted text-sm mb-4">To change your password, use the "Forgot Password" flow from the login page.</p>
-                <button className="discord-btn text-sm px-4 py-2" onClick={handleLogout}>Log out and reset password</button>
+            <div className="space-y-3 animate-fade-in">
+              <h2 className="text-lg font-bold text-discord-text flex items-center gap-2">
+                <FiShield size={18} className="text-discord-brand" /> Security
+              </h2>
+              <div className="bg-discord-sidebar border border-white/5 rounded-2xl p-5">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-2xl bg-discord-brand/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <FiLock size={18} className="text-discord-brand" />
+                  </div>
+                  <div>
+                    <p className="text-discord-text font-semibold mb-1">Change Password</p>
+                    <p className="text-discord-muted text-sm leading-relaxed">To change your password, log out first and use the "Forgot Password" flow from the login page.</p>
+                  </div>
+                </div>
+                <button className="discord-btn w-full py-2.5 text-sm font-semibold flex items-center justify-center gap-2" onClick={handleLogout}>
+                  <FiLogOut size={14} /> Log out & reset password
+                </button>
               </div>
             </div>
           )}
 
-          {section === 'language' && <LanguageSection currentUser={currentUser} />}
+          {/* ── Language ── */}
+          {section === 'language' && (
+            <div className="animate-fade-in bg-discord-sidebar border border-white/5 rounded-2xl p-5">
+              <LanguageSection currentUser={currentUser} />
+            </div>
+          )}
 
-          {section === 'supa' && <SupaSection currentUser={currentUser} />}
+          {/* ── Supa Premium ── */}
+          {section === 'supa' && (
+            <div className="animate-fade-in bg-discord-sidebar border border-white/5 rounded-2xl p-5">
+              <SupaSection currentUser={currentUser} />
+            </div>
+          )}
+
         </div>
       </div>
     </Layout>
