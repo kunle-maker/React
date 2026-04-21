@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import API from '../utils/api';
 import { showToast } from '../utils/toast';
+
+const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'VesselxBot';
 
 function VLogo({ size = 60 }) {
   return (
@@ -12,6 +14,28 @@ function VLogo({ size = 60 }) {
   );
 }
 
+function TelegramLoginButton({ botUsername, onAuth }) {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    window.onTelegramAuth = onAuth;
+    const script = document.createElement('script');
+    script.src = 'https://telegram.org/js/telegram-widget.js?22';
+    script.async = true;
+    script.setAttribute('data-telegram-login', botUsername);
+    script.setAttribute('data-size', 'large');
+    script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+    script.setAttribute('data-request-access', 'write');
+    if (containerRef.current) {
+      containerRef.current.innerHTML = '';
+      containerRef.current.appendChild(script);
+    }
+    return () => { delete window.onTelegramAuth; };
+  }, [botUsername, onAuth]);
+
+  return <div ref={containerRef} className="flex justify-center" />;
+}
+
 export default function Login() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ username: '', password: '' });
@@ -19,6 +43,13 @@ export default function Login() {
   const [error, setError] = useState('');
   const [needsVerification, setNeedsVerification] = useState(false);
   const [verifyEmail, setVerifyEmail] = useState('');
+
+  const [telegramMode, setTelegramMode] = useState(null);
+  const [phone, setPhone] = useState('');
+  const [otpRequestId, setOtpRequestId] = useState(null);
+  const [otp, setOtp] = useState('');
+  const [tgLoading, setTgLoading] = useState(false);
+  const [tgError, setTgError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,6 +70,47 @@ export default function Login() {
         setError(msg || 'Login failed');
       }
     } finally { setLoading(false); }
+  };
+
+  const handleTelegramWidgetAuth = async (telegramUser) => {
+    setTgError('');
+    setTgLoading(true);
+    try {
+      const data = await API.telegramWidgetLogin(telegramUser);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      window.dispatchEvent(new Event('authChange'));
+      navigate(data.isNewUser ? '/settings' : '/');
+    } catch (err) {
+      setTgError(err.message || 'Telegram login failed');
+    } finally { setTgLoading(false); }
+  };
+
+  const handleSendOTP = async (e) => {
+    e.preventDefault();
+    setTgError('');
+    setTgLoading(true);
+    try {
+      const data = await API.telegramGatewaySend(phone);
+      setOtpRequestId(data.request_id);
+    } catch (err) {
+      setTgError(err.message || 'Failed to send code');
+    } finally { setTgLoading(false); }
+  };
+
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    setTgError('');
+    setTgLoading(true);
+    try {
+      const data = await API.telegramGatewayVerify(otpRequestId, otp, phone);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      window.dispatchEvent(new Event('authChange'));
+      navigate(data.isNewUser ? '/settings' : '/');
+    } catch (err) {
+      setTgError(err.message || 'Verification failed');
+    } finally { setTgLoading(false); }
   };
 
   if (needsVerification) {
@@ -130,7 +202,136 @@ export default function Login() {
             </button>
           </form>
 
-          <p className="text-center mt-4 text-discord-muted text-sm">
+          <div className="mt-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-1 h-px bg-discord-muted/30" />
+              <span className="text-discord-muted text-xs uppercase tracking-wider">or continue with</span>
+              <div className="flex-1 h-px bg-discord-muted/30" />
+            </div>
+
+            {!telegramMode && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setTelegramMode('widget')}
+                  className="flex-1 flex items-center justify-center gap-2 bg-[#229ED9] hover:bg-[#1a8bbf] text-white font-semibold py-2.5 px-4 rounded-md transition-colors text-sm"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/>
+                  </svg>
+                  Telegram
+                </button>
+                <button
+                  onClick={() => { setTelegramMode('gateway'); setOtpRequestId(null); setOtp(''); setPhone(''); }}
+                  className="flex-1 flex items-center justify-center gap-2 bg-discord-darker hover:bg-discord-darker/70 text-discord-muted hover:text-discord-text border border-discord-muted/20 font-semibold py-2.5 px-4 rounded-md transition-colors text-sm"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/>
+                  </svg>
+                  Phone OTP
+                </button>
+              </div>
+            )}
+
+            {telegramMode === 'widget' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-discord-muted text-xs font-semibold uppercase tracking-wide">Telegram Login</span>
+                  <button onClick={() => { setTelegramMode(null); setTgError(''); }} className="text-discord-muted hover:text-discord-text text-xs">Cancel</button>
+                </div>
+                {tgLoading ? (
+                  <div className="flex justify-center py-3">
+                    <div className="w-5 h-5 border-2 border-[#229ED9] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <TelegramLoginButton botUsername={TELEGRAM_BOT_USERNAME} onAuth={handleTelegramWidgetAuth} />
+                )}
+                {tgError && (
+                  <div className="bg-discord-red/10 border border-discord-red/30 rounded p-3 text-discord-red text-sm">
+                    {tgError}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {telegramMode === 'gateway' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-discord-muted text-xs font-semibold uppercase tracking-wide">Phone OTP via Telegram</span>
+                  <button onClick={() => { setTelegramMode(null); setTgError(''); setOtpRequestId(null); }} className="text-discord-muted hover:text-discord-text text-xs">Cancel</button>
+                </div>
+                {!otpRequestId ? (
+                  <form onSubmit={handleSendOTP} className="space-y-3">
+                    <div>
+                      <label className="block text-discord-muted text-xs font-bold uppercase tracking-wide mb-1.5">Phone Number</label>
+                      <input
+                        type="tel"
+                        placeholder="+12025550123"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        className="discord-input w-full"
+                        required
+                      />
+                      <p className="text-discord-muted text-xs mt-1">Include country code (e.g. +1, +44)</p>
+                    </div>
+                    {tgError && (
+                      <div className="bg-discord-red/10 border border-discord-red/30 rounded p-3 text-discord-red text-sm">
+                        {tgError}
+                      </div>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={tgLoading}
+                      className="flex items-center justify-center gap-2 bg-[#229ED9] hover:bg-[#1a8bbf] text-white font-semibold py-2.5 px-4 rounded-md transition-colors text-sm w-full disabled:opacity-50"
+                    >
+                      {tgLoading ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : 'Send Code via Telegram'}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleVerifyOTP} className="space-y-3">
+                    <p className="text-discord-muted text-sm">A code was sent to your Telegram. Enter it below.</p>
+                    <div>
+                      <label className="block text-discord-muted text-xs font-bold uppercase tracking-wide mb-1.5">Verification Code</label>
+                      <input
+                        type="text"
+                        placeholder="123456"
+                        value={otp}
+                        onChange={e => setOtp(e.target.value)}
+                        className="discord-input w-full text-center tracking-widest text-lg"
+                        maxLength={8}
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    {tgError && (
+                      <div className="bg-discord-red/10 border border-discord-red/30 rounded p-3 text-discord-red text-sm">
+                        {tgError}
+                      </div>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={tgLoading}
+                      className="flex items-center justify-center gap-2 bg-[#229ED9] hover:bg-[#1a8bbf] text-white font-semibold py-2.5 px-4 rounded-md transition-colors text-sm w-full disabled:opacity-50"
+                    >
+                      {tgLoading ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : 'Verify & Log In'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOtpRequestId(null)}
+                      className="text-discord-muted hover:text-discord-text text-xs w-full text-center"
+                    >
+                      Use a different number
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
+          </div>
+
+          <p className="text-center mt-5 text-discord-muted text-sm">
             Need an account?{' '}
             <Link to="/register" className="text-discord-brand hover:underline font-medium">
               Register

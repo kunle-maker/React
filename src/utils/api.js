@@ -1,4 +1,4 @@
-const BASE_URL = 'https://vessel-xbackendzip--ayokunleayodele.replit.app';
+const BASE_URL = 'https://vesselx.onrender.com';
 
 class API {
   static baseURL = BASE_URL;
@@ -572,6 +572,26 @@ class API {
   }
   static async rematchTTT(roomId) {
     return this.request(`/api/games/ttt/${roomId}/rematch`, { method: 'POST' });
+  }
+
+  static async telegramWidgetLogin(telegramUser) {
+    const data = await this.request('/api/auth/telegram/widget', { method: 'POST', body: JSON.stringify(telegramUser) });
+    this.clearCache('/api/');
+    return data;
+  }
+  static async telegramGatewaySend(phoneNumber) {
+    return this.request('/api/auth/telegram/gateway/send', { method: 'POST', body: JSON.stringify({ phone_number: phoneNumber }) });
+  }
+  static async telegramGatewayVerify(requestId, code, phoneNumber) {
+    const data = await this.request('/api/auth/telegram/gateway/verify', { method: 'POST', body: JSON.stringify({ request_id: requestId, code, phone_number: phoneNumber }) });
+    this.clearCache('/api/');
+    return data;
+  }
+  static async telegramLink(telegramUser) {
+    return this.request('/api/auth/telegram/link', { method: 'POST', body: JSON.stringify(telegramUser) });
+  }
+  static async telegramUnlink() {
+    return this.request('/api/auth/telegram/unlink', { method: 'DELETE' });
   }
 
   static getMediaUrl(url) {
