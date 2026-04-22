@@ -74,6 +74,8 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  const [deliveredVia, setDeliveredVia] = useState('email');
+  const [usesTelegram, setUsesTelegram] = useState(false);
 
   const [resetMode, setResetMode] = useState(null);
   const [code, setCode] = useState('');
@@ -87,11 +89,19 @@ export default function ForgotPassword() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setUsesTelegram(false);
     try {
-      await API.forgotPassword(email);
+      const data = await API.forgotPassword(email);
+      setDeliveredVia(data?.deliveredVia || 'email');
       setSent(true);
     } catch (err) {
-      setError(err.message || 'Failed to send reset email.');
+      const raw = err?.raw || {};
+      if (raw.usesTelegramLogin || /telegram login/i.test(err.message || '')) {
+        setUsesTelegram(true);
+        setError(err.message || 'This account uses Telegram login. Please use the Telegram button to sign in.');
+      } else {
+        setError(err.message || 'Failed to send reset code.');
+      }
     } finally {
       setLoading(false);
     }
@@ -201,6 +211,17 @@ export default function ForgotPassword() {
   }
 
   if (sent) {
+    const channelLabel = deliveredVia === 'telegram_bot'
+      ? 'Telegram chat with the bot'
+      : deliveredVia === 'telegram_gateway'
+        ? 'Telegram (via phone)'
+        : 'inbox';
+    const channelHelper = deliveredVia === 'telegram_bot'
+      ? 'Open your Telegram chat with the bot to find the 6-digit code.'
+      : deliveredVia === 'telegram_gateway'
+        ? 'Telegram sent the 6-digit code as a verification message.'
+        : 'We sent a reset link and a 6-digit code to your email. Check your spam folder too.';
+
     return (
       <div className="min-h-screen bg-discord-darker flex items-center justify-center p-4">
         <div className="bg-discord-sidebar rounded-2xl p-8 w-full max-w-md shadow-2xl animate-fade-in">
@@ -208,28 +229,29 @@ export default function ForgotPassword() {
             <div className="w-14 h-14 rounded-2xl bg-discord-brand/15 flex items-center justify-center mx-auto mb-4">
               <FiMail size={24} className="text-discord-brand" />
             </div>
-            <h2 className="text-2xl font-bold text-discord-text mb-2">Check your inbox</h2>
+            <h2 className="text-2xl font-bold text-discord-text mb-2">Check your {channelLabel}</h2>
             <p className="text-discord-muted text-sm">
-              We sent a reset link and a 6-digit code to <span className="text-discord-text font-semibold">{email}</span>.
-              Check your spam folder too.
+              For <span className="text-discord-text font-semibold">{email}</span> — {channelHelper}
             </p>
           </div>
 
           <div className="space-y-3 mb-6">
             <p className="text-discord-muted text-xs font-bold uppercase tracking-wide text-center mb-4">How would you like to reset?</p>
 
-            <button
-              onClick={() => navigate('/login')}
-              className="w-full flex items-center gap-3 p-4 rounded-xl bg-white/3 border border-white/8 hover:border-discord-brand/40 hover:bg-discord-brand/5 transition-all text-left group"
-            >
-              <div className="w-10 h-10 rounded-xl bg-discord-brand/15 flex items-center justify-center flex-shrink-0 group-hover:bg-discord-brand/25 transition-colors">
-                <FiMail size={18} className="text-discord-brand" />
-              </div>
-              <div>
-                <p className="text-discord-text font-semibold text-sm">I'll click the link in my email</p>
-                <p className="text-discord-muted text-xs">Open the email and click the reset link</p>
-              </div>
-            </button>
+            {deliveredVia === 'email' && (
+              <button
+                onClick={() => navigate('/login')}
+                className="w-full flex items-center gap-3 p-4 rounded-xl bg-white/3 border border-white/8 hover:border-discord-brand/40 hover:bg-discord-brand/5 transition-all text-left group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-discord-brand/15 flex items-center justify-center flex-shrink-0 group-hover:bg-discord-brand/25 transition-colors">
+                  <FiMail size={18} className="text-discord-brand" />
+                </div>
+                <div>
+                  <p className="text-discord-text font-semibold text-sm">I'll click the link in my email</p>
+                  <p className="text-discord-muted text-xs">Open the email and click the reset link</p>
+                </div>
+              </button>
+            )}
 
             <button
               onClick={() => setResetMode('code')}
@@ -262,28 +284,37 @@ export default function ForgotPassword() {
               <VLogo size={48} />
             </div>
             <h1 className="text-2xl font-bold text-discord-text mb-2">Reset your password</h1>
-            <p className="text-discord-muted text-sm">Enter your email and we'll send you a reset link and a 6-digit code.</p>
+            <p className="text-discord-muted text-sm">Enter your email or username — we'll send a 6-digit code through whichever channel you signed up with.</p>
           </div>
 
           <form onSubmit={handleSendEmail} className="space-y-4">
             <div>
               <label className="block text-discord-muted text-xs font-bold uppercase tracking-wide mb-1.5">
-                Email Address
+                Email or Username
               </label>
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="discord-input w-full"
-                placeholder="your@email.com"
+                placeholder="your@email.com or yourusername"
                 required
                 autoFocus
               />
             </div>
 
             {error && (
-              <div className="bg-discord-red/10 border border-discord-red/30 rounded-lg p-3 text-discord-red text-sm">
+              <div className={`${usesTelegram ? 'bg-[#229ED9]/10 border-[#229ED9]/30 text-[#229ED9]' : 'bg-discord-red/10 border-discord-red/30 text-discord-red'} border rounded-lg p-3 text-sm`}>
                 {error}
+                {usesTelegram && (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/login')}
+                    className="block mt-2 underline font-semibold"
+                  >
+                    Go to Telegram login
+                  </button>
+                )}
               </div>
             )}
 

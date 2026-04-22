@@ -592,14 +592,32 @@ export default function Settings({ currentUser, unreadCounts }) {
     navigate('/login');
   };
 
+  const [deleteStep, setDeleteStep] = useState(null);
+  const [deleteCode, setDeleteCode] = useState('');
+  const [deleteChannel, setDeleteChannel] = useState('email');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   const handleDeleteAccount = async () => {
-    const pw = prompt('Enter your password to confirm account deletion:');
-    if (!pw) return;
-    if (!confirm('This action is permanent. Delete your account?')) return;
+    if (!confirm('This action is permanent. We\'ll send you a code to confirm.')) return;
+    setDeleteLoading(true);
     try {
-      await API.deleteAccount(pw);
+      const data = await API.requestAccountDeletion();
+      setDeleteChannel(data?.deliveredVia || 'email');
+      setDeleteStep('confirm');
+    } catch (err) {
+      showToast(err.message || 'Something went wrong', { type: 'error' });
+    } finally { setDeleteLoading(false); }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteCode.length < 4) { showToast('Enter the confirmation code', { type: 'error' }); return; }
+    setDeleteLoading(true);
+    try {
+      await API.deleteAccount(deleteCode);
       handleLogout();
-    } catch (err) { showToast(err.message || 'Something went wrong', { type: 'error' }); }
+    } catch (err) {
+      showToast(err.message || 'Invalid or expired code', { type: 'error' });
+    } finally { setDeleteLoading(false); }
   };
 
   const handleTogglePrivacy = async () => {
@@ -865,6 +883,53 @@ export default function Settings({ currentUser, unreadCounts }) {
 
         </div>
       </div>
+
+      {deleteStep === 'confirm' && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-discord-sidebar border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="w-12 h-12 rounded-full bg-discord-red/15 flex items-center justify-center mx-auto mb-4">
+              <FiTrash2 size={22} className="text-discord-red" />
+            </div>
+            <h3 className="text-lg font-bold text-discord-text text-center mb-1">Confirm Account Deletion</h3>
+            <p className="text-discord-muted text-sm text-center mb-4">
+              We sent a confirmation code to your{' '}
+              <span className="text-discord-text font-semibold">
+                {deleteChannel === 'telegram_bot' ? 'Telegram chat with the bot' :
+                 deleteChannel === 'telegram_gateway' ? 'Telegram (via phone)' :
+                 'email inbox'}
+              </span>. Enter it below to permanently delete your account.
+            </p>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={8}
+              value={deleteCode}
+              onChange={e => setDeleteCode(e.target.value.replace(/\D/g, ''))}
+              placeholder="6-digit code"
+              className="discord-input w-full text-center text-lg tracking-widest mb-4"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setDeleteStep(null); setDeleteCode(''); }}
+                disabled={deleteLoading}
+                className="flex-1 py-2.5 rounded-md bg-discord-hover hover:bg-discord-hover/70 text-discord-text font-semibold text-sm disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleteLoading || deleteCode.length < 4}
+                className="flex-1 py-2.5 rounded-md bg-discord-red hover:bg-discord-red/80 text-white font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deleteLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : 'Delete Forever'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

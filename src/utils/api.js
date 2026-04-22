@@ -29,7 +29,12 @@ class API {
         const res = await fetch(`${this.baseURL}${endpoint}`, { ...options, headers });
         const ct = res.headers.get('content-type');
         const data = ct?.includes('application/json') ? await res.json() : { message: await res.text() };
-        if (!res.ok) throw new Error(data.error || data.message || 'Request failed');
+        if (!res.ok) {
+          const err = new Error(data.error || data.message || 'Request failed');
+          err.raw = data;
+          err.status = res.status;
+          throw err;
+        }
         if (!options.method || options.method === 'GET') {
           this.cache.set(cacheKey, { data, timestamp: Date.now() });
         }
@@ -64,8 +69,10 @@ class API {
   static async resendVerification(email) {
     return this.request('/api/resend-verification', { method: 'POST', body: JSON.stringify({ email }) });
   }
-  static async forgotPassword(email) {
-    return this.request('/api/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
+  static async forgotPassword(identifier) {
+    const isEmail = /\S+@\S+\.\S+/.test(identifier);
+    const body = isEmail ? { email: identifier } : { username: identifier };
+    return this.request('/api/forgot-password', { method: 'POST', body: JSON.stringify(body) });
   }
   static async resetPassword({ token, code, password }) {
     const body = token ? { token, password } : { code, password };
@@ -115,8 +122,11 @@ class API {
     this.clearCache('/api/users');
     return data;
   }
-  static async deleteAccount(password) {
-    return this.request('/api/account', { method: 'DELETE', body: JSON.stringify({ password }) });
+  static async requestAccountDeletion() {
+    return this.request('/api/account/delete/request', { method: 'POST' });
+  }
+  static async deleteAccount(code) {
+    return this.request('/api/account', { method: 'DELETE', body: JSON.stringify({ code }) });
   }
   static async followUser(username) {
     const data = await this.request(`/api/users/${username}/follow`, { method: 'POST' });
