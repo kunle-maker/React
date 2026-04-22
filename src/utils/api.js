@@ -582,8 +582,10 @@ class API {
   static async telegramGatewaySend(phoneNumber) {
     return this.request('/api/auth/telegram/gateway/send', { method: 'POST', body: JSON.stringify({ phone_number: phoneNumber, code_length: 6 }) });
   }
-  static async telegramGatewayVerify(requestId, code, phoneNumber) {
-    const data = await this.request('/api/auth/telegram/gateway/verify', { method: 'POST', body: JSON.stringify({ request_id: requestId, code, phone_number: phoneNumber }) });
+  static async telegramGatewayVerify(requestId, code, phoneNumber, telegramId) {
+    const body = { request_id: requestId, code, phone_number: phoneNumber };
+    if (telegramId) body.telegram_id = telegramId;
+    const data = await this.request('/api/auth/telegram/gateway/verify', { method: 'POST', body: JSON.stringify(body) });
     this.clearCache('/api/');
     return data;
   }

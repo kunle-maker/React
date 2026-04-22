@@ -47,6 +47,7 @@ export default function Login() {
   const [telegramMode, setTelegramMode] = useState(null);
   const [phone, setPhone] = useState('');
   const [otpRequestId, setOtpRequestId] = useState(null);
+  const [otpTelegramId, setOtpTelegramId] = useState(null);
   const [otp, setOtp] = useState('');
   const [tgLoading, setTgLoading] = useState(false);
   const [tgError, setTgError] = useState('');
@@ -93,6 +94,7 @@ export default function Login() {
     try {
       const data = await API.telegramGatewaySend(phone);
       setOtpRequestId(data.request_id);
+      setOtpTelegramId(data.telegram_id || null);
     } catch (err) {
       setTgError(err.message || 'Failed to send code');
     } finally { setTgLoading(false); }
@@ -103,7 +105,7 @@ export default function Login() {
     setTgError('');
     setTgLoading(true);
     try {
-      const data = await API.telegramGatewayVerify(otpRequestId, otp, phone);
+      const data = await API.telegramGatewayVerify(otpRequestId, otp, phone, otpTelegramId);
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       window.dispatchEvent(new Event('authChange'));
@@ -257,7 +259,7 @@ export default function Login() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-discord-muted text-xs font-semibold uppercase tracking-wide">Phone OTP via Telegram</span>
-                  <button onClick={() => { setTelegramMode(null); setTgError(''); setOtpRequestId(null); }} className="text-discord-muted hover:text-discord-text text-xs">Cancel</button>
+                  <button onClick={() => { setTelegramMode(null); setTgError(''); setOtpRequestId(null); setOtpTelegramId(null); }} className="text-discord-muted hover:text-discord-text text-xs">Cancel</button>
                 </div>
                 {!otpRequestId ? (
                   <form onSubmit={handleSendOTP} className="space-y-3">
