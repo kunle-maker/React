@@ -1,4 +1,4 @@
-const BASE_URL = 'https://vesselx.onrender.com';
+const BASE_URL = 'https://vesselx-0r0g.onrender.com';
 
 class API {
   static baseURL = BASE_URL;
