@@ -15,6 +15,7 @@ import { VerifiedBadge, SupaBadge } from '../components/UserBadge';
 import API from '../utils/api';
 import socket from '../utils/socket';
 import { showToast } from '../utils/toast';
+import { playSendPop } from '../utils/soundFx';
 
 async function compressImage(file, maxW = 1280, quality = 0.82) {
   try {
@@ -332,6 +333,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
       createdAt: new Date().toISOString()
     };
     setMessages(prev => [...prev, tempMsg]);
+    playSendPop();
     scrollToBottom();
     try {
       const data = await API.sendGroupMessage(groupId, text, replyToId);

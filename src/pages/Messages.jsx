@@ -14,6 +14,7 @@ import { parseEmojisToHtml } from '../utils/emoji';
 import API from '../utils/api';
 import socket from '../utils/socket';
 import { showToast } from '../utils/toast';
+import { playSendPop } from '../utils/soundFx';
 
 function VideoFullscreenModal({ src, onClose }) {
   const [showMenu, setShowMenu] = useState(false);
@@ -759,6 +760,7 @@ export default function Messages({ currentUser, unreadCounts }) {
         setNewMsg('');
         if (textareaRef.current) textareaRef.current.style.height = '42px';
         setMessages(prev => [...prev, tempMsg]);
+        playSendPop();
         scrollToBottom();
         setConversations(prev => {
           const existing = prev.find(c => c.username === activeConv.username);
@@ -811,6 +813,7 @@ export default function Messages({ currentUser, unreadCounts }) {
       status: 'sent'
     };
     setMessages(prev => [...prev, tempMsg]);
+    playSendPop();
     scrollToBottom();
     setConversations(prev => {
       const existing = prev.find(c => c.username === activeConv.username);
