@@ -10,7 +10,13 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  html {
+    height: 100%;
+    height: 100dvh;
+  }
+
   body {
+    height: 100%;
     margin: 0;
     padding: 0;
     font-family: 'Inter', 'Noto Sans', 'gg sans', Whitney, 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -1125,9 +1131,22 @@ button:focus-visible, a:focus-visible {
   overscroll-behavior-y: contain;
 }
 
+/* #root must fill the full shell so the flex chain works */
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 /* Prevent layout shifts when keyboard opens on mobile */
 .app-shell {
+  height: 100%;
   height: 100dvh;
+}
+
+/* Safe area bottom padding — used by chat input bars */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* Remove 300ms tap delay on buttons/links */

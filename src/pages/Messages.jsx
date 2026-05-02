@@ -1314,7 +1314,7 @@ export default function Messages({ currentUser, unreadCounts }) {
   );
 
   return (
-    <Layout currentUser={currentUser} unreadCounts={unreadCounts}>
+    <Layout currentUser={currentUser} unreadCounts={unreadCounts} contentClass="overflow-hidden">
       <div className="flex h-full relative">
         {(!isMobile || !activeConv) && (
           <div className="w-full md:w-72 border-r border-white/6 h-full flex-shrink-0 bg-discord-sidebar">

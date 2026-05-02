@@ -488,7 +488,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   const items = groupedMessages();
 
   return (
-    <Layout currentUser={currentUser} unreadCounts={unreadCounts}>
+    <Layout currentUser={currentUser} unreadCounts={unreadCounts} contentClass="overflow-hidden">
       <div className="flex flex-col h-full relative bg-discord-bg overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-14 border-b border-discord-hover/50 bg-discord-bg/80 backdrop-blur-xl z-20 flex-shrink-0">

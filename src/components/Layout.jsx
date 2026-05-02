@@ -90,7 +90,7 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
                       (location.pathname.startsWith('/groups/') && !location.pathname.endsWith('/members') && !location.pathname.endsWith('/info'));
 
   return (
-    <div className="app-shell flex h-screen overflow-hidden">
+    <div className="app-shell flex overflow-hidden">
       {/* Desktop Sidebar */}
       <nav 
         className={`desktop-sidebar flex-col items-center py-4 gap-2 discord-sidebar border-r border-discord-darker z-20 ${isSidebarExpanded ? 'expanded px-4' : 'px-2'}`}
