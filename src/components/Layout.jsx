@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { FiHome, FiMessageSquare, FiUsers, FiSearch, FiUser, FiSettings, FiLogOut, FiZap, FiPlusSquare, FiBell, FiX } from 'react-icons/fi';
+import { FiHome, FiMessageSquare, FiUsers, FiSearch, FiUser, FiSettings, FiLogOut, FiZap, FiPlusSquare, FiBell, FiX, FiCode } from 'react-icons/fi';
 import { HiHome, HiChatAlt2, HiUsers, HiBell } from 'react-icons/hi';
 import { MdGames } from 'react-icons/md';
 import Avatar from './Avatar';
@@ -27,6 +27,7 @@ const POPUP_ITEMS = [
   { path: '/notifications', icon: FiBell,      label: 'Notifications', badgeKey: 'notifications', activeIcon: HiBell },
   { path: '/game',         icon: MdGames,     label: 'Games',         badgeKey: null },
   { path: '/ai',            icon: FiZap,       label: 'AI',            badgeKey: null },
+  { path: '/developer',     icon: FiCode,      label: 'Developer',     badgeKey: null },
   { path: '/settings',      icon: FiSettings,  label: 'Settings',      badgeKey: null },
 ];
 

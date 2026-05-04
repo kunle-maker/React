@@ -1,3 +1,5 @@
+import { showToast } from './toast.js';
+
 const BASE_URL = 'https://vesselx-0r0g.onrender.com';
 
 class API {
@@ -30,6 +32,14 @@ class API {
         const ct = res.headers.get('content-type');
         const data = ct?.includes('application/json') ? await res.json() : { message: await res.text() };
         if (!res.ok) {
+          if (res.status === 429) {
+            const retryAfter = res.headers.get('Retry-After');
+            showToast("You're doing that too fast. Please wait a moment.", { type: 'error' });
+            const err = new Error("You're doing that too fast. Please wait a moment.");
+            err.status = 429;
+            if (retryAfter) err.retryAfter = parseInt(retryAfter, 10);
+            throw err;
+          }
           const err = new Error(data.error || data.message || 'Request failed');
           err.raw = data;
           err.status = res.status;
@@ -605,6 +615,100 @@ class API {
   static async telegramUnlink() {
     return this.request('/api/auth/telegram/unlink', { method: 'DELETE' });
   }
+
+  static async getDevProfile() { return this.request('/api/dev/profile'); }
+  static async createDevApp(data) {
+    const res = await this.request('/api/dev/apps', { method: 'POST', body: JSON.stringify(data) });
+    this.clearCache('/api/dev');
+    return res;
+  }
+  static async getDevApps() { return this.request('/api/dev/apps'); }
+  static async getDevApp(appId) { return this.request(`/api/dev/apps/${appId}`); }
+  static async updateDevApp(appId, data) {
+    const res = await this.request(`/api/dev/apps/${appId}`, { method: 'PUT', body: JSON.stringify(data) });
+    this.clearCache('/api/dev');
+    return res;
+  }
+  static async deleteDevApp(appId) {
+    const res = await this.request(`/api/dev/apps/${appId}`, { method: 'DELETE' });
+    this.clearCache('/api/dev');
+    return res;
+  }
+  static async regenerateDevAppKey(appId) {
+    return this.request(`/api/dev/apps/${appId}/regenerate-key`, { method: 'POST' });
+  }
+  static async getDevAppStats(appId) { return this.request(`/api/dev/apps/${appId}/stats`); }
+  static async testDevWebhook(appId) {
+    return this.request(`/api/dev/apps/${appId}/webhook/test`, { method: 'POST' });
+  }
+  static async getDevLeaderboard(limit = 50) {
+    return this.request(`/api/dev/leaderboard?limit=${limit}`);
+  }
+  static async getDevDocs() { return this.request('/api/dev/docs'); }
+
+  static async getBots(params = {}) {
+    const q = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([,v]) => v != null && v !== ''))).toString();
+    return this.request(`/api/bots${q ? '?' + q : ''}`);
+  }
+  static async getMyBots() { return this.request('/api/bots/my'); }
+  static async getBot(username) { return this.request(`/api/bots/${username}`); }
+  static async createBot(data) {
+    const res = await this.request('/api/bots', { method: 'POST', body: JSON.stringify(data) });
+    this.clearCache('/api/bots');
+    return res;
+  }
+  static async updateBot(botId, data) {
+    const res = await this.request(`/api/bots/${botId}`, { method: 'PUT', body: JSON.stringify(data) });
+    this.clearCache('/api/bots');
+    return res;
+  }
+  static async deleteBot(botId) {
+    const res = await this.request(`/api/bots/${botId}`, { method: 'DELETE' });
+    this.clearCache('/api/bots');
+    return res;
+  }
+  static async startBot(username) {
+    const res = await this.request(`/api/bots/${username}/start`, { method: 'POST' });
+    this.clearCache('/api/bots');
+    return res;
+  }
+  static async stopBot(username) {
+    const res = await this.request(`/api/bots/${username}/stop`, { method: 'POST' });
+    this.clearCache('/api/bots');
+    return res;
+  }
+  static async getBotCommands(username) { return this.request(`/api/bots/${username}/commands`); }
+
+  static async getSnippetLanguages() { return this.request('/api/snippets/languages'); }
+  static async createSnippet(data) {
+    const res = await this.request('/api/snippets', { method: 'POST', body: JSON.stringify(data) });
+    this.clearCache('/api/snippets');
+    return res;
+  }
+  static async getSnippets(params = {}) {
+    const q = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([,v]) => v != null && v !== ''))).toString();
+    return this.request(`/api/snippets${q ? '?' + q : ''}`);
+  }
+  static async getMySnippets() { return this.request('/api/snippets/my'); }
+  static async getUserSnippets(username) { return this.request(`/api/snippets/user/${username}`); }
+  static async getSnippet(id) { return this.request(`/api/snippets/${id}`); }
+  static async updateSnippet(id, data) {
+    const res = await this.request(`/api/snippets/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    this.clearCache('/api/snippets');
+    return res;
+  }
+  static async deleteSnippet(id) {
+    const res = await this.request(`/api/snippets/${id}`, { method: 'DELETE' });
+    this.clearCache('/api/snippets');
+    return res;
+  }
+  static async likeSnippet(id) { return this.request(`/api/snippets/${id}/like`, { method: 'POST' }); }
+  static async forkSnippet(id, data = {}) {
+    const res = await this.request(`/api/snippets/${id}/fork`, { method: 'POST', body: JSON.stringify(data) });
+    this.clearCache('/api/snippets');
+    return res;
+  }
+  static async getTrendingSnippetTags() { return this.request('/api/snippets/trending/tags'); }
 
   static getMediaUrl(url) {
     if (!url) return null;

@@ -190,14 +190,32 @@ export default function Feed({ currentUser, unreadCounts }) {
 
         <div className="divide-y divide-discord-hover/20">
           {loading && posts.length === 0 ? (
-            <div className="space-y-8 p-4">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="animate-pulse space-y-4">
+            <div className="divide-y divide-discord-hover/20">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="animate-pulse px-4 py-5 space-y-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-discord-hover" />
-                    <div className="h-4 w-32 bg-discord-hover rounded-full" />
+                    <div className="w-11 h-11 rounded-full bg-discord-hover flex-shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-3.5 bg-discord-hover rounded-full w-28" />
+                      <div className="h-2.5 bg-discord-hover/60 rounded-full w-16" />
+                    </div>
+                    <div className="w-6 h-6 rounded-full bg-discord-hover/50" />
                   </div>
-                  <div className="h-64 w-full bg-discord-hover rounded-3xl" />
+                  {i % 3 !== 2 && <div className="h-3 bg-discord-hover/70 rounded-full w-3/4" />}
+                  <div className={`w-full bg-discord-hover rounded-3xl ${i % 2 === 0 ? 'h-72' : 'h-52'}`} />
+                  {i % 3 === 0 && (
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <div className="h-24 bg-discord-hover/60 rounded-xl" />
+                      <div className="h-24 bg-discord-hover/60 rounded-xl" />
+                      <div className="h-24 bg-discord-hover/60 rounded-xl" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-6 pt-1">
+                    <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-discord-hover/60" /><div className="h-2.5 w-6 bg-discord-hover/60 rounded-full" /></div>
+                    <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-discord-hover/60" /><div className="h-2.5 w-6 bg-discord-hover/60 rounded-full" /></div>
+                    <div className="w-5 h-5 rounded-full bg-discord-hover/60 ml-auto" />
+                    <div className="w-5 h-5 rounded-full bg-discord-hover/60" />
+                  </div>
                 </div>
               ))}
             </div>

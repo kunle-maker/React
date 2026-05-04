@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import API from './utils/api';
 import socket from './utils/socket';
 import UpdatePrompt from './components/UpdatePrompt';
 import DigitalPlatAd from './components/DigitalPlatAd';
+import PWAInstallBanner from './components/PWAInstallBanner';
+import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { I18nProvider, useI18n } from './contexts/I18nContext';
 import Search         from './pages/Search';
 import Notifications  from './pages/Notifications';
@@ -28,6 +31,7 @@ const AdminPanel     = lazy(() => import('./pages/AdminPanel'));
 const ModeratorBot   = lazy(() => import('./pages/ModeratorBot'));
 const Reels          = lazy(() => import('./pages/Reels'));
 const Games          = lazy(() => import('./pages/Games'));
+const Developer      = lazy(() => import('./pages/Developer'));
 
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false }; }
@@ -53,6 +57,16 @@ function PageLoader() {
     <div className="flex items-center justify-center h-screen bg-discord-bg">
       <div className="w-8 h-8 border-2 border-discord-brand border-t-transparent rounded-full animate-spin" />
     </div>
+  );
+}
+
+function GlobalFeatures() {
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  useKeyboardShortcuts({ onShowHelp: () => setShowShortcuts(true) });
+  return (
+    <>
+      {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
+    </>
   );
 }
 
@@ -248,6 +262,8 @@ function AppInner() {
     <HashRouter>
       <UpdatePrompt />
       <DigitalPlatAd currentUser={currentUser} />
+      <PWAInstallBanner />
+      <GlobalFeatures />
       <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
@@ -271,6 +287,7 @@ function AppInner() {
           <Route path="/post/:postId" element={<ProtectedRoute token={token}><FullPostView {...sharedProps} /></ProtectedRoute>} />
           <Route path="/ai" element={<ProtectedRoute token={token}><AIAssistant {...sharedProps} /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute token={token}><Settings {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/developer" element={<ProtectedRoute token={token}><Developer {...sharedProps} /></ProtectedRoute>} />
           <Route path="/vx-admin" element={<ProtectedRoute token={token}><AdminPanel {...sharedProps} /></ProtectedRoute>} />
           <Route path="/mod-bot" element={<ProtectedRoute token={token}><ModeratorBot {...sharedProps} /></ProtectedRoute>} />
           <Route path="/game" element={<ProtectedRoute token={token}><Games {...sharedProps} /></ProtectedRoute>} />

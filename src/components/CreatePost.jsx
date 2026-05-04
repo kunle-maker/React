@@ -1,12 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FiImage, FiX, FiSend, FiAtSign, FiMusic } from 'react-icons/fi';
 import Avatar from './Avatar';
 import API from '../utils/api';
 import ImageCropModal from './ImageCropModal';
 import SoundPicker from './SoundPicker';
+import TwemojiTextarea from './TwemojiTextarea';
+
+const DRAFT_KEY = 'vx_draft_post_caption';
 
 export default function CreatePost({ currentUser, onPost }) {
-  const [caption, setCaption] = useState('');
+  const [caption, setCaption] = useState(() => localStorage.getItem(DRAFT_KEY) || '');
   const [files, setFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -20,6 +23,17 @@ export default function CreatePost({ currentUser, onPost }) {
   const [selectedSound, setSelectedSound] = useState(null);
   const fileRef = useRef();
   const textRef = useRef();
+  const draftTimer = useRef(null);
+
+  const saveDraft = useCallback((val) => {
+    clearTimeout(draftTimer.current);
+    draftTimer.current = setTimeout(() => {
+      if (val.trim()) localStorage.setItem(DRAFT_KEY, val);
+      else localStorage.removeItem(DRAFT_KEY);
+    }, 600);
+  }, []);
+
+  useEffect(() => () => clearTimeout(draftTimer.current), []);
 
   const handleFileChange = (e) => {
     const selected = Array.from(e.target.files).slice(0, 5 - files.length);
@@ -81,6 +95,7 @@ export default function CreatePost({ currentUser, onPost }) {
   const handleCaptionChange = async (e) => {
     const val = e.target.value;
     setCaption(val);
+    saveDraft(val);
     const lastWord = val.split(/\s/).pop();
     if (lastWord.startsWith('@') && lastWord.length > 1) {
       const q = lastWord.slice(1);
@@ -122,6 +137,7 @@ export default function CreatePost({ currentUser, onPost }) {
       setFiles([]);
       setPreviews([]);
       setSelectedSound(null);
+      localStorage.removeItem(DRAFT_KEY);
       onPost?.(data.post || data);
     } catch (err) {
       setError(err.message || 'Failed to create post');
@@ -137,14 +153,15 @@ export default function CreatePost({ currentUser, onPost }) {
         <div className="flex-1 min-w-0">
           <form onSubmit={handleSubmit} className="relative">
             <div className="relative group">
-              <textarea
+              <TwemojiTextarea
                 ref={textRef}
                 value={caption}
                 aria-label="Post caption"
                 onChange={handleCaptionChange}
                 placeholder="What's happening? (use @username to mention)"
                 rows={caption.length > 100 ? 5 : 3}
-                className="w-full bg-transparent text-discord-text placeholder-discord-muted/60 text-[15px] resize-none outline-none border-b border-discord-hover/50 pb-3 focus:border-brand-primary transition-all leading-relaxed"
+                wrapperClassName="w-full"
+                className="w-full bg-transparent text-discord-text text-[15px] resize-none outline-none border-b border-discord-hover/50 pb-3 focus:border-brand-primary transition-all leading-relaxed"
               />
               {showMentionSuggestions && mentionResults.length > 0 && (
                 <div className="absolute top-full left-0 bg-discord-dark border border-discord-hover/50 rounded-2xl shadow-2xl z-20 min-w-[240px] max-h-56 overflow-y-auto glass-card animate-slide-up py-2">

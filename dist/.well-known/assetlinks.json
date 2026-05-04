@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.qzz.vesselx.twa",
+        "sha256_cert_fingerprints": ["40:59:D3:03:E4:DF:5F:07:A8:94:DA:71:79:AA:7E:AF:AE:37:EC:8A:86:98:51:6D:95:C4:DA:ED:9F:23:AB:40"]
+      }
+    }]

@@ -15,6 +15,17 @@ import API from '../utils/api';
 import socket from '../utils/socket';
 import { showToast } from '../utils/toast';
 import { playSendPop } from '../utils/soundFx';
+import { haptic } from '../utils/haptics';
+import TwemojiTextarea from '../components/TwemojiTextarea';
+
+const MSG_REACTIONS = ['❤️', '😂', '👍', '😮', '😢', '😡', '🔥', '💯'];
+
+function TwemojiEmoji({ emoji, size = 18 }) {
+  try {
+    const cp = [...emoji].map(c => c.codePointAt(0).toString(16)).filter(x => x !== 'fe0f').join('-');
+    return <img src={`https://twemoji.maxcdn.com/v/latest/svg/${cp}.svg`} alt={emoji} width={size} height={size} className="inline-block select-none object-contain align-middle" />;
+  } catch { return <span>{emoji}</span>; }
+}
 
 function VideoFullscreenModal({ src, onClose }) {
   const [showMenu, setShowMenu] = useState(false);
@@ -273,6 +284,14 @@ function dataURLToBlob(dataURL) {
 
 function MessageContent({ msg, onOpenImage }) {
   const text = msg.text || '';
+
+  if (msg.type === 'system') {
+    return (
+      <div className="flex justify-center my-1">
+        <span className="text-xs text-discord-muted bg-white/4 border border-white/8 px-3 py-1 rounded-full italic">{msg.text || msg.formattedText || ''}</span>
+      </div>
+    );
+  }
 
   if ((msg.type === 'image' || msg.type === 'video' || msg.type === 'audio' || msg.type === 'file') && msg.mediaUrl) {
     if (msg.type === 'video') {
@@ -560,7 +579,7 @@ export default function Messages({ currentUser, unreadCounts }) {
   }, [activeConv]);
 
   useEffect(() => {
-    const handleClickOutside = () => { setContextMenu(null); setConvMenu(null); };
+    const handleClickOutside = () => { setContextMenu(null); setConvMenu(null); setActiveReactionPicker(null); };
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
@@ -581,6 +600,36 @@ export default function Messages({ currentUser, unreadCounts }) {
       window.removeEventListener('messageUnsent', onUnsent);
     };
   }, []);
+
+  const [activeReactionPicker, setActiveReactionPicker] = useState(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      const { messageId, reactions } = e.detail;
+      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, reactions } : m));
+    };
+    window.addEventListener('messageReactionUpdated', handler);
+    return () => window.removeEventListener('messageReactionUpdated', handler);
+  }, []);
+
+  const handleReact = async (msg, emoji) => {
+    setActiveReactionPicker(null);
+    haptic('light');
+    const myId = currentUser?._id || currentUser?.id;
+    const existing = msg.reactions || [];
+    const myEntry = existing.find(r => r.userId === myId || r.userId?._id === myId);
+    const removing = myEntry?.emoji === emoji;
+    let updated;
+    if (removing) {
+      updated = existing.filter(r => r.userId !== myId && r.userId?._id !== myId);
+    } else if (myEntry) {
+      updated = existing.map(r => (r.userId === myId || r.userId?._id === myId) ? { ...r, emoji } : r);
+    } else {
+      updated = [...existing, { userId: myId, emoji, reactedAt: new Date().toISOString() }];
+    }
+    setMessages(prev => prev.map(m => m._id === msg._id ? { ...m, reactions: updated } : m));
+    try { await API.reactToDM(msg._id, emoji); } catch {}
+  };
 
   const handleEditSave = async (messageId) => {
     if (!editText.trim()) return;
@@ -623,6 +672,15 @@ export default function Messages({ currentUser, unreadCounts }) {
       const raw = Array.isArray(data) ? data : [];
       const normalized = raw.map(c => {
         if (c.user) {
+          const lm = c.lastMessage;
+          const preview = lm
+            ? (lm.isDeleted ? 'This message was deleted'
+              : lm.type === 'image' ? '📷 Photo'
+              : lm.type === 'video' ? '🎥 Video'
+              : lm.type === 'audio' ? '🎵 Voice message'
+              : lm.type === 'file' ? `📎 ${lm.fileName || 'File'}`
+              : getMessagePreview(lm.text || lm))
+            : '';
           return {
             userId: c.user._id,
             username: c.user.username,
@@ -631,10 +689,11 @@ export default function Messages({ currentUser, unreadCounts }) {
             isOnline: c.user.isOnline,
             isSupa: c.user.isSupa,
             isVerified: c.user.isVerified,
-            lastMessage: getMessagePreview(c.lastMessage || ''),
-            lastMessageTime: c.lastMessage?.createdAt || null,
+            isBot: c.user.isBot || false,
+            lastMessage: preview,
+            lastMessageTime: lm?.createdAt || null,
             unreadCount: c.unreadCount || 0,
-            isMine: c.lastMessage?.isMine || false,
+            isMine: lm?.isMine || false,
           };
         }
         return c;
@@ -675,16 +734,23 @@ export default function Messages({ currentUser, unreadCounts }) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
+    const MAX = 100 * 1024 * 1024;
+    if (file.size > MAX) {
+      showToast('File too large. Maximum size is 100 MB.', { type: 'error' });
+      return;
+    }
     if (file.type.startsWith('image/')) {
       const compressed = await compressImage(file);
       setPendingImageFile(file);
-      setMediaAttachment({
-        type: 'image',
-        dataUrl: compressed,
-        filename: file.name || 'image.jpg',
-        mimeType: 'image/jpeg',
-        size: file.size,
-      });
+      setMediaAttachment({ type: 'image', dataUrl: compressed, filename: file.name || 'image.jpg', mimeType: 'image/jpeg', size: file.size });
+    } else if (file.type.startsWith('video/')) {
+      setMediaAttachment({ type: 'video', file, filename: file.name, mimeType: file.type, size: file.size });
+    } else if (file.type.startsWith('audio/')) {
+      const reader = new FileReader();
+      reader.onload = ev => setMediaAttachment({ type: 'audio', dataUrl: ev.target.result, file, filename: file.name, mimeType: file.type, size: file.size });
+      reader.readAsDataURL(file);
+    } else {
+      setMediaAttachment({ type: 'file', file, filename: file.name, mimeType: file.type, size: file.size });
     }
   };
 
@@ -783,26 +849,46 @@ export default function Messages({ currentUser, unreadCounts }) {
     if (textareaRef.current) { textareaRef.current.style.height = '42px'; }
 
     if (mediaAttachment && mediaAttachment.type !== 'image') {
-      if (mediaAttachment.type === 'audio') {
-        text = `[vx:audio:${mediaAttachment.dataUrl}]${text ? '\n' + text : ''}`;
-      } else if (mediaAttachment.type === 'video') {
-        try {
-          const formData = new FormData();
-          if (mediaAttachment.file) {
-            formData.append('file', mediaAttachment.file, mediaAttachment.filename);
-          } else {
-            const blob = dataURLToBlob(mediaAttachment.dataUrl);
-            formData.append('file', blob, mediaAttachment.filename || 'video.mp4');
-          }
-          const uploadData = await API.uploadMessageMedia(formData);
-          text = `[vx:video:${uploadData.url}]${text ? '\n' + text : ''}`;
-        } catch {
-          text = `[vx:video:${mediaAttachment.dataUrl}]${text ? '\n' + text : ''}`;
-        }
-      } else if (mediaAttachment.type === 'file') {
-        text = `[vx:file:name=${mediaAttachment.filename}|size=${mediaAttachment.size}|type=${mediaAttachment.mimeType}]${text ? '\n' + text : ''}`;
-      }
+      const att = mediaAttachment;
       setMediaAttachment(null);
+      const myId2 = currentUser?._id || currentUser?.id;
+      try {
+        const formData = new FormData();
+        if (att.file) {
+          formData.append('file', att.file, att.filename);
+        } else if (att.dataUrl) {
+          const blob = dataURLToBlob(att.dataUrl);
+          formData.append('file', blob, att.filename || `${att.type}.webm`);
+        } else { throw new Error('No file data'); }
+        const uploadData = await API.uploadMessageMedia(formData);
+        const msgType = uploadData.messageType || att.type;
+        const tempMsg2 = {
+          _id: Date.now(), type: msgType, mediaUrl: uploadData.url, mediaType: uploadData.mediaType,
+          fileName: uploadData.fileName || att.filename, fileSize: uploadData.fileSize || att.size,
+          text: text || '', senderId: myId2, createdAt: new Date().toISOString(), status: 'sent',
+        };
+        setMessages(prev => [...prev, tempMsg2]);
+        playSendPop();
+        scrollToBottom();
+        const preview2 = msgType === 'video' ? '🎥 Video' : msgType === 'audio' ? '🎵 Voice message' : `📎 ${uploadData.fileName || att.filename}`;
+        setConversations(prev => {
+          const existing = prev.find(c => c.username === activeConv.username);
+          return [{ ...(existing || activeConv), lastMessage: preview2, lastMessageTime: new Date().toISOString(), unreadCount: 0, isMine: true }, ...prev.filter(c => c.username !== activeConv.username)];
+        });
+        await API.sendMessage({ receiverUsername: activeConv.username, type: msgType, mediaUrl: uploadData.url, mediaType: uploadData.mediaType, mediaPublicId: uploadData.publicId, fileName: uploadData.fileName || att.filename, fileSize: uploadData.fileSize || att.size, text: text || '' });
+      } catch {
+        if (att.type === 'audio' && att.dataUrl) {
+          const fallbackText = `[vx:audio:${att.dataUrl}]${text ? '\n' + text : ''}`;
+          const tempMsg2 = { _id: Date.now(), text: fallbackText, senderId: myId2, createdAt: new Date().toISOString(), status: 'sent' };
+          setMessages(prev => [...prev, tempMsg2]);
+          playSendPop();
+          scrollToBottom();
+          try { await API.sendMessage({ receiverUsername: activeConv.username, text: fallbackText }); } catch {}
+        } else {
+          showToast('Upload failed. Please try again.', { type: 'error' });
+        }
+      } finally { setSending(false); }
+      return;
     }
     const myId = currentUser?._id || currentUser?.id;
     const tempMsg = {
@@ -1005,8 +1091,9 @@ export default function Messages({ currentUser, unreadCounts }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-baseline gap-1">
-                    <span className={`font-semibold text-sm truncate ${c.isSupa ? 'supa-chat-name' : 'text-discord-text'}`}>
+                    <span className={`font-semibold text-sm truncate flex items-center gap-1 ${c.isSupa ? 'supa-chat-name' : 'text-discord-text'}`}>
                       {c.name || c.username}
+                      {c.isBot && <span className="text-[9px] font-bold text-discord-brand bg-discord-brand/10 border border-discord-brand/20 px-1 py-0.5 rounded leading-none flex-shrink-0">BOT</span>}
                     </span>
                     <span className="text-discord-muted text-[11px] flex-shrink-0">{formatConvTime(c.lastMessageTime)}</span>
                   </div>
@@ -1064,9 +1151,12 @@ export default function Messages({ currentUser, unreadCounts }) {
                   {activeConv.name}
                 </span>
                 {activeConv.isVerified && <FiCheckCircle size={12} className="text-discord-brand flex-shrink-0" />}
+                {activeConv.isBot && <span className="text-[10px] font-bold text-discord-brand bg-discord-brand/10 border border-discord-brand/20 px-1.5 py-0.5 rounded-md leading-none">⚙️ BOT</span>}
               </div>
               <p className="text-[11px] font-medium leading-none text-discord-muted mt-0.5">
-                {activeConv.isOnline ? (
+                {activeConv.isBot ? (
+                  <span className="text-discord-brand/70">Bot</span>
+                ) : activeConv.isOnline ? (
                   <span className="flex items-center gap-1 text-discord-green">
                     <span className="w-1.5 h-1.5 rounded-full bg-discord-green" /> Online
                   </span>
@@ -1076,20 +1166,24 @@ export default function Messages({ currentUser, unreadCounts }) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button
-            className="w-9 h-9 flex items-center justify-center rounded-full text-discord-muted hover:text-discord-text hover:bg-white/5 transition-all"
-            onClick={() => sendCallInvite(false)}
-            title="Voice Call"
-          >
-            <FiPhone size={19} />
-          </button>
-          <button
-            className="w-9 h-9 flex items-center justify-center rounded-full text-discord-muted hover:text-discord-text hover:bg-white/5 transition-all"
-            onClick={() => sendCallInvite(true)}
-            title="Video Call"
-          >
-            <FiVideo size={19} />
-          </button>
+          {!activeConv.isBot && (
+            <>
+              <button
+                className="w-9 h-9 flex items-center justify-center rounded-full text-discord-muted hover:text-discord-text hover:bg-white/5 transition-all"
+                onClick={() => sendCallInvite(false)}
+                title="Voice Call"
+              >
+                <FiPhone size={19} />
+              </button>
+              <button
+                className="w-9 h-9 flex items-center justify-center rounded-full text-discord-muted hover:text-discord-text hover:bg-white/5 transition-all"
+                onClick={() => sendCallInvite(true)}
+                title="Video Call"
+              >
+                <FiVideo size={19} />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -1186,8 +1280,42 @@ export default function Messages({ currentUser, unreadCounts }) {
                     </div>
                   )}
                 </div>
+                {/* Reaction bubbles */}
+                {msg.reactions?.length > 0 && !msg.unsent && (
+                  <div className="flex flex-wrap items-center gap-1 mt-1">
+                    {Object.entries(msg.reactions.reduce((acc, r) => { acc[r.emoji] = (acc[r.emoji] || 0) + 1; return acc; }, {})).map(([emoji, count]) => {
+                      const myId = currentUser?._id || currentUser?.id;
+                      const mine = msg.reactions.some(r => (r.userId === myId || r.userId?._id === myId) && r.emoji === emoji);
+                      return (
+                        <button key={emoji} onClick={() => handleReact(msg, emoji)} className={`flex items-center text-xs rounded-full px-2 py-0.5 border transition-all active:scale-95 ${mine ? 'bg-discord-brand/20 border-discord-brand/40 text-discord-brand' : 'bg-white/5 border-white/10 text-discord-text hover:border-white/20'}`}>
+                          <TwemojiEmoji emoji={emoji} size={14} /><span className="font-bold ml-0.5">{count}</span>
+                        </button>
+                      );
+                    })}
+                    <button onClick={(e) => { e.stopPropagation(); setActiveReactionPicker(activeReactionPicker === msg._id ? null : msg._id); }} className="flex items-center text-discord-muted hover:text-discord-text text-xs rounded-full px-1.5 py-0.5 border border-transparent hover:border-white/10 hover:bg-white/5 transition-all">
+                      <FiSmile size={12} />
+                    </button>
+                  </div>
+                )}
+                {/* Reaction picker popup */}
+                {activeReactionPicker === msg._id && (
+                  <div className="flex items-center gap-1 bg-discord-dark border border-white/10 rounded-full px-2 py-1.5 shadow-2xl mt-1 w-fit animate-fade-in" onClick={e => e.stopPropagation()}>
+                    {MSG_REACTIONS.map(emoji => (
+                      <button key={emoji} onClick={() => handleReact(msg, emoji)} className="hover:scale-125 transition-transform active:scale-110 p-0.5 flex items-center justify-center"><TwemojiEmoji emoji={emoji} size={20} /></button>
+                    ))}
+                  </div>
+                )}
                 {!msg.unsent && msg.text && !msg.text.startsWith('[vx:') && <LinkPreview text={msg.text} />}
               </div>
+              {/* Reaction trigger on hover */}
+              {!msg.unsent && (
+                <button
+                  className="absolute right-2 top-1 opacity-0 group-hover:opacity-100 transition-opacity bg-discord-dark border border-white/10 rounded-full p-1.5 text-discord-muted hover:text-discord-text hover:bg-discord-hover shadow-sm z-10"
+                  onClick={(e) => { e.stopPropagation(); setActiveReactionPicker(activeReactionPicker === msg._id ? null : msg._id); }}
+                >
+                  <FiSmile size={14} />
+                </button>
+              )}
             </div>
           );
         })}
@@ -1229,14 +1357,29 @@ export default function Messages({ currentUser, unreadCounts }) {
             {/* Media Attachment Preview */}
             {mediaAttachment && (
               <div className="mb-3 p-3 bg-discord-hover/30 rounded-xl border border-discord-hover/50 flex items-center gap-3 animate-fade-in">
-                 {mediaAttachment.type === 'image' && (
-                  <img src={mediaAttachment.dataUrl} className="w-16 h-16 rounded-lg object-cover cursor-pointer" onClick={() => { setPendingImageSrc(mediaAttachment.dataUrl); setShowCropModal(true); }} />
-                 )}
-                 <div className="flex-1 min-w-0">
-                   <p className="text-sm font-bold text-discord-text truncate">{mediaAttachment.filename}</p>
-                   <p className="text-xs text-discord-muted">{(mediaAttachment.size / 1024).toFixed(1)} KB</p>
-                 </div>
-                 <button type="button" onClick={() => setMediaAttachment(null)} className="p-2 text-discord-muted hover:text-discord-red"><FiX size={20} /></button>
+                {mediaAttachment.type === 'image' && (
+                  <img src={mediaAttachment.dataUrl} className="w-16 h-16 rounded-lg object-cover cursor-pointer flex-shrink-0" onClick={() => { setPendingImageSrc(mediaAttachment.dataUrl); setShowCropModal(true); }} />
+                )}
+                {mediaAttachment.type === 'video' && (
+                  <div className="w-16 h-16 rounded-lg bg-black/40 flex items-center justify-center flex-shrink-0 border border-white/10">
+                    <FiPlay size={20} className="text-white/70" />
+                  </div>
+                )}
+                {mediaAttachment.type === 'audio' && (
+                  <div className="w-16 h-16 rounded-lg bg-discord-brand/20 flex items-center justify-center flex-shrink-0 border border-discord-brand/20">
+                    <FiMic size={20} className="text-discord-brand" />
+                  </div>
+                )}
+                {mediaAttachment.type === 'file' && (
+                  <div className="w-16 h-16 rounded-lg bg-white/6 flex items-center justify-center flex-shrink-0 border border-white/10">
+                    <FiFile size={20} className="text-discord-muted" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-discord-text truncate">{mediaAttachment.filename}</p>
+                  <p className="text-xs text-discord-muted capitalize">{mediaAttachment.type} · {(mediaAttachment.size / 1024).toFixed(1)} KB</p>
+                </div>
+                <button type="button" onClick={() => setMediaAttachment(null)} className="p-2 text-discord-muted hover:text-discord-red flex-shrink-0"><FiX size={20} /></button>
               </div>
             )}
 
@@ -1247,16 +1390,17 @@ export default function Messages({ currentUser, unreadCounts }) {
                 onClick={() => fileInputRef.current?.click()}
               >
                 <FiPlusSquare size={22} className="fill-discord-muted/10" />
-                <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileAttach} />
+                <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileAttach} accept="image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv,application/zip,application/x-zip-compressed,application/x-rar-compressed,application/x-7z-compressed,application/gzip" />
               </button>
 
-              <textarea
+              <TwemojiTextarea
                 ref={textareaRef}
                 value={newMsg}
                 onChange={e => { handleTyping(e); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'; }}
                 onFocus={() => setShowEmojiPicker(false)}
                 placeholder={`Message @${activeConv.username}`}
-                className="flex-1 bg-transparent text-[15px] text-discord-text outline-none resize-none py-1 max-h-40 no-scrollbar"
+                wrapperClassName="flex-1 min-w-0"
+                className="w-full bg-transparent text-[15px] text-discord-text outline-none resize-none py-1 max-h-40 no-scrollbar"
                 rows={1}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches) {
