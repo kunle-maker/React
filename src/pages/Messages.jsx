@@ -525,6 +525,14 @@ export default function Messages({ currentUser, unreadCounts }) {
   const recordIntervalRef = useRef(null);
   const isMobile = window.innerWidth < 768;
 
+  const activeConvRef = useRef(null);
+  const isAtBottomRef = useRef(true);
+  const currentUserRef = useRef(currentUser);
+
+  useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
+  useEffect(() => { isAtBottomRef.current = isAtBottom; }, [isAtBottom]);
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+
   useEffect(() => { fetchConversations(); }, []);
 
   useEffect(() => {
@@ -534,14 +542,31 @@ export default function Messages({ currentUser, unreadCounts }) {
   useEffect(() => {
     const handler = (e) => {
       const { sender, message } = e.detail;
-      if (activeConv?.username === sender?.username) {
-        setMessages(prev => [...prev, message]);
-        if (isAtBottom) scrollToBottom();
+      if (!sender || !message) return;
+
+      const myUsername = currentUserRef.current?.username;
+      const conv = activeConvRef.current;
+
+      // Determine the "other party" username — the one who isn't me
+      const otherUsername = sender.username === myUsername
+        ? message.receiverUsername || message.receiver?.username
+        : sender.username;
+
+      if (conv?.username && otherUsername === conv.username) {
+        // Message belongs to the active chat — append (deduplicate by _id)
+        setMessages(prev => {
+          if (prev.some(m => m._id && m._id === message._id)) return prev;
+          return [...prev, message];
+        });
+        if (isAtBottomRef.current) scrollToBottom();
         else setNewMsgCount(c => c + 1);
-        API.markConversationRead(sender.username).catch(() => {});
-      } else {
+        if (sender.username !== myUsername) {
+          API.markConversationRead(conv.username).catch(() => {});
+        }
+      } else if (sender.username !== myUsername) {
+        // Incoming message from someone other than active conv — update sidebar
         setConversations(prev => {
-          const existing = prev.find(c => c.username === sender?.username);
+          const existing = prev.find(c => c.username === sender.username);
           const updated = {
             userId: sender._id,
             username: sender.username,
@@ -550,25 +575,25 @@ export default function Messages({ currentUser, unreadCounts }) {
             isOnline: sender.isOnline,
             isSupa: sender.isSupa,
             isVerified: sender.isVerified,
+            isBot: sender.isBot || existing?.isBot || false,
             lastMessage: getMessagePreview(message),
             lastMessageTime: message.createdAt,
             unreadCount: (existing?.unreadCount || 0) + 1,
           };
-          if (existing) {
-            return [updated, ...prev.filter(c => c.username !== sender?.username)];
-          }
+          if (existing) return [updated, ...prev.filter(c => c.username !== sender.username)];
           return [updated, ...prev];
         });
       }
     };
     window.addEventListener('newMessage', handler);
     return () => window.removeEventListener('newMessage', handler);
-  }, [activeConv, isAtBottom]);
+  }, []);
 
   useEffect(() => {
     const handler = (e) => {
       const { userId } = e.detail;
-      if (activeConv && userId === activeConv.userId) {
+      const conv = activeConvRef.current;
+      if (conv && (userId === conv.userId || userId === conv._id || userId === conv.id)) {
         setIsTyping(true);
         clearTimeout(typingTimeout.current);
         typingTimeout.current = setTimeout(() => setIsTyping(false), 3000);
@@ -576,7 +601,7 @@ export default function Messages({ currentUser, unreadCounts }) {
     };
     window.addEventListener('typingIndicator', handler);
     return () => window.removeEventListener('typingIndicator', handler);
-  }, [activeConv]);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = () => { setContextMenu(null); setConvMenu(null); setActiveReactionPicker(null); };
