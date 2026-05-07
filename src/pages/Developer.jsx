@@ -312,8 +312,9 @@ function BotStoreTab({ currentUser }) {
           {BOT_CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
         </select>
         <select value={sort} onChange={e => setSort(e.target.value)} className="discord-input text-sm py-2 pr-8">
-          <option value="popular">Popular</option>
+          <option value="popular">Popular (MAU)</option>
           <option value="newest">Newest</option>
+          <option value="users">All-time Users</option>
         </select>
       </div>
 
@@ -342,11 +343,16 @@ function BotStoreTab({ currentUser }) {
                   <p className="text-discord-muted text-xs">@{bot.username}</p>
                 </div>
               </div>
-              {bot.bio && <p className="text-discord-muted text-xs leading-relaxed line-clamp-2">{bot.bio}</p>}
+              {(bot.shortDescription || bot.bio) && <p className="text-discord-muted text-xs leading-relaxed line-clamp-2">{bot.shortDescription || bot.bio}</p>}
               <div className="flex items-center justify-between gap-2 mt-auto pt-1">
                 <div className="flex items-center gap-3 text-xs text-discord-muted">
                   {bot.category && <span className="capitalize">{bot.category}</span>}
-                  {bot.subscriberCount != null && <span className="flex items-center gap-1"><FiUsers size={10} />{bot.subscriberCount}</span>}
+                  {bot.monthlyActiveUsers != null && (
+                    <span className="flex items-center gap-1" title="Monthly active users"><FiUsers size={10} />{bot.monthlyActiveUsers} MAU</span>
+                  )}
+                  {bot.totalUsers != null && bot.monthlyActiveUsers == null && (
+                    <span className="flex items-center gap-1"><FiUsers size={10} />{bot.totalUsers}</span>
+                  )}
                 </div>
                 <button onClick={() => handleStart(bot)} disabled={starting[bot._id]} className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-discord-brand hover:bg-discord-brand/90 text-white transition-all active:scale-95 disabled:opacity-60">
                   {starting[bot._id] ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiPlay size={11} />}
@@ -365,7 +371,7 @@ function MyBotsTab({ onRefresh }) {
   const [myBots, setMyBots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ username: '', name: '', bio: '', category: 'utility', welcomeMessage: '', tags: '', isPublic: true });
+  const [form, setForm] = useState({ username: '', name: '', bio: '', shortDescription: '', category: 'utility', welcomeMessage: '', tags: '', isPublic: true });
   const [creating, setCreating] = useState(false);
   const [newBotKey, setNewBotKey] = useState(null);
   const [deleting, setDeleting] = useState(null);
@@ -391,7 +397,7 @@ function MyBotsTab({ onRefresh }) {
         tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
       });
       setNewBotKey({ username: data.bot?.username, key: data.apiKey });
-      setForm({ username: '', name: '', bio: '', category: 'utility', welcomeMessage: '', tags: '', isPublic: true });
+      setForm({ username: '', name: '', bio: '', shortDescription: '', category: 'utility', welcomeMessage: '', tags: '', isPublic: true });
       setShowCreate(false);
       fetchMyBots();
       onRefresh();
@@ -441,6 +447,10 @@ function MyBotsTab({ onRefresh }) {
           </div>
           <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Display name *" className="discord-input w-full" />
           <textarea value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} placeholder="Bio / description" className="discord-input w-full resize-none" rows={2} />
+          <div>
+            <input value={form.shortDescription} onChange={e => setForm(f => ({ ...f, shortDescription: e.target.value }))} placeholder="Short description (shown in bot store cards)" className="discord-input w-full" maxLength={120} />
+            <p className="text-discord-muted text-[11px] mt-1">Max 120 chars · shown in search results</p>
+          </div>
           <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="discord-input w-full">
             {BOT_CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
           </select>
@@ -487,9 +497,14 @@ function MyBotsTab({ onRefresh }) {
               </button>
             </div>
           </div>
-          {bot.subscriberCount != null && (
-            <div className="mt-2 flex items-center gap-1 text-xs text-discord-muted">
-              <FiUsers size={11} /> {bot.subscriberCount} subscriber{bot.subscriberCount !== 1 ? 's' : ''}
+          {(bot.monthlyActiveUsers != null || bot.totalUsers != null) && (
+            <div className="mt-2 flex items-center gap-3 text-xs text-discord-muted">
+              {bot.monthlyActiveUsers != null && (
+                <span className="flex items-center gap-1"><FiUsers size={11} /> {bot.monthlyActiveUsers} MAU</span>
+              )}
+              {bot.totalUsers != null && (
+                <span className="flex items-center gap-1"><FiUsers size={11} /> {bot.totalUsers} total</span>
+              )}
             </div>
           )}
         </div>

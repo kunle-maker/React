@@ -22,6 +22,20 @@ function InlineToken({ token, onMentionClick, checkingUser }) {
       </span>
     );
   }
+  if (token.type === 'slash_command') {
+    return (
+      <span
+        className="text-blue-400 cursor-pointer hover:text-blue-300 hover:underline font-semibold"
+        onClick={e => {
+          e.stopPropagation();
+          window.dispatchEvent(new CustomEvent('slashCommandInsert', { detail: { command: token.value } }));
+        }}
+        title={`Click to insert ${token.value}`}
+      >
+        {token.value}
+      </span>
+    );
+  }
   if (token.type === 'hashtag') {
     return null;
   }
@@ -50,7 +64,7 @@ function parseInlineTokens(text) {
   const parts = [];
   let lastIndex = 0;
   const emailRegex = /[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/;
-  const tokenRegex = /([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}|@\w+|#\w+|https?:\/\/[^\s]+)/g;
+  const tokenRegex = /([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}|@\w+|#\w+|https?:\/\/[^\s]+|\/\w+)/g;
   let match;
   while ((match = tokenRegex.exec(text)) !== null) {
     if (match.index > lastIndex) parts.push({ type: 'text', value: text.slice(lastIndex, match.index) });
@@ -61,6 +75,8 @@ function parseInlineTokens(text) {
       parts.push({ type: 'mention', value: val });
     } else if (val.startsWith('#')) {
       parts.push({ type: 'hashtag', value: val });
+    } else if (val.startsWith('/')) {
+      parts.push({ type: 'slash_command', value: val });
     } else {
       parts.push({ type: 'url', value: val });
     }

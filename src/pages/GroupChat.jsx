@@ -181,6 +181,22 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   }, []);
 
   useEffect(() => {
+    const handler = (e) => {
+      const { command } = e.detail;
+      setNewMsg(command);
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.style.height = 'auto';
+          textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + 'px';
+        }
+      }, 50);
+    };
+    window.addEventListener('slashCommandInsert', handler);
+    return () => window.removeEventListener('slashCommandInsert', handler);
+  }, []);
+
+  useEffect(() => {
     const onEdited = (e) => {
       const { messageId, text } = e.detail;
       setMessages(prev => prev.map(m => m._id === messageId ? { ...m, text, edited: true } : m));

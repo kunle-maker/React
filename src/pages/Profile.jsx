@@ -505,23 +505,41 @@ export default function Profile({ currentUser, unreadCounts }) {
                   <FiUserPlus size={12} /> {followRequests.length} follow request{followRequests.length !== 1 ? 's' : ''}
                 </button>
               )}
-              {/* Followers / Following / Friends */}
-              <div className="flex items-center gap-4 mt-2 flex-wrap">
-                <button className="text-discord-muted text-sm hover:underline" onClick={loadFollowers}>
-                  <span className="text-discord-text font-bold">{user.followers?.length || 0}</span> Followers
-                </button>
-                <button className="text-discord-muted text-sm hover:underline" onClick={loadFollowing}>
-                  <span className="text-discord-text font-bold">{user.following?.length || 0}</span> Following
-                </button>
-                {friends.length > 0 && (
-                  <button className="text-discord-muted text-sm hover:underline" onClick={() => setTab('friends')}>
-                    <span className="text-discord-text font-bold">{friends.length}</span> Friends
+              {/* Followers / Following / Friends (hidden for bots) */}
+              {user.isBot ? (
+                <div className="flex items-center gap-4 mt-2 flex-wrap">
+                  {user.monthlyActiveUsers != null && (
+                    <span className="text-discord-muted text-sm">
+                      <span className="text-discord-text font-bold">{user.monthlyActiveUsers}</span> Monthly active
+                    </span>
+                  )}
+                  {user.totalUsers != null && (
+                    <span className="text-discord-muted text-sm">
+                      <span className="text-discord-text font-bold">{user.totalUsers}</span> Total users
+                    </span>
+                  )}
+                  <span className="text-discord-muted text-xs">
+                    Joined {user.createdAt ? formatDistanceToNow(new Date(user.createdAt), { addSuffix: true }) : ''}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-4 mt-2 flex-wrap">
+                  <button className="text-discord-muted text-sm hover:underline" onClick={loadFollowers}>
+                    <span className="text-discord-text font-bold">{user.followers?.length || 0}</span> Followers
                   </button>
-                )}
-                <span className="text-discord-muted text-xs">
-                  Joined {user.createdAt ? formatDistanceToNow(new Date(user.createdAt), { addSuffix: true }) : ''}
-                </span>
-              </div>
+                  <button className="text-discord-muted text-sm hover:underline" onClick={loadFollowing}>
+                    <span className="text-discord-text font-bold">{user.following?.length || 0}</span> Following
+                  </button>
+                  {friends.length > 0 && (
+                    <button className="text-discord-muted text-sm hover:underline" onClick={() => setTab('friends')}>
+                      <span className="text-discord-text font-bold">{friends.length}</span> Friends
+                    </button>
+                  )}
+                  <span className="text-discord-muted text-xs">
+                    Joined {user.createdAt ? formatDistanceToNow(new Date(user.createdAt), { addSuffix: true }) : ''}
+                  </span>
+                </div>
+              )}
               {/* Streak + Level badges */}
               {(streak || user.level != null) && (
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -558,6 +576,14 @@ export default function Profile({ currentUser, unreadCounts }) {
                     <FiSettings size={16} />
                   </button>
                 </>
+              ) : user.isBot ? (
+                <button
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold text-white transition-all active:scale-95 shadow-sm whitespace-nowrap"
+                  style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #5865f2 100%)' }}
+                  onClick={() => navigate(`/messages/chat/${username}`)}
+                >
+                  <FiMessageSquare size={13} /> Open Chat
+                </button>
               ) : (
                 <>
                   {!blocked && (

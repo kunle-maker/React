@@ -585,6 +585,22 @@ export default function Messages({ currentUser, unreadCounts }) {
   }, []);
 
   useEffect(() => {
+    const handler = (e) => {
+      const { command } = e.detail;
+      setNewMsg(command);
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.style.height = 'auto';
+          textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + 'px';
+        }
+      }, 50);
+    };
+    window.addEventListener('slashCommandInsert', handler);
+    return () => window.removeEventListener('slashCommandInsert', handler);
+  }, []);
+
+  useEffect(() => {
     const onEdited = (e) => {
       const { messageId, text } = e.detail;
       setMessages(prev => prev.map(m => m._id === messageId ? { ...m, text, edited: true } : m));
@@ -714,7 +730,9 @@ export default function Messages({ currentUser, unreadCounts }) {
         API.getConversation(uname),
         API.getBlockedUsers().catch(() => []),
       ]);
-      setActiveConv(data.targetUser);
+      const convInfo = conversations.find(c => c.username === uname);
+      const enrichedUser = { ...data.targetUser, isBot: data.targetUser?.isBot || convInfo?.isBot || false };
+      setActiveConv(enrichedUser);
       setMessages(data.messages || []);
       const blockedList = Array.isArray(blocked) ? blocked : [];
       const targetUser = data.targetUser;
@@ -925,6 +943,21 @@ export default function Messages({ currentUser, unreadCounts }) {
       }
     }
     finally { setSending(false); }
+  };
+
+  const sendStartCommand = async () => {
+    const text = '/start';
+    const myId = currentUser?._id || currentUser?.id;
+    const tempMsg = { _id: Date.now(), text, senderId: myId, createdAt: new Date().toISOString(), status: 'sent' };
+    setMessages(prev => [...prev, tempMsg]);
+    playSendPop();
+    scrollToBottom();
+    setConversations(prev => {
+      const existing = prev.find(c => c.username === activeConv.username);
+      const updated = { ...(existing || activeConv), lastMessage: text, lastMessageTime: new Date().toISOString(), unreadCount: 0, isMine: true };
+      return [updated, ...prev.filter(c => c.username !== activeConv.username)];
+    });
+    try { await API.sendMessage({ receiverUsername: activeConv.username, text }); } catch {}
   };
 
   const handleTyping = (e) => {
@@ -1207,14 +1240,36 @@ export default function Messages({ currentUser, unreadCounts }) {
             ))}
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-start justify-end h-full px-2 pb-8">
-            <div className="w-20 h-20 rounded-full bg-discord-brand/10 flex items-center justify-center mb-4">
-              <Avatar user={activeConv} size={80} supaRing />
+          activeConv.isBot ? (
+            <div className="flex flex-col items-center justify-center h-full px-6 gap-5">
+              <Avatar user={activeConv} size={88} supaRing />
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-discord-text">{activeConv.name}</h2>
+                <p className="text-[13px] text-discord-brand font-semibold mt-1">⚙️ Bot</p>
+                {activeConv.shortDescription && (
+                  <p className="text-discord-muted text-sm mt-2 max-w-xs leading-relaxed">{activeConv.shortDescription}</p>
+                )}
+                {!activeConv.shortDescription && activeConv.bio && (
+                  <p className="text-discord-muted text-sm mt-2 max-w-xs leading-relaxed">{activeConv.bio}</p>
+                )}
+              </div>
+              <button
+                className="px-10 py-3 bg-discord-brand hover:bg-discord-brand/90 text-white rounded-2xl font-bold text-[15px] transition-all active:scale-95 shadow-lg shadow-discord-brand/20"
+                onClick={sendStartCommand}
+              >
+                Start
+              </button>
             </div>
-            <h2 className="text-3xl font-bold text-discord-text mb-2">Welcome to the beginning of your direct message history with @{activeConv.username}</h2>
-            <p className="text-discord-muted mb-6">This is the start of your direct message history with {activeConv.name}.</p>
-            <div className="h-px w-full bg-discord-hover/50 mb-4" />
-          </div>
+          ) : (
+            <div className="flex flex-col items-start justify-end h-full px-2 pb-8">
+              <div className="w-20 h-20 rounded-full bg-discord-brand/10 flex items-center justify-center mb-4">
+                <Avatar user={activeConv} size={80} supaRing />
+              </div>
+              <h2 className="text-3xl font-bold text-discord-text mb-2">Welcome to the beginning of your direct message history with @{activeConv.username}</h2>
+              <p className="text-discord-muted mb-6">This is the start of your direct message history with {activeConv.name}.</p>
+              <div className="h-px w-full bg-discord-hover/50 mb-4" />
+            </div>
+          )
         ) : items.map(item => {
           if (item.type === 'date') return <DateSeparator key={item.key} date={item.date} />;
           const { msg, mine, grouped } = item;
