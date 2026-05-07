@@ -127,10 +127,13 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const swipeTouchRef = useRef({ x: 0, y: 0, msgId: null, direction: null });
+  const isAtBottomRef = useRef(true);
   const myId = currentUser?._id || currentUser?.id;
   const isAdmin = group?.admin?._id === myId || group?.admin === myId;
   const isChannel = group?.isChannel === true;
   const canPost = !isChannel || isAdmin;
+
+  useEffect(() => { isAtBottomRef.current = isAtBottom; }, [isAtBottom]);
 
   useEffect(() => {
     fetchGroup();
@@ -154,13 +157,13 @@ export default function GroupChat({ currentUser, unreadCounts }) {
           const filtered = prev.filter(m => typeof m._id !== 'number');
           return [...filtered, message];
         });
-        if (isAtBottom) scrollToBottom();
+        if (isAtBottomRef.current) scrollToBottom();
         else setNewMsgCount(c => c + 1);
       }
     };
     window.addEventListener('newGroupMessage', handler);
     return () => window.removeEventListener('newGroupMessage', handler);
-  }, [groupId, isAtBottom]);
+  }, [groupId]);
 
   useEffect(() => {
     const handler = (e) => {

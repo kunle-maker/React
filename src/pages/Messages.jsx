@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiSend, FiArrowLeft, FiMessageSquare, FiSearch, FiCheck, FiCheckCircle, FiTrash2, FiCopy, FiX, FiMoreHorizontal, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiPlay, FiShare2, FiSave, FiGlobe, FiEdit2, FiMic, FiFile, FiPlusSquare } from 'react-icons/fi';
+import { FiSend, FiArrowLeft, FiMessageSquare, FiSearch, FiCheck, FiCheckCircle, FiTrash2, FiCopy, FiX, FiMoreHorizontal, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiPlay, FiShare2, FiSave, FiGlobe, FiEdit2, FiMic, FiFile, FiPlusSquare, FiCornerUpLeft } from 'react-icons/fi';
 import ImageCropModal from '../components/ImageCropModal';
 import ReportModal from '../components/ReportModal';
 import TranslateModal from '../components/TranslateModal';
@@ -285,6 +285,22 @@ function dataURLToBlob(dataURL) {
 function MessageContent({ msg, onOpenImage }) {
   const text = msg.text || '';
 
+  const replyMatch = !msg.type && text.match(/^↩ (@[^\n]+)\n([\s\S]*)$/);
+  if (replyMatch) {
+    const restMsg = { ...msg, text: replyMatch[2].trim() };
+    return (
+      <div>
+        <div className="flex items-center gap-1.5 text-xs text-discord-muted mb-1 opacity-80">
+          <div className="w-3.5 h-3.5 rounded-full bg-discord-hover flex items-center justify-center flex-shrink-0">
+            <FiCornerUpLeft size={9} />
+          </div>
+          <span className="font-bold truncate">{replyMatch[1]}</span>
+        </div>
+        <MessageContent msg={restMsg} onOpenImage={onOpenImage} />
+      </div>
+    );
+  }
+
   if (msg.type === 'system') {
     return (
       <div className="flex justify-center my-1">
@@ -514,6 +530,9 @@ export default function Messages({ currentUser, unreadCounts }) {
   const [editingMsgId, setEditingMsgId] = useState(null);
   const [editText, setEditText] = useState('');
   const [blockedByMe, setBlockedByMe] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [swipingMsgId, setSwipingMsgId] = useState(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -523,6 +542,7 @@ export default function Messages({ currentUser, unreadCounts }) {
   const mediaRecorderRef = useRef(null);
   const recordChunksRef = useRef([]);
   const recordIntervalRef = useRef(null);
+  const swipeTouchRef = useRef({ x: 0, y: 0, msgId: null, direction: null });
   const isMobile = window.innerWidth < 768;
 
   const activeConvRef = useRef(null);
@@ -758,6 +778,11 @@ export default function Messages({ currentUser, unreadCounts }) {
       const convInfo = conversations.find(c => c.username === uname);
       const enrichedUser = { ...data.targetUser, isBot: data.targetUser?.isBot || convInfo?.isBot || false };
       setActiveConv(enrichedUser);
+      if (!enrichedUser.isBot) {
+        API.getUser(uname).then(u => {
+          if (u?.isBot) setActiveConv(prev => prev?.username === uname ? { ...prev, isBot: true } : prev);
+        }).catch(() => {});
+      }
       setMessages(data.messages || []);
       const blockedList = Array.isArray(blocked) ? blocked : [];
       const targetUser = data.targetUser;
@@ -844,6 +869,12 @@ export default function Messages({ currentUser, unreadCounts }) {
     e.preventDefault();
     if ((!newMsg.trim() && !mediaAttachment) || !activeConv || sending) return;
     let text = newMsg.trim();
+    if (replyingTo) {
+      const rawPreview = (replyingTo.text || '').replace(/^\[vx:[^\]]+\]\n?/, '').trim().slice(0, 60);
+      const senderName = isSentByMe(replyingTo) ? currentUser.username : activeConv.username;
+      text = `↩ @${senderName}: ${rawPreview || '📷 Photo'}\n${text}`;
+      setReplyingTo(null);
+    }
     const savedAttachment = mediaAttachment;
     const savedMsg = newMsg;
 
@@ -968,6 +999,35 @@ export default function Messages({ currentUser, unreadCounts }) {
       }
     }
     finally { setSending(false); }
+  };
+
+  const handleMsgTouchStart = (e, msgId) => {
+    swipeTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, msgId, direction: null };
+  };
+
+  const handleMsgTouchMove = (e, msgId) => {
+    const dx = e.touches[0].clientX - swipeTouchRef.current.x;
+    const dy = e.touches[0].clientY - swipeTouchRef.current.y;
+    if (swipeTouchRef.current.direction === null) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        swipeTouchRef.current.direction = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+      }
+    }
+    if (swipeTouchRef.current.direction === 'h' && dx > 0) {
+      e.preventDefault();
+      setSwipingMsgId(msgId);
+      setSwipeOffset(Math.min(dx, 72));
+    }
+  };
+
+  const handleMsgTouchEnd = (msg) => {
+    if (swipeOffset > 50) {
+      setReplyingTo(msg);
+      setTimeout(() => textareaRef.current?.focus(), 100);
+    }
+    setSwipingMsgId(null);
+    setSwipeOffset(0);
+    swipeTouchRef.current = { x: 0, y: 0, msgId: null, direction: null };
   };
 
   const sendStartCommand = async () => {
@@ -1304,6 +1364,12 @@ export default function Messages({ currentUser, unreadCounts }) {
               key={item.key}
               className={`group flex items-start gap-4 px-2 py-1 hover:bg-white/[0.02] transition-colors relative ${grouped ? 'mt-[-4px]' : 'mt-4'}`}
               onContextMenu={e => handleMessageContextMenu(e, msg)}
+              onTouchStart={e => handleMsgTouchStart(e, item.key)}
+              onTouchMove={e => handleMsgTouchMove(e, item.key)}
+              onTouchEnd={() => handleMsgTouchEnd(msg)}
+              style={swipingMsgId === item.key
+                ? { transform: `translateX(${swipeOffset}px)`, transition: 'none' }
+                : { transition: 'transform 0.2s ease' }}
             >
               {!grouped ? (
                 <div className="flex-shrink-0 mt-1 cursor-pointer" onClick={() => navigate(`/profile/${mine ? currentUser.username : activeConv.username}`)}>
@@ -1434,6 +1500,24 @@ export default function Messages({ currentUser, unreadCounts }) {
           </div>
         ) : (
           <form onSubmit={handleSend} className="px-4 py-3">
+            {/* Reply Preview */}
+            {replyingTo && (
+              <div className="mb-3 p-3 bg-discord-hover/30 rounded-xl border border-discord-hover/50 flex items-center gap-3 animate-fade-in">
+                <div className="w-1 h-8 bg-discord-brand rounded-full flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-discord-brand mb-0.5 flex items-center gap-1">
+                    <FiCornerUpLeft size={11} /> Replying to @{isSentByMe(replyingTo) ? currentUser.username : activeConv.username}
+                  </p>
+                  <p className="text-xs text-discord-muted truncate">
+                    {(replyingTo.text || '').replace(/^\[vx:[^\]]+\]\n?/, '').trim() || '📷 Photo'}
+                  </p>
+                </div>
+                <button type="button" onClick={() => setReplyingTo(null)} className="p-1.5 text-discord-muted hover:text-discord-red flex-shrink-0">
+                  <FiX size={16} />
+                </button>
+              </div>
+            )}
+
             {/* Media Attachment Preview */}
             {mediaAttachment && (
               <div className="mb-3 p-3 bg-discord-hover/30 rounded-xl border border-discord-hover/50 flex items-center gap-3 animate-fade-in">
