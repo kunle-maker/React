@@ -245,7 +245,7 @@ function SupaSection({ currentUser }) {
     'Ad-free experience',
   ];
 
-
+  return (
     <div>
       <div className="flex items-center gap-2 mb-1">
         <HiSparkles size={22} className="text-discord-brand" />
