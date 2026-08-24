@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { FiHeart, FiMessageCircle, FiShare2, FiBookmark, FiMoreHorizontal, FiTrash2, FiCopy, FiExternalLink, FiSend, FiX, FiFlag, FiVolumeX, FiVolume2, FiDownload, FiMusic, FiEdit2, FiCheck, FiMapPin, FiEye, FiCornerDownRight } from 'react-icons/fi';
+import { FiHeart, FiMessageCircle, FiShare2, FiBookmark, FiMoreHorizontal, FiTrash2, FiCopy, FiExternalLink, FiSend, FiX, FiFlag, FiVolumeX, FiVolume2, FiDownload, FiMusic, FiEdit2, FiCheck, FiMapPin, FiEye, FiCornerDownRight, FiRepeat, FiBarChart2 } from 'react-icons/fi';
 import { HiHeart } from 'react-icons/hi';
 import { FaWhatsapp, FaFacebook, FaSnapchatGhost, FaTelegramPlane, FaSms } from 'react-icons/fa';
 import { formatDistanceToNow } from 'date-fns';
@@ -47,6 +47,10 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
   });
   const [likeCount, setLikeCount] = useState(post.likeCount || post.likes?.length || 0);
   const [bookmarked, setBookmarked] = useState(post.isBookmarked || false);
+  const [saved, setSaved] = useState(post.isSaved || false);
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [quoteText, setQuoteText] = useState('');
+  const [quoteSaving, setQuoteSaving] = useState(false);
   const [userReaction, setUserReaction] = useState(post.userReaction || null);
   const [showReactions, setShowReactions] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -379,6 +383,8 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
         API.viewPost?.(post._id).then(res => {
           if (res?.viewCount !== undefined) setViewCount(res.viewCount);
         }).catch(() => {});
+        // Track impression for insights
+        API.trackImpression?.(post._id).catch(() => {});
       }
     }, { threshold: 0.5 });
     obs.observe(articleRef.current);
@@ -772,6 +778,14 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
           >
             <FiMessageCircle size={26} strokeWidth={2} />
           </button>
+          {/* Quote */}
+          <button
+            onClick={() => setShowQuoteModal(true)}
+            className="text-discord-text hover:text-discord-brand transition-transform active:scale-110"
+            title="Quote post"
+          >
+            <FiRepeat size={23} strokeWidth={2} />
+          </button>
           <button 
             onClick={() => setShowShareSheet(true)}
             className="text-discord-text hover:text-discord-muted transition-transform active:scale-110"
@@ -788,13 +802,87 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
           </div>
         )}
 
-        <button 
-          onClick={() => { setBookmarked(!bookmarked); API.bookmarkPost(post._id); }}
-          className={`transition-transform active:scale-110 ${bookmarked ? 'text-discord-text' : 'text-discord-text hover:text-discord-muted'}`}
-        >
-          <FiBookmark size={25} fill={bookmarked ? 'currentColor' : 'none'} strokeWidth={2} />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Save */}
+          <button
+            onClick={async () => {
+              const next = !saved;
+              setSaved(next);
+              try { await API.savePost(post._id); }
+              catch { setSaved(!next); }
+            }}
+            className={`transition-transform active:scale-110 ${saved ? 'text-yellow-400' : 'text-discord-text hover:text-yellow-400'}`}
+            title={saved ? 'Saved' : 'Save post'}
+          >
+            <FiBookmark size={23} fill={saved ? 'currentColor' : 'none'} strokeWidth={2} />
+          </button>
+          {/* Bookmark (collection) */}
+          <button 
+            onClick={() => { setBookmarked(!bookmarked); API.bookmarkPost(post._id); }}
+            className={`transition-transform active:scale-110 ${bookmarked ? 'text-discord-text' : 'text-discord-text hover:text-discord-muted'}`}
+          >
+            <FiBookmark size={25} fill={bookmarked ? 'currentColor' : 'none'} strokeWidth={2} />
+          </button>
+        </div>
       </div>
+
+      {/* Quote modal */}
+      {showQuoteModal && createPortal(
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-end' }}
+          onClick={() => setShowQuoteModal(false)}
+        >
+          <div
+            className="w-full bg-discord-sidebar rounded-t-3xl p-5 space-y-4 sheet-slide-up"
+            style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 bg-discord-hover rounded-full mx-auto" />
+            <h3 className="font-bold text-discord-text text-base">Quote this post</h3>
+            {/* Original post preview */}
+            <div className="border border-discord-hover rounded-xl p-3 text-discord-muted text-sm">
+              <span className="font-semibold text-discord-text">@{(post.userId?.username || post.username || '')}</span>
+              {' '}{(post.caption || '').slice(0, 100)}{(post.caption?.length > 100 ? '…' : '')}
+            </div>
+            <textarea
+              value={quoteText}
+              onChange={e => setQuoteText(e.target.value)}
+              placeholder="Add your thoughts…"
+              rows={3}
+              maxLength={500}
+              className="w-full bg-discord-dark border border-discord-hover rounded-xl p-3 text-discord-text text-sm resize-none outline-none focus:border-discord-brand transition-colors"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowQuoteModal(false); setQuoteText(''); }}
+                className="flex-1 py-3 rounded-xl border border-discord-hover text-discord-muted font-semibold text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={quoteSaving}
+                onClick={async () => {
+                  setQuoteSaving(true);
+                  try {
+                    await API.quotePost(post._id, quoteText.trim());
+                    setShowQuoteModal(false);
+                    setQuoteText('');
+                    toast.success('Quoted!');
+                  } catch (err) {
+                    toast.error(err.message || 'Failed to quote');
+                  } finally { setQuoteSaving(false); }
+                }}
+                className="flex-1 discord-btn py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {quoteSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiRepeat size={14} />}
+                Quote
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Post Info */}
       <div className="px-4 space-y-1.5">
@@ -869,6 +957,9 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
               <div className="w-10 h-1 bg-discord-hover rounded-full mx-auto mb-4" />
               <button onClick={() => { navigate(`/post/${post._id}`); setShowMenu(false); }} className="w-full py-2.5 text-left px-4 text-discord-text text-sm font-bold hover:bg-discord-hover rounded-xl flex items-center gap-3">
                  <FiExternalLink size={16} /> Open post
+              </button>
+              <button onClick={() => { navigate(`/post/${post._id}/quotes`); setShowMenu(false); }} className="w-full py-2.5 text-left px-4 text-discord-text text-sm font-bold hover:bg-discord-hover rounded-xl flex items-center gap-3">
+                 <FiRepeat size={16} /> View quotes
               </button>
               <button onClick={() => { navigator.clipboard.writeText(window.location.origin + '/#/post/' + post._id); setShowMenu(false); toast.success('Link copied!'); }} className="w-full py-2.5 text-left px-4 text-discord-text text-sm font-bold hover:bg-discord-hover rounded-xl flex items-center gap-3">
                  <FiCopy size={16} /> Copy link

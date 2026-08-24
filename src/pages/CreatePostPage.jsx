@@ -26,6 +26,9 @@ export default function CreatePostPage({ currentUser, unreadCounts }) {
   const [editingIndex, setEditingIndex] = useState(null);
   const [mutedVideoIndices, setMutedVideoIndices] = useState(new Set());
 
+  // Supa-only toggle
+  const [isSupaOnly, setIsSupaOnly] = useState(false);
+
   // Poll state
   const [showPollBuilder, setShowPollBuilder] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
@@ -156,6 +159,7 @@ export default function CreatePostPage({ currentUser, unreadCounts }) {
     try {
       const fd = new FormData();
       if (caption) fd.append('caption', caption);
+      if (isSupaOnly) fd.append('isSupaOnly', 'true');
       if (selectedSound) {
         if (selectedSound.id) fd.append('soundId', selectedSound.id);
         if (selectedSound.url) fd.append('soundUrl', selectedSound.url);
@@ -358,6 +362,15 @@ export default function CreatePostPage({ currentUser, unreadCounts }) {
                 {selectedSound.artist && <p className="text-[10px] text-discord-muted truncate">{selectedSound.artist}</p>}
               </div>
               <button type="button" onClick={() => setSelectedSound(null)} className="p-1.5 text-discord-muted hover:text-discord-red"><FiX size={14} /></button>
+            </div>
+          )}
+
+          {/* Supa-only chip */}
+          {isSupaOnly && (
+            <div className="flex items-center gap-2 bg-yellow-400/10 border border-yellow-400/30 rounded-xl px-3 py-2 animate-fade-in">
+              <span className="text-yellow-400 text-sm">✦</span>
+              <p className="text-yellow-400 text-xs font-semibold flex-1">Supa members only</p>
+              <button onClick={() => setIsSupaOnly(false)} className="text-yellow-400/60 hover:text-yellow-400 p-0.5"><FiX size={12} /></button>
             </div>
           )}
 
@@ -575,6 +588,16 @@ export default function CreatePostPage({ currentUser, unreadCounts }) {
             onClick={() => { setShowDrafts(true); loadDrafts(); }} title="My Drafts">
             <FiClock size={20} />
           </button>
+          {/* Supa-only toggle — only show if user is Supa */}
+          {currentUser?.isSupa && (
+            <button type="button"
+              className={`p-2.5 rounded-full transition-all active:scale-90 ml-auto ${isSupaOnly ? 'text-yellow-400 bg-yellow-400/10' : 'text-discord-muted hover:text-yellow-400 hover:bg-yellow-400/10'}`}
+              onClick={() => setIsSupaOnly(p => !p)}
+              title={isSupaOnly ? 'Supa-only ON — only Supa members can see this' : 'Make Supa-only'}
+            >
+              ✦
+            </button>
+          )}
           {showEmojiPicker && (
             <div className="absolute bottom-full left-0 mb-2">
               <EmojiPicker onSelect={emoji => { insertEmoji(emoji); setShowEmojiPicker(false); }} onClose={() => setShowEmojiPicker(false)} anchor="top" />

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   FiUser, FiLock, FiTrash2, FiLogOut, FiShield, FiZap,
   FiChevronRight, FiCheck, FiX, FiClock, FiCopy, FiGlobe,
-  FiRefreshCw, FiAlertCircle, FiBell, FiChevronDown
+  FiRefreshCw, FiAlertCircle, FiBell, FiChevronDown,
+  FiLink, FiExternalLink, FiBarChart2, FiPlus, FiEye, FiUsers, FiTrendingUp
 } from 'react-icons/fi';
 import { HiSparkles } from 'react-icons/hi';
 import { format } from 'date-fns';
@@ -376,8 +377,7 @@ function SupaSection({ currentUser }) {
         </div>
       )}
     </div>
-  );
-}
+};
 
 const LANGUAGES_FALLBACK = [
   { code: 'en', name: 'English', nativeName: 'English', dir: 'ltr' },
@@ -686,6 +686,28 @@ export default function Settings({ currentUser, unreadCounts }) {
     likes: true, comments: true, follows: true, messages: true, mentions: true, groups: true, stories: true
   });
   const [notifSaving, setNotifSaving] = useState(false);
+  const [weeklyDigest, setWeeklyDigest] = useState(currentUser?.weeklyDigestEnabled ?? true);
+  const [digestSaving, setDigestSaving] = useState(false);
+
+  // Custom URL state
+  const [customUrlSlug, setCustomUrlSlug] = useState(currentUser?.customUrl || '');
+  const [customUrlStatus, setCustomUrlStatus] = useState(null); // null | 'checking' | 'available' | 'taken' | 'error'
+  const [customUrlSaving, setCustomUrlSaving] = useState(false);
+  const customUrlTimer = useRef(null);
+
+  // Bio links state
+  const [bioLinks, setBioLinks] = useState([]);
+  const [bioLinksLoading, setBioLinksLoading] = useState(false);
+  const [bioLinksSaving, setBioLinksSaving] = useState(false);
+
+  // Profile insights state
+  const [profileInsights, setProfileInsights] = useState(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+
+  // Auto-load bio links when section becomes active
+  useEffect(() => {
+    if (section === 'bio-links' && bioLinks.length === 0 && !bioLinksLoading) loadBioLinks();
+  }, [section]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -745,6 +767,70 @@ export default function Settings({ currentUser, unreadCounts }) {
     finally { setNotifSaving(false); }
   };
 
+  const handleToggleDigest = async (val) => {
+    setWeeklyDigest(val);
+    setDigestSaving(true);
+    try {
+      await API.updateDigestPreference(val);
+      showToast(val ? 'Weekly digest enabled' : 'Weekly digest disabled', { type: 'success' });
+    } catch (err) { showToast(err.message || 'Failed to update', { type: 'error' }); setWeeklyDigest(!val); }
+    finally { setDigestSaving(false); }
+  };
+
+  const handleCustomUrlChange = (val) => {
+    const slug = val.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    setCustomUrlSlug(slug);
+    setCustomUrlStatus(null);
+    if (customUrlTimer.current) clearTimeout(customUrlTimer.current);
+    if (slug.length < 3) return;
+    setCustomUrlStatus('checking');
+    customUrlTimer.current = setTimeout(async () => {
+      try {
+        const data = await API.checkCustomUrl(slug);
+        setCustomUrlStatus(data?.available ? 'available' : 'taken');
+      } catch { setCustomUrlStatus('error'); }
+    }, 600);
+  };
+
+  const handleSaveCustomUrl = async () => {
+    if (!customUrlSlug || customUrlStatus !== 'available') return;
+    setCustomUrlSaving(true);
+    try {
+      await API.setCustomUrl(customUrlSlug);
+      showToast('Custom URL saved!', { type: 'success' });
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      localStorage.setItem('user', JSON.stringify({ ...user, customUrl: customUrlSlug }));
+    } catch (err) { showToast(err.message || 'Failed to save URL', { type: 'error' }); }
+    finally { setCustomUrlSaving(false); }
+  };
+
+  const loadBioLinks = async () => {
+    setBioLinksLoading(true);
+    try {
+      const data = await API.getMyBioLinks();
+      setBioLinks(Array.isArray(data) ? data : data?.links || []);
+    } catch { setBioLinks([]); }
+    finally { setBioLinksLoading(false); }
+  };
+
+  const handleSaveBioLinks = async () => {
+    setBioLinksSaving(true);
+    try {
+      await API.updateBioLinks(bioLinks.filter(l => l.url?.trim()));
+      showToast('Bio links saved!', { type: 'success' });
+    } catch (err) { showToast(err.message || 'Failed to save links', { type: 'error' }); }
+    finally { setBioLinksSaving(false); }
+  };
+
+  const loadProfileInsights = async () => {
+    setInsightsLoading(true);
+    try {
+      const data = await API.getProfileInsights();
+      setProfileInsights(data);
+    } catch { setProfileInsights(null); }
+    finally { setInsightsLoading(false); }
+  };
+
   const SECTIONS = [
     { id: 'account', icon: FiUser, label: 'My Account' },
     { id: 'privacy', icon: FiLock, label: 'Privacy' },
@@ -752,6 +838,9 @@ export default function Settings({ currentUser, unreadCounts }) {
     { id: 'security', icon: FiShield, label: 'Security' },
     { id: 'sessions', icon: FiClock, label: 'Login History' },
     { id: 'language', icon: FiGlobe, label: 'Language' },
+    { id: 'profile-url', icon: FiLink, label: 'Custom URL' },
+    { id: 'bio-links', icon: FiExternalLink, label: 'Bio Links' },
+    { id: 'insights', icon: FiBarChart2, label: 'Insights' },
     { id: 'supa', icon: FiZap, label: 'Supa Premium' },
   ];
 
@@ -937,7 +1026,21 @@ export default function Settings({ currentUser, unreadCounts }) {
                     {i < arr.length - 1 && <div className="h-px bg-discord-hover mx-5" />}
                   </div>
                 ))}
-                <div className="px-5 pb-5 pt-3">
+                <div className="px-5 pb-5 pt-3 space-y-3">
+                  {/* Weekly digest */}
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <p className="text-discord-text font-semibold text-sm">Weekly Digest Email</p>
+                      <p className="text-discord-muted text-xs">Get a weekly summary every Monday with your top stats</p>
+                    </div>
+                    <button
+                      disabled={digestSaving}
+                      onClick={() => handleToggleDigest(!weeklyDigest)}
+                      className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${weeklyDigest ? 'bg-discord-brand' : 'bg-discord-hover'} ${digestSaving ? 'opacity-50' : ''}`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${weeklyDigest ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
                   <button onClick={handleSaveNotifPrefs} disabled={notifSaving} className="discord-btn w-full py-2.5 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
                     {notifSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiCheck size={14} />}
                     Save Preferences
@@ -979,6 +1082,174 @@ export default function Settings({ currentUser, unreadCounts }) {
           {section === 'language' && (
             <div className="animate-fade-in bg-discord-sidebar border border-white/5 rounded-2xl p-5">
               <LanguageSection currentUser={currentUser} />
+            </div>
+          )}
+
+          {/* ── Custom URL ── */}
+          {section === 'profile-url' && (
+            <div className="space-y-3 animate-fade-in">
+              <h2 className="text-lg font-bold text-discord-text flex items-center gap-2">
+                <FiLink size={18} className="text-discord-brand" /> Custom Profile URL
+              </h2>
+              <div className="bg-discord-sidebar border border-white/5 rounded-2xl p-5 space-y-4">
+                <p className="text-discord-muted text-sm">Set a custom URL for your profile. Share <span className="text-discord-brand font-semibold">vesselx.qzz.io/u/yourslug</span> instead of your username link.</p>
+                <div>
+                  <label className="text-discord-muted text-xs font-bold uppercase tracking-wide block mb-1.5">Your slug</label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-discord-muted text-sm flex-shrink-0">vesselx.qzz.io/u/</span>
+                    <input
+                      type="text"
+                      value={customUrlSlug}
+                      onChange={e => handleCustomUrlChange(e.target.value)}
+                      placeholder="your-slug"
+                      maxLength={30}
+                      className="discord-input flex-1 text-sm"
+                    />
+                  </div>
+                  {customUrlSlug.length > 0 && customUrlSlug.length < 3 && (
+                    <p className="text-discord-muted text-xs mt-1">At least 3 characters</p>
+                  )}
+                  {customUrlStatus === 'checking' && <p className="text-discord-muted text-xs mt-1">Checking availability…</p>}
+                  {customUrlStatus === 'available' && <p className="text-green-400 text-xs mt-1 flex items-center gap-1"><FiCheck size={11} /> Available!</p>}
+                  {customUrlStatus === 'taken' && <p className="text-discord-red text-xs mt-1 flex items-center gap-1"><FiX size={11} /> Already taken</p>}
+                  {customUrlStatus === 'error' && <p className="text-discord-red text-xs mt-1">Could not check availability</p>}
+                </div>
+                <button
+                  onClick={handleSaveCustomUrl}
+                  disabled={customUrlSaving || customUrlStatus !== 'available'}
+                  className="discord-btn w-full py-2.5 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {customUrlSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiCheck size={14} />}
+                  Save Custom URL
+                </button>
+                {currentUser?.customUrl && (
+                  <p className="text-discord-muted text-xs text-center">Current: <span className="text-discord-brand font-semibold">vesselx.qzz.io/u/{currentUser.customUrl}</span></p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Bio Links ── */}
+          {section === 'bio-links' && (
+            <div className="space-y-3 animate-fade-in">
+              <h2 className="text-lg font-bold text-discord-text flex items-center gap-2">
+                <FiExternalLink size={18} className="text-discord-brand" /> Bio Links
+              </h2>
+              <div className="bg-discord-sidebar border border-white/5 rounded-2xl p-5 space-y-4">
+                <p className="text-discord-muted text-sm">Add up to 5 links to your profile. These appear on your public profile page.</p>
+                {bioLinksLoading ? (
+                  <div className="flex justify-center py-6">
+                    <div className="w-6 h-6 border-2 border-discord-brand border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(bioLinks.length === 0 ? [{ title: '', url: '' }] : bioLinks).map((link, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className="flex-1 space-y-1">
+                          <input
+                            type="text"
+                            placeholder="Title (e.g. My Website)"
+                            value={link.title || ''}
+                            onChange={e => setBioLinks(prev => prev.map((l, idx) => idx === i ? { ...l, title: e.target.value } : l))}
+                            className="discord-input w-full text-sm py-2"
+                          />
+                          <input
+                            type="url"
+                            placeholder="https://..."
+                            value={link.url || ''}
+                            onChange={e => setBioLinks(prev => prev.map((l, idx) => idx === i ? { ...l, url: e.target.value } : l))}
+                            className="discord-input w-full text-sm py-2"
+                          />
+                        </div>
+                        <button
+                          onClick={() => setBioLinks(prev => prev.filter((_, idx) => idx !== i))}
+                          className="text-discord-muted hover:text-discord-red p-1.5 flex-shrink-0"
+                        >
+                          <FiX size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    {bioLinks.length < 5 && (
+                      <button
+                        onClick={() => setBioLinks(prev => [...prev, { title: '', url: '' }])}
+                        className="flex items-center gap-2 text-discord-brand text-sm font-semibold hover:underline"
+                      >
+                        <FiPlus size={14} /> Add link
+                      </button>
+                    )}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={loadBioLinks}
+                    disabled={bioLinksLoading}
+                    className="flex-1 py-2.5 rounded-xl border border-discord-hover text-discord-muted text-sm font-semibold hover:text-discord-text transition-colors"
+                  >
+                    <FiRefreshCw size={13} className="inline mr-1.5" /> Refresh
+                  </button>
+                  <button
+                    onClick={handleSaveBioLinks}
+                    disabled={bioLinksSaving}
+                    className="flex-1 discord-btn py-2.5 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {bioLinksSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiCheck size={14} />}
+                    Save Links
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Insights ── */}
+          {section === 'insights' && (
+            <div className="space-y-3 animate-fade-in">
+              <h2 className="text-lg font-bold text-discord-text flex items-center gap-2">
+                <FiBarChart2 size={18} className="text-discord-brand" /> Profile Insights
+              </h2>
+              {!profileInsights && !insightsLoading && (
+                <button onClick={loadProfileInsights} className="discord-btn w-full py-3 text-sm font-semibold flex items-center justify-center gap-2">
+                  <FiBarChart2 size={14} /> Load Insights
+                </button>
+              )}
+              {insightsLoading && (
+                <div className="flex justify-center py-10">
+                  <div className="w-7 h-7 border-2 border-discord-brand border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              {profileInsights && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: 'Profile Views', value: profileInsights.profileViews ?? profileInsights.totalProfileVisits ?? '—', icon: FiEye },
+                      { label: 'Impressions', value: profileInsights.impressions ?? profileInsights.totalImpressions ?? '—', icon: FiTrendingUp },
+                      { label: 'Followers', value: profileInsights.followersCount ?? '—', icon: FiUsers },
+                      { label: 'Posts', value: profileInsights.postsCount ?? '—', icon: FiBarChart2 },
+                    ].map(({ label, value, icon: Icon }) => (
+                      <div key={label} className="bg-discord-sidebar border border-white/5 rounded-2xl p-4">
+                        <Icon size={18} className="text-discord-brand mb-2" />
+                        <p className="text-2xl font-black text-discord-text">{typeof value === 'number' ? value.toLocaleString() : value}</p>
+                        <p className="text-discord-muted text-xs mt-0.5">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {profileInsights.topPosts?.length > 0 && (
+                    <div className="bg-discord-sidebar border border-white/5 rounded-2xl p-4">
+                      <p className="text-discord-muted text-xs font-bold uppercase tracking-wide mb-3">Top Posts</p>
+                      <div className="space-y-2">
+                        {profileInsights.topPosts.slice(0, 3).map((p, i) => (
+                          <div key={p._id || i} className="flex items-center justify-between gap-3">
+                            <p className="text-discord-text text-sm truncate flex-1">{p.caption?.slice(0, 50) || '(no caption)'}</p>
+                            <span className="text-discord-muted text-xs font-bold flex-shrink-0">{(p.impressions || 0).toLocaleString()} views</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <button onClick={loadProfileInsights} className="w-full text-discord-brand text-xs font-semibold text-center hover:underline flex items-center justify-center gap-1">
+                    <FiRefreshCw size={11} /> Refresh
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
