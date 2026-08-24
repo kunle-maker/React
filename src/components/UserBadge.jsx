@@ -187,10 +187,35 @@ export const SUPA_SHAPE_MAP    = { hex: HexSVG, crown: CrownSVG, star: StarSVG }
 
 export function VerifiedBadge({ size = 16, username }) {
   const styleId = username ? getStoredVerifiedBadgeStyle(username) : 'blue';
-  const shapeId = username ? getStoredVerifiedBadgeShape(username) : 'shield';
   const style = getVerifiedBadgeStyle(styleId);
-  const Comp = VERIFIED_SHAPE_MAP[shapeId] || ShieldSVG;
-  return <Comp color={style.color} glow={style.glow} size={size} />;
+  // Instagram-style verification: filled circle + thick angular checkmark
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      className="flex-shrink-0"
+      title="Verified"
+      style={{
+        display: 'inline-block',
+        verticalAlign: 'middle',
+        filter: `drop-shadow(0 0 3px ${style.glow})`,
+      }}
+    >
+      {/* Filled circle */}
+      <circle cx="12" cy="12" r="11" fill={style.color} />
+      {/* Instagram-style tick — starts low-left, short up-left leg, long up-right leg */}
+      <polyline
+        points="6,12 9.5,15.5 18,7.5"
+        stroke="white"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
 }
 
 export function SupaBadge({ size = 16, username }) {
