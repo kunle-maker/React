@@ -803,6 +803,91 @@ class API {
     }
     return url;
   }
+
+  // ── Quote Posts ────────────────────────────────────────────────────────────
+  static async quotePost(postId, comment) {
+    const data = await this.request(`/api/features/quote/${postId}`, {
+      method: 'POST',
+      body: JSON.stringify({ comment }),
+    });
+    this.clearCache('/api/posts');
+    this.clearCache('/api/feed');
+    return data;
+  }
+  static async getPostQuotes(postId) {
+    return this.request(`/api/features/quotes/${postId}`);
+  }
+
+  // ── Supa-Only Posts ────────────────────────────────────────────────────────
+  static async toggleSupaOnly(postId) {
+    const data = await this.request(`/api/features/posts/${postId}/supa-only`, { method: 'POST' });
+    this.clearCache(`/api/posts/${postId}`);
+    this.clearCache('/api/feed');
+    return data;
+  }
+
+  // ── Custom Profile URL ─────────────────────────────────────────────────────
+  static async checkCustomUrl(slug) {
+    return this.request(`/api/features/profile-url/check/${encodeURIComponent(slug)}`);
+  }
+  static async setCustomUrl(slug) {
+    const data = await this.request('/api/features/profile-url', {
+      method: 'PUT',
+      body: JSON.stringify({ slug }),
+    });
+    this.clearCache('/api/profile');
+    this.clearCache('/api/users');
+    return data;
+  }
+  static async resolveSlug(slug) {
+    return this.request(`/api/features/u/${encodeURIComponent(slug)}`);
+  }
+
+  // ── Bio Links ──────────────────────────────────────────────────────────────
+  static async getMyBioLinks() {
+    return this.request('/api/features/bio-links');
+  }
+  static async getUserBioLinks(username) {
+    return this.request(`/api/features/bio-links/${encodeURIComponent(username)}`);
+  }
+  static async updateBioLinks(links) {
+    const data = await this.request('/api/features/bio-links', {
+      method: 'PUT',
+      body: JSON.stringify({ links }),
+    });
+    this.clearCache('/api/features/bio-links');
+    this.clearCache('/api/profile');
+    return data;
+  }
+
+  // ── Post & Profile Insights ────────────────────────────────────────────────
+  static async getPostInsights(postId) {
+    return this.request(`/api/features/insights/${postId}`);
+  }
+  static async getProfileInsights() {
+    return this.request('/api/features/profile-insights');
+  }
+  static async trackImpression(postId) {
+    return this.request(`/api/features/insights/${postId}/impression`, { method: 'POST' });
+  }
+  static async trackProfileVisit(postId) {
+    return this.request(`/api/features/insights/${postId}/profile-visit`, { method: 'POST' });
+  }
+
+  // ── Save / Unsave Posts ────────────────────────────────────────────────────
+  static async savePost(postId) {
+    const data = await this.request(`/api/features/posts/${postId}/save`, { method: 'POST' });
+    this.clearCache(`/api/posts/${postId}`);
+    return data;
+  }
+
+  // ── Weekly Digest ──────────────────────────────────────────────────────────
+  static async updateDigestPreference(enabled) {
+    return this.request('/api/features/digest/preference', {
+      method: 'PUT',
+      body: JSON.stringify({ weeklyDigestEnabled: enabled }),
+    });
+  }
 }
 
 export default API;
