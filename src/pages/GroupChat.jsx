@@ -22,6 +22,87 @@ import TwemojiTextarea from '../components/TwemojiTextarea';
 
 const MSG_REACTIONS = ['❤️', '😂', '👍', '😮', '😢', '😡', '🔥', '💯'];
 
+function VoiceNotePlayer({ src, duration: initDuration, isMine = false }) {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [duration, setDuration] = useState(initDuration || 0);
+  const [speed, setSpeed] = useState(1);
+  const rafRef = useRef(null);
+
+  const fmt = (s) => {
+    if (!s || !isFinite(s)) return '0:00';
+    return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  };
+
+  const toggle = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (playing) { a.pause(); setPlaying(false); cancelAnimationFrame(rafRef.current); }
+    else {
+      a.playbackRate = speed;
+      a.play().then(() => {
+        setPlaying(true);
+        const tick = () => { setCurrent(a.currentTime); rafRef.current = requestAnimationFrame(tick); };
+        rafRef.current = requestAnimationFrame(tick);
+      }).catch(() => {});
+    }
+  };
+
+  const cycleSpeed = () => {
+    const next = speed === 1 ? 1.5 : speed === 1.5 ? 2 : 1;
+    setSpeed(next);
+    if (audioRef.current) audioRef.current.playbackRate = next;
+  };
+
+  const pct = duration > 0 ? Math.min(current / duration, 1) : 0;
+  const barColor = isMine ? 'bg-white/90' : 'bg-discord-brand';
+  const trackColor = isMine ? 'bg-white/25' : 'bg-white/15';
+  const textColor = isMine ? 'text-white/70' : 'text-discord-muted';
+  const bars = [3,5,8,6,9,4,7,5,10,6,4,8,5,7,3,6,9,5,8,4,6,10,7,5,3,8,6,9,4,7];
+
+  return (
+    <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-2xl min-w-[220px] max-w-[280px] ${isMine ? 'bg-discord-brand' : 'bg-white/8 border border-white/10'}`}>
+      <audio
+        ref={audioRef}
+        src={src}
+        onLoadedMetadata={e => setDuration(e.target.duration)}
+        onEnded={() => { setPlaying(false); setCurrent(0); cancelAnimationFrame(rafRef.current); }}
+      />
+      <button
+        onClick={toggle}
+        className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all active:scale-90 ${isMine ? 'bg-white/20 hover:bg-white/30' : 'bg-discord-brand/20 hover:bg-discord-brand/30'}`}
+      >
+        {playing
+          ? <span className={`text-xs font-black tracking-tighter ${isMine ? 'text-white' : 'text-discord-brand'}`}>❙❙</span>
+          : <FiPlay size={14} className={`ml-0.5 ${isMine ? 'text-white' : 'text-discord-brand'}`} />
+        }
+      </button>
+      <div className="flex-1 min-w-0 space-y-1.5">
+        <div
+          className="flex items-end gap-[2px] h-6 cursor-pointer"
+          onClick={e => {
+            if (!audioRef.current || !duration) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const p = (e.clientX - rect.left) / rect.width;
+            audioRef.current.currentTime = p * duration;
+            setCurrent(p * duration);
+          }}
+        >
+          {bars.map((h, i) => (
+            <div key={i} className={`flex-1 rounded-full transition-all ${i / bars.length <= pct ? barColor : trackColor}`} style={{ height: `${(h / 10) * 100}%`, minHeight: 3 }} />
+          ))}
+        </div>
+        <div className={`flex items-center justify-between text-[10px] font-mono ${textColor}`}>
+          <span>{playing ? fmt(current) : fmt(duration)}</span>
+          <button onClick={cycleSpeed} className={`font-bold text-[10px] px-1.5 py-0.5 rounded-full ${isMine ? 'text-white/80 hover:bg-white/20' : 'text-discord-muted hover:bg-white/10'}`}>{speed}×</button>
+        </div>
+      </div>
+      <FiMic size={13} className={`flex-shrink-0 opacity-50 ${isMine ? 'text-white' : 'text-discord-muted'}`} />
+    </div>
+  );
+}
+
 function TwemojiEmoji({ emoji, size = 18 }) {
   try {
     const cp = [...emoji].map(c => c.codePointAt(0).toString(16)).filter(x => x !== 'fe0f').join('-');
@@ -878,7 +959,25 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                             );
                           }
                           const imgMatch = text.match(/^\[vx:img:([^\]]+)\](.*)$/s);
+                          const audioMatch = text.match(/^\[vx:audio:([^\]]+)\](.*)$/s);
                           const callMatch = text.match(/^\[vx:call:([^\]]+)\](.*)$/s);
+                          // New-style audio message
+                          if (msg.type === 'audio' && msg.mediaUrl) {
+                            return (
+                              <div className="flex flex-col gap-1.5 mt-1">
+                                <VoiceNotePlayer src={msg.mediaUrl} duration={msg.duration} isMine={isSentByMe(msg)} />
+                                {text?.trim() && <FormattedText text={text.trim()} />}
+                              </div>
+                            );
+                          }
+                          if (audioMatch) {
+                            return (
+                              <div className="flex flex-col gap-1.5 mt-1">
+                                <VoiceNotePlayer src={audioMatch[1]} isMine={isSentByMe(msg)} />
+                                {audioMatch[2]?.trim() && <FormattedText text={audioMatch[2].trim()} />}
+                              </div>
+                            );
+                          }
                           if (imgMatch) {
                             return (
                               <div>
