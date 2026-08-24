@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const BASE_URL = 'https://vesselx.onrender.com';
+const BASE_URL = 'https://vesselx-backend.onrender.com';
 
 class SocketManager {
   constructor() {
