@@ -188,12 +188,12 @@ export const SUPA_SHAPE_MAP    = { hex: HexSVG, crown: CrownSVG, star: StarSVG }
 export function VerifiedBadge({ size = 16, username }) {
   const styleId = username ? getStoredVerifiedBadgeStyle(username) : 'blue';
   const style = getVerifiedBadgeStyle(styleId);
-  // Instagram-style verification: filled circle + thick angular checkmark
+  // Instagram-style verification badge: rosette/seal outer shape + bold white checkmark
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      viewBox="0 0 32 32"
       fill="none"
       className="flex-shrink-0"
       title="Verified"
@@ -203,13 +203,21 @@ export function VerifiedBadge({ size = 16, username }) {
         filter: `drop-shadow(0 0 3px ${style.glow})`,
       }}
     >
-      {/* Filled circle */}
-      <circle cx="12" cy="12" r="11" fill={style.color} />
-      {/* Instagram-style tick — starts low-left, short up-left leg, long up-right leg */}
+      {/* Rosette/seal outline — 12-point star made from two overlapping rotated squares */}
+      <path
+        d="M16 2
+           L18.5 5.5 L22.5 4.5 L22.5 8.5 L26.5 9.5 L24.5 13
+           L28 16 L24.5 19 L26.5 22.5 L22.5 23.5 L22.5 27.5
+           L18.5 26.5 L16 30 L13.5 26.5 L9.5 27.5 L9.5 23.5
+           L5.5 22.5 L7.5 19 L4 16 L7.5 13 L5.5 9.5
+           L9.5 8.5 L9.5 4.5 L13.5 5.5 Z"
+        fill={style.color}
+      />
+      {/* Bold white checkmark — Instagram proportions */}
       <polyline
-        points="6,12 9.5,15.5 18,7.5"
+        points="9,16.5 13.5,21 23,11"
         stroke="white"
-        strokeWidth="2.5"
+        strokeWidth="3"
         strokeLinecap="round"
         strokeLinejoin="round"
         fill="none"
