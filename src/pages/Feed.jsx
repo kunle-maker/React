@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiRefreshCw, FiCamera, FiPlusSquare, FiSend } from 'react-icons/fi';
+import { FiRefreshCw, FiCamera, FiPlusSquare, FiSend, FiCheck } from 'react-icons/fi';
 import Layout from '../components/Layout';
 import PostCard from '../components/PostCard';
 import CreatePost from '../components/CreatePost';
@@ -250,7 +250,12 @@ export default function Feed({ currentUser, unreadCounts }) {
         {!hasMore && posts.length > 0 && (
           <div className="py-16 text-center text-discord-muted/40 font-bold text-xs uppercase tracking-[0.2em] flex flex-col items-center gap-4">
             <div className="w-px h-12 bg-discord-hover/50" />
-            <TwemojiImg emoji="✅" size={24} />
+            <div className="relative w-10 h-10">
+              <img src="/favicon.svg" alt="VesselX" className="w-10 h-10 opacity-60" />
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center shadow-md">
+                <FiCheck size={9} strokeWidth={3} className="text-white" />
+              </div>
+            </div>
             You've caught up with everyone
           </div>
         )}
