@@ -377,7 +377,8 @@ function SupaSection({ currentUser }) {
         </div>
       )}
     </div>
-};
+  );
+}
 
 const LANGUAGES_FALLBACK = [
   { code: 'en', name: 'English', nativeName: 'English', dir: 'ltr' },
