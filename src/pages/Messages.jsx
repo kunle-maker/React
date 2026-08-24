@@ -320,11 +320,16 @@ function MessageContent({ msg, onOpenImage }) {
     }
     if (msg.type === 'audio') {
       return (
-        <div className="flex flex-col gap-1 min-w-[200px]">
-          <div className="flex items-center gap-2">
-            <span className="text-discord-brand text-xs font-medium">🎵 Audio</span>
+        <div className="flex flex-col gap-1 min-w-[220px]">
+          <div className="flex items-center gap-2 bg-white/6 border border-white/10 rounded-2xl px-3 py-2">
+            <FiMic size={16} className="text-discord-brand flex-shrink-0" />
+            <audio controls src={msg.mediaUrl} className="flex-1 max-w-[200px]" style={{ height: '32px' }} />
+            {msg.duration > 0 && (
+              <span className="text-[11px] text-discord-muted font-mono flex-shrink-0">
+                {Math.floor(msg.duration / 60)}:{String(Math.floor(msg.duration % 60)).padStart(2, '0')}
+              </span>
+            )}
           </div>
-          <audio controls src={msg.mediaUrl} className="w-full max-w-[240px]" style={{ height: '36px' }} />
           {text?.trim() && <div className="mt-1 text-sm"><FormattedText text={text.trim()} /></div>}
         </div>
       );
@@ -866,18 +871,53 @@ export default function Messages({ currentUser, unreadCounts }) {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm' });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+      const recorder = new MediaRecorder(stream, { mimeType });
       recordChunksRef.current = [];
       recorder.ondataavailable = e => { if (e.data.size > 0) recordChunksRef.current.push(e.data); };
-      recorder.onstop = () => {
+      recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(recordChunksRef.current, { type: recorder.mimeType });
-        const reader = new FileReader();
-        reader.onload = ev => {
-          setMediaAttachment({ type: 'audio', dataUrl: ev.target.result, filename: 'voice.webm', mimeType: recorder.mimeType, size: blob.size });
-        };
-        reader.readAsDataURL(blob);
         clearInterval(recordIntervalRef.current);
+        const dur = recordDuration;
+        // Upload blob, then send as proper audio message
+        try {
+          const fd = new FormData();
+          fd.append('file', blob, 'voice.webm');
+          setSending(true);
+          const uploadData = await API.uploadMessageMedia(fd);
+          const url = uploadData?.url || uploadData?.secure_url || uploadData?.mediaUrl;
+          if (!url) throw new Error('No URL');
+          const mediaType = recorder.mimeType.split(';')[0] || 'audio/webm';
+          await API.sendMessage({
+            receiverUsername: activeConv.username,
+            text: '',
+            type: 'audio',
+            mediaUrl: url,
+            mediaType,
+            duration: dur,
+          });
+          const voiceMsg = {
+            _id: Date.now(),
+            type: 'audio',
+            mediaUrl: url,
+            mediaType,
+            duration: dur,
+            text: '',
+            senderId: currentUser?._id || currentUser?.id,
+            createdAt: new Date().toISOString(),
+            status: 'sent',
+          };
+          setMessages(prev => [...prev, voiceMsg]);
+          playSendPop();
+          scrollToBottom();
+        } catch {
+          showToast('Failed to send voice note', { type: 'error' });
+        } finally {
+          setSending(false);
+        }
         setRecordDuration(0);
       };
       recorder.start();
@@ -1632,11 +1672,30 @@ export default function Messages({ currentUser, unreadCounts }) {
                 >
                   <FiSmile size={22} />
                 </button>
-                {newMsg.trim() || mediaAttachment ? (
+                {isRecording ? (
+                  <button
+                    type="button"
+                    onClick={stopRecording}
+                    className="p-1 text-red-500 hover:text-red-400 transition-all active:scale-90 animate-pulse"
+                    title="Stop recording"
+                  >
+                    <FiMic size={22} />
+                    <span className="text-[10px] text-red-400 font-bold ml-0.5">{recordDuration}s</span>
+                  </button>
+                ) : newMsg.trim() || mediaAttachment ? (
                   <button type="submit" className="p-1 text-discord-brand hover:text-discord-brand-light transition-all active:scale-90">
                     <FiSend size={22} />
                   </button>
-                ) : null}
+                ) : (
+                  <button
+                    type="button"
+                    onClick={startRecording}
+                    className="p-1 text-discord-muted hover:text-discord-brand transition-all active:scale-90"
+                    title="Hold to record voice note"
+                  >
+                    <FiMic size={22} />
+                  </button>
+                )}
               </div>
             </div>
           </form>

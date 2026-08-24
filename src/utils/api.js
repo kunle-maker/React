@@ -411,8 +411,8 @@ class API {
   static async getGroupMessages(groupId, page = 1, limit = 50) {
     return this.request(`/api/groups/${groupId}/messages?page=${page}&limit=${limit}`);
   }
-  static async sendGroupMessage(groupId, text, replyToMessageId = null) {
-    const body = { text };
+  static async sendGroupMessage(groupId, text, replyToMessageId = null, extra = {}) {
+    const body = { text, ...extra };
     if (replyToMessageId) body.replyToMessageId = replyToMessageId;
     const data = await this.request(`/api/groups/${groupId}/messages`, { method: 'POST', body: JSON.stringify(body) });
     this.clearCache(`/api/groups/${groupId}/messages`);

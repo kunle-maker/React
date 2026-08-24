@@ -122,10 +122,15 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [editingMsgId, setEditingMsgId] = useState(null);
   const [editText, setEditText] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordDuration, setRecordDuration] = useState(0);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const recordChunksRef = useRef([]);
+  const recordIntervalRef = useRef(null);
   const swipeTouchRef = useRef({ x: 0, y: 0, msgId: null, direction: null });
   const isAtBottomRef = useRef(true);
   const myId = currentUser?._id || currentUser?.id;
@@ -346,6 +351,63 @@ export default function GroupChat({ currentUser, unreadCounts }) {
     setMessages(prev => [...prev, tempMsg]);
     scrollToBottom();
     API.sendGroupMessage(groupId, text).catch(() => {});
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+      const recorder = new MediaRecorder(stream, { mimeType });
+      recordChunksRef.current = [];
+      recorder.ondataavailable = e => { if (e.data.size > 0) recordChunksRef.current.push(e.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(recordChunksRef.current, { type: recorder.mimeType });
+        clearInterval(recordIntervalRef.current);
+        const dur = recordDuration;
+        try {
+          const fd = new FormData();
+          fd.append('file', blob, 'voice.webm');
+          setSending(true);
+          const uploadData = await API.uploadMessageMedia(fd);
+          const url = uploadData?.url || uploadData?.secure_url || uploadData?.mediaUrl;
+          if (!url) throw new Error('No URL');
+          const mediaType = recorder.mimeType.split(';')[0] || 'audio/webm';
+          const data = await API.sendGroupMessage(groupId, '', null, { type: 'audio', mediaUrl: url, mediaType, duration: dur });
+          const realMsg = data?.message || {
+            _id: Date.now(),
+            type: 'audio',
+            mediaUrl: url,
+            mediaType,
+            duration: dur,
+            text: '',
+            senderId: { _id: myId, username: currentUser?.username, name: currentUser?.name, profilePicture: currentUser?.profilePicture },
+            senderUsername: currentUser?.username,
+            createdAt: new Date().toISOString(),
+          };
+          setMessages(prev => [...prev, realMsg]);
+          playSendPop();
+          scrollToBottom();
+        } catch {
+          showToast('Failed to send voice note', { type: 'error' });
+        } finally {
+          setSending(false);
+        }
+        setRecordDuration(0);
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setRecordDuration(0);
+      recordIntervalRef.current = setInterval(() => setRecordDuration(d => d + 1), 1000);
+    } catch { showToast('Microphone access denied', { type: 'error' }); }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
   };
 
   const handleSend = async (e) => {
@@ -1034,11 +1096,30 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                   >
                     <FiSmile size={22} />
                   </button>
-                  {newMsg.trim() || mediaAttachment ? (
+                  {isRecording ? (
+                    <button
+                      type="button"
+                      onClick={stopRecording}
+                      className="p-1 text-red-500 hover:text-red-400 transition-all active:scale-90 animate-pulse"
+                      title="Stop recording"
+                    >
+                      <FiMic size={22} />
+                      <span className="text-[10px] text-red-400 font-bold ml-0.5">{recordDuration}s</span>
+                    </button>
+                  ) : newMsg.trim() || mediaAttachment ? (
                     <button type="submit" className="p-1 text-discord-brand hover:text-discord-brand-light transition-all active:scale-90">
                       <FiSend size={22} />
                     </button>
-                  ) : null}
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={startRecording}
+                      className="p-1 text-discord-muted hover:text-discord-brand transition-all active:scale-90"
+                      title="Record voice note"
+                    >
+                      <FiMic size={22} />
+                    </button>
+                  )}
                 </div>
               </div>
             </form>
