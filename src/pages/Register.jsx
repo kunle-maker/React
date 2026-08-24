@@ -11,7 +11,7 @@ import {
   OrDivider,
 } from '../components/AuthShared';
 
-const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'gabimarutechbot';
+const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'vesselxoathbot';
 
 export default function Register() {
   const navigate = useNavigate();
