@@ -195,10 +195,37 @@ export function VerifiedBadge({ size = 16, username }) {
 
 export function SupaBadge({ size = 16, username }) {
   const styleId = username ? getStoredSupaBadgeStyle(username) : 'red';
-  const shapeId = username ? getStoredSupaBadgeShape(username) : 'hex';
   const style = getSupaBadgeStyle(styleId);
-  const Comp = SUPA_SHAPE_MAP[shapeId] || HexSVG;
-  return <Comp color={style.color} glow={style.glow} size={size} />;
+  // Telegram-style: filled circle + bold white checkmark
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      className="flex-shrink-0"
+      title="Supa"
+      style={{
+        display: 'inline-block',
+        verticalAlign: 'middle',
+        filter: `drop-shadow(0 0 3px ${style.glow})`,
+      }}
+    >
+      {/* Filled circle */}
+      <circle cx="12" cy="12" r="11" fill={style.color} />
+      {/* Subtle inner ring for depth */}
+      <circle cx="12" cy="12" r="9.5" stroke="rgba(255,255,255,0.15)" strokeWidth="0.7" fill="none" />
+      {/* Bold white checkmark — matches Telegram's tick proportions */}
+      <polyline
+        points="6.5,12.5 10,16 17.5,8"
+        stroke="white"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
 }
 
 export function AnimatedBadge({ badgeId, size = 20 }) {
