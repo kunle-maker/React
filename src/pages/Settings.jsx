@@ -214,8 +214,11 @@ function SupaSection({ currentUser }) {
     setInitiateError('');
     try {
       const data = await API.initiateSupaPayment(selectedPlan);
-      setPaymentData(data);
-      setShowTransfer(true);
+      if (data.paymentLink) {
+        window.location.href = data.paymentLink;
+      } else {
+        setInitiateError('No payment link returned. Please try again.');
+      }
     } catch (err) {
       setInitiateError(err.message || 'Failed to initiate payment. Please try again.');
     } finally {
@@ -241,18 +244,7 @@ function SupaSection({ currentUser }) {
     'Ad-free experience',
   ];
 
-  if (showTransfer && paymentData) {
-    return (
-      <BankTransferScreen
-        paymentData={paymentData}
-        plan={selectedPlan}
-        onActivated={handleActivated}
-        onBack={() => { setShowTransfer(false); setPaymentData(null); }}
-      />
-    );
-  }
 
-  return (
     <div>
       <div className="flex items-center gap-2 mb-1">
         <HiSparkles size={22} className="text-discord-brand" />
@@ -319,7 +311,7 @@ function SupaSection({ currentUser }) {
           <div className="bg-blue-500/8 border border-blue-500/20 rounded-xl p-3.5 mb-4 flex items-start gap-3">
             <FiAlertCircle size={16} className="text-blue-400 flex-shrink-0 mt-0.5" />
             <p className="text-blue-400 text-xs leading-relaxed">
-              Pay via bank transfer — no card required. Your Supa access activates automatically once your transfer is confirmed.
+              You'll be redirected to Flutterwave's secure checkout to complete your payment. After paying, you'll be returned to VesselX automatically.
             </p>
           </div>
 

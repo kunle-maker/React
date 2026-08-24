@@ -32,6 +32,7 @@ const ModeratorBot   = lazy(() => import('./pages/ModeratorBot'));
 const Reels          = lazy(() => import('./pages/Reels'));
 const Games          = lazy(() => import('./pages/Games'));
 const Developer      = lazy(() => import('./pages/Developer'));
+const SupaPaymentCallback = lazy(() => import('./pages/SupaPaymentCallback'));
 
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false }; }
@@ -329,6 +330,7 @@ function AppInner() {
           <Route path="/game/join" element={<ProtectedRoute token={token}><Games {...sharedProps} /></ProtectedRoute>} />
           <Route path="/game/join/:inviteCode" element={<ProtectedRoute token={token}><Games {...sharedProps} /></ProtectedRoute>} />
           <Route path="/game/room/:roomId" element={<ProtectedRoute token={token}><Games {...sharedProps} /></ProtectedRoute>} />
+          <Route path="/supa/payment-callback" element={<ProtectedRoute token={token}><SupaPaymentCallback /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
