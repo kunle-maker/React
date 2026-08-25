@@ -55,15 +55,19 @@ function VoiceNotePlayer({ src, duration: initDuration, isMine = false }) {
   };
 
   const pct = duration > 0 ? Math.min(current / duration, 1) : 0;
-  const barColor = isMine ? 'bg-white/90' : 'bg-discord-brand';
-  const trackColor = isMine ? 'bg-white/25' : 'bg-white/15';
-  const textColor = isMine ? 'text-white/70' : 'text-discord-muted';
+  // Pill styling: sent = white bg w/ dark elements, received = dark charcoal bg w/ light elements
+  const pillBg = isMine ? 'bg-white' : 'bg-[#1c1c1e]';
+  const barFilled = isMine ? 'bg-[#1c1c1e]' : 'bg-white/80';
+  const barEmpty = isMine ? 'bg-[#1c1c1e]/30' : 'bg-white/20';
+  const btnBg = isMine ? 'bg-[#1c1c1e]/10 hover:bg-[#1c1c1e]/20' : 'bg-white/10 hover:bg-white/20';
+  const btnIcon = isMine ? 'text-[#1c1c1e]' : 'text-white';
+  const timeColor = isMine ? 'text-[#1c1c1e]/60' : 'text-white/50';
+  const speedColor = isMine ? 'text-[#1c1c1e]/70 hover:bg-[#1c1c1e]/10' : 'text-white/60 hover:bg-white/10';
 
-  // Fake waveform bars (static decorative)
   const bars = [3,5,8,6,9,4,7,5,10,6,4,8,5,7,3,6,9,5,8,4,6,10,7,5,3,8,6,9,4,7];
 
   return (
-    <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-2xl min-w-[220px] max-w-[280px] ${isMine ? 'bg-discord-brand' : 'bg-white/8 border border-white/10'}`}>
+    <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-[18px] min-w-[220px] max-w-[280px] ${pillBg}`}>
       <audio
         ref={audioRef}
         src={src}
@@ -74,11 +78,11 @@ function VoiceNotePlayer({ src, duration: initDuration, isMine = false }) {
       {/* Play/Pause button */}
       <button
         onClick={toggle}
-        className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all active:scale-90 ${isMine ? 'bg-white/20 hover:bg-white/30' : 'bg-discord-brand/20 hover:bg-discord-brand/30'}`}
+        className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all active:scale-90 ${btnBg}`}
       >
         {playing
-          ? <span className={`text-xs font-black tracking-tighter ${isMine ? 'text-white' : 'text-discord-brand'}`}>❙❙</span>
-          : <FiPlay size={14} className={`ml-0.5 ${isMine ? 'text-white' : 'text-discord-brand'}`} />
+          ? <span className={`text-xs font-black tracking-tighter ${btnIcon}`}>❙❙</span>
+          : <FiPlay size={14} className={`ml-0.5 ${btnIcon}`} />
         }
       </button>
 
@@ -89,9 +93,9 @@ function VoiceNotePlayer({ src, duration: initDuration, isMine = false }) {
           onClick={e => {
             if (!audioRef.current || !duration) return;
             const rect = e.currentTarget.getBoundingClientRect();
-            const pct = (e.clientX - rect.left) / rect.width;
-            audioRef.current.currentTime = pct * duration;
-            setCurrent(pct * duration);
+            const p = (e.clientX - rect.left) / rect.width;
+            audioRef.current.currentTime = p * duration;
+            setCurrent(p * duration);
           }}
         >
           {bars.map((h, i) => {
@@ -99,21 +103,21 @@ function VoiceNotePlayer({ src, duration: initDuration, isMine = false }) {
             return (
               <div
                 key={i}
-                className={`flex-1 rounded-full transition-all ${filled ? barColor : trackColor}`}
+                className={`flex-1 rounded-full transition-all ${filled ? barFilled : barEmpty}`}
                 style={{ height: `${(h / 10) * 100}%`, minHeight: 3 }}
               />
             );
           })}
         </div>
-        <div className={`flex items-center justify-between text-[10px] font-mono ${textColor}`}>
+        <div className={`flex items-center justify-between text-[10px] font-mono ${timeColor}`}>
           <span>{playing ? fmt(current) : fmt(duration)}</span>
-          <button onClick={cycleSpeed} className={`font-bold text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${isMine ? 'text-white/80 hover:bg-white/20' : 'text-discord-muted hover:bg-white/10'}`}>
+          <button onClick={cycleSpeed} className={`font-bold text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${speedColor}`}>
             {speed}×
           </button>
         </div>
       </div>
 
-      <FiMic size={13} className={`flex-shrink-0 opacity-50 ${isMine ? 'text-white' : 'text-discord-muted'}`} />
+      <FiMic size={13} className={`flex-shrink-0 opacity-40 ${btnIcon}`} />
     </div>
   );
 }
@@ -554,10 +558,8 @@ function DateSeparator({ date }) {
   const d = new Date(date);
   const label = isToday(d) ? 'Today' : isYesterday(d) ? 'Yesterday' : format(d, 'MMMM d, yyyy');
   return (
-    <div className="flex items-center gap-3 py-3">
-      <div className="flex-1 h-px bg-white/5" />
-      <span className="text-[11px] text-discord-muted font-semibold px-3 py-1 rounded-full bg-white/4 border border-white/6">{label}</span>
-      <div className="flex-1 h-px bg-white/5" />
+    <div className="flex items-center justify-center py-3">
+      <span className="text-[11px] text-white/35 font-medium px-3 py-1 rounded-full bg-white/[0.06]">{label}</span>
     </div>
   );
 }
@@ -612,6 +614,8 @@ export default function Messages({ currentUser, unreadCounts }) {
   const [mediaAttachment, setMediaAttachment] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordDuration, setRecordDuration] = useState(0);
+  const [recordingState, setRecordingState] = useState('idle'); // 'idle' | 'recording' | 'cancelling'
+  const [recordCancelX, setRecordCancelX] = useState(0); // track swipe-left offset for cancel hint
   const [jitsiUrl, setJitsiUrl] = useState(null);
   const [showCropModal, setShowCropModal] = useState(false);
   const [pendingImageSrc, setPendingImageSrc] = useState(null);
@@ -634,6 +638,8 @@ export default function Messages({ currentUser, unreadCounts }) {
   const recordChunksRef = useRef([]);
   const recordIntervalRef = useRef(null);
   const swipeTouchRef = useRef({ x: 0, y: 0, msgId: null, direction: null });
+  const micBtnRef = useRef(null);
+  const recordCancelledRef = useRef(false);
   const isMobile = window.innerWidth < 768;
 
   const activeConvRef = useRef(null);
@@ -962,12 +968,21 @@ export default function Messages({ currentUser, unreadCounts }) {
         : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
       const recorder = new MediaRecorder(stream, { mimeType });
       recordChunksRef.current = [];
+      recordCancelledRef.current = false;
       recorder.ondataavailable = e => { if (e.data.size > 0) recordChunksRef.current.push(e.data); };
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(recordChunksRef.current, { type: recorder.mimeType });
         clearInterval(recordIntervalRef.current);
         const dur = recordDuration;
+        setRecordingState('idle');
+
+        // If cancelled, discard the recording
+        if (recordCancelledRef.current) {
+          setRecordDuration(0);
+          return;
+        }
+
+        const blob = new Blob(recordChunksRef.current, { type: recorder.mimeType });
         // Upload blob, then send as proper audio message
         try {
           const fd = new FormData();
@@ -1009,14 +1024,50 @@ export default function Messages({ currentUser, unreadCounts }) {
       recorder.start();
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
+      setRecordingState('recording');
+      setRecordCancelX(0);
       setRecordDuration(0);
       recordIntervalRef.current = setInterval(() => setRecordDuration(d => d + 1), 1000);
     } catch { showToast('Microphone access denied', { type: 'error' }); }
   };
 
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    setIsRecording(false);
+  const stopRecording = (cancel = false) => {
+    recordCancelledRef.current = cancel;
+    if (cancel) {
+      setRecordingState('cancelling');
+      setTimeout(() => {
+        mediaRecorderRef.current?.stop();
+        setIsRecording(false);
+      }, 200);
+    } else {
+      mediaRecorderRef.current?.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handleMicTouchStart = (e) => {
+    e.preventDefault();
+    startRecording();
+    setRecordCancelX(e.touches[0].clientX);
+  };
+
+  const handleMicTouchMove = (e) => {
+    if (!isRecording) return;
+    const dx = e.touches[0].clientX - recordCancelX;
+    if (dx < -40) {
+      setRecordingState('cancelling');
+    } else {
+      setRecordingState('recording');
+    }
+  };
+
+  const handleMicTouchEnd = () => {
+    if (!isRecording) return;
+    if (recordingState === 'cancelling') {
+      stopRecording(true);
+    } else {
+      stopRecording(false);
+    }
   };
 
   const sendCallInvite = async (isVideo = true) => {
@@ -1282,12 +1333,19 @@ export default function Messages({ currentUser, unreadCounts }) {
       }
       const mine = isSentByMe(msg);
       const prev = messages[i - 1];
+      const next = messages[i + 1];
       const prevMine = prev ? isSentByMe(prev) : null;
+      const nextMine = next ? isSentByMe(next) : null;
       const timeDiff = prev?.createdAt && msg.createdAt
         ? differenceInMinutes(new Date(msg.createdAt), new Date(prev.createdAt))
         : 99;
+      const timeDiffNext = next?.createdAt && msg.createdAt
+        ? differenceInMinutes(new Date(next.createdAt), new Date(msg.createdAt))
+        : 99;
       const grouped = prev && prevMine === mine && timeDiff < 5 && msgDateStr === (prev?.createdAt ? new Date(prev.createdAt).toDateString() : null);
-      result.push({ type: 'message', msg, mine, grouped, key: msg._id || i });
+      // Has a following message from the same sender within 3 minutes — flatten bottom corner
+      const hasNextSameSender = next && nextMine === mine && timeDiffNext < 3 && msgDateStr === (next?.createdAt ? new Date(next.createdAt).toDateString() : null);
+      result.push({ type: 'message', msg, mine, grouped, hasNextSameSender, key: msg._id || i });
     });
     return result;
   };
@@ -1414,80 +1472,84 @@ export default function Messages({ currentUser, unreadCounts }) {
   const items = buildMessageItems();
 
   const ChatArea = activeConv ? (
-    <div className="flex flex-col h-full relative bg-discord-bg overflow-hidden">
+    <div className="flex flex-col h-full relative bg-black overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 h-14 border-b border-discord-hover/50 bg-discord-bg/80 backdrop-blur-xl z-20 flex-shrink-0">
-        <div className="flex items-center gap-3 min-w-0">
-          {isMobile && (
-            <button className="text-discord-muted hover:text-discord-text transition-colors -ml-1 p-1" onClick={() => { setActiveConv(null); navigate('/messages'); }}>
-              <FiArrowLeft size={22} />
-            </button>
-          )}
+      <div className="flex items-center justify-between px-3 h-14 bg-black z-20 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="flex items-center gap-2 min-w-0">
+          <button className="text-white/70 hover:text-white transition-colors p-1.5 -ml-1.5 flex-shrink-0" onClick={() => { setActiveConv(null); navigate('/messages'); }}>
+            <FiArrowLeft size={22} />
+          </button>
           <div
-            className="cursor-pointer flex items-center gap-2.5 min-w-0 group"
+            className="cursor-pointer flex items-center gap-2.5 min-w-0"
             onClick={() => navigate(`/profile/${activeConv.username}`)}
           >
             <div className="relative flex-shrink-0">
-              <Avatar user={activeConv} size={34} showStatus={!activeConv.isSupa} supaRing={true} />
+              <Avatar user={activeConv} size={34} showStatus={false} supaRing={true} />
+              {activeConv.isOnline && !activeConv.isBot && (
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-black" />
+              )}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className={`text-[15px] font-bold truncate ${activeConv.isSupa ? 'supa-chat-name' : 'text-discord-text'}`}>
+                <span className={`text-[15px] font-bold truncate ${activeConv.isSupa ? 'supa-chat-name' : 'text-white'}`}>
                   {activeConv.name}
                 </span>
                 {activeConv.isVerified && <FiCheckCircle size={12} className="text-discord-brand flex-shrink-0" />}
-                {activeConv.isBot && <span className="text-[10px] font-bold text-discord-brand bg-discord-brand/10 border border-discord-brand/20 px-1.5 py-0.5 rounded-md leading-none">⚙️ BOT</span>}
+                {activeConv.isBot && <span className="text-[10px] font-bold text-discord-brand bg-discord-brand/10 border border-discord-brand/20 px-1.5 py-0.5 rounded-md leading-none">BOT</span>}
               </div>
-              <p className="text-[11px] font-medium leading-none text-discord-muted mt-0.5">
+              <p className="text-[11px] leading-none mt-0.5">
                 {activeConv.isBot ? (
                   <span className="text-discord-brand/70">Bot</span>
                 ) : activeConv.isOnline ? (
-                  <span className="flex items-center gap-1 text-discord-green">
-                    <span className="w-1.5 h-1.5 rounded-full bg-discord-green" /> Online
-                  </span>
-                ) : 'Offline'}
+                  <span className="text-green-400 font-medium">Active Now</span>
+                ) : (
+                  <span className="text-white/40">Offline</span>
+                )}
               </p>
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0">
           {!activeConv.isBot && (
             <>
               <button
-                className="w-9 h-9 flex items-center justify-center rounded-full text-discord-muted hover:text-discord-text hover:bg-white/5 transition-all"
-                onClick={() => sendCallInvite(false)}
-                title="Voice Call"
-              >
-                <FiPhone size={19} />
-              </button>
-              <button
-                className="w-9 h-9 flex items-center justify-center rounded-full text-discord-muted hover:text-discord-text hover:bg-white/5 transition-all"
+                className="w-9 h-9 flex items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/8 transition-all"
                 onClick={() => sendCallInvite(true)}
                 title="Video Call"
               >
-                <FiVideo size={19} />
+                <FiVideo size={20} />
+              </button>
+              <button
+                className="w-9 h-9 flex items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/8 transition-all"
+                onClick={() => sendCallInvite(false)}
+                title="Voice Call"
+              >
+                <FiPhone size={20} />
               </button>
             </>
           )}
+          <button
+            className="w-9 h-9 flex items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/8 transition-all"
+            onClick={e => { e.stopPropagation(); navigate(`/profile/${activeConv.username}`); }}
+            title="More options"
+          >
+            <FiMoreHorizontal size={22} />
+          </button>
         </div>
       </div>
 
       {/* Messages */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto px-4 py-2 scroll-smooth no-scrollbar"
+        className="flex-1 overflow-y-auto px-3 py-2 scroll-smooth no-scrollbar bg-black"
         onScroll={handleScroll}
         onClick={() => { if (showEmojiPicker) setShowEmojiPicker(false); }}
       >
         {loading ? (
-          <div className="space-y-6 pt-4">
+          <div className="space-y-4 pt-4 px-2">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="flex gap-4">
-                <div className="skeleton w-10 h-10 rounded-full flex-shrink-0" />
-                <div className="space-y-2 flex-1">
-                  <div className="skeleton h-4 w-32 rounded" />
-                  <div className="skeleton h-16 w-full rounded-xl" />
-                </div>
+              <div key={i} className={`flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
+                <div className="skeleton h-10 rounded-[18px]" style={{ width: `${120 + (i * 30) % 80}px` }} />
               </div>
             ))}
           </div>
@@ -1496,13 +1558,13 @@ export default function Messages({ currentUser, unreadCounts }) {
             <div className="flex flex-col items-center justify-center h-full px-6 gap-5">
               <Avatar user={activeConv} size={88} supaRing />
               <div className="text-center">
-                <h2 className="text-2xl font-bold text-discord-text">{activeConv.name}</h2>
+                <h2 className="text-2xl font-bold text-white">{activeConv.name}</h2>
                 <p className="text-[13px] text-discord-brand font-semibold mt-1">⚙️ Bot</p>
                 {activeConv.shortDescription && (
-                  <p className="text-discord-muted text-sm mt-2 max-w-xs leading-relaxed">{activeConv.shortDescription}</p>
+                  <p className="text-white/50 text-sm mt-2 max-w-xs leading-relaxed">{activeConv.shortDescription}</p>
                 )}
                 {!activeConv.shortDescription && activeConv.bio && (
-                  <p className="text-discord-muted text-sm mt-2 max-w-xs leading-relaxed">{activeConv.bio}</p>
+                  <p className="text-white/50 text-sm mt-2 max-w-xs leading-relaxed">{activeConv.bio}</p>
                 )}
               </div>
               <button
@@ -1514,22 +1576,50 @@ export default function Messages({ currentUser, unreadCounts }) {
             </div>
           ) : (
             <div className="flex flex-col items-start justify-end h-full px-2 pb-8">
-              <div className="w-20 h-20 rounded-full bg-discord-brand/10 flex items-center justify-center mb-4">
+              <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4">
                 <Avatar user={activeConv} size={80} supaRing />
               </div>
-              <h2 className="text-3xl font-bold text-discord-text mb-2">Welcome to the beginning of your direct message history with @{activeConv.username}</h2>
-              <p className="text-discord-muted mb-6">This is the start of your direct message history with {activeConv.name}.</p>
-              <div className="h-px w-full bg-discord-hover/50 mb-4" />
+              <h2 className="text-2xl font-bold text-white mb-2">Beginning of your DM with @{activeConv.username}</h2>
+              <p className="text-white/40 mb-6">This is the start of your direct message history with {activeConv.name}.</p>
             </div>
           )
         ) : items.map(item => {
           if (item.type === 'date') return <DateSeparator key={item.key} date={item.date} />;
-          const { msg, mine, grouped } = item;
+          const { msg, mine, grouped, hasNextSameSender } = item;
+
+          if (msg.type === 'system') {
+            return (
+              <div key={item.key} className="flex justify-center my-1.5">
+                <span className="text-xs text-white/35 bg-white/[0.06] px-3 py-1 rounded-full italic">{msg.text || msg.formattedText || ''}</span>
+              </div>
+            );
+          }
+
+          if (msg.unsent) {
+            return (
+              <div key={item.key} className={`flex ${mine ? 'justify-end' : 'justify-start'} mb-0.5`}>
+                <span className="text-xs italic text-white/30 px-3 py-1">This message was unsent</span>
+              </div>
+            );
+          }
+
+          // Bubble corner logic:
+          // sent (mine): bottom-right flat if followed by same sender within 3 min
+          // received (!mine): bottom-left flat if followed by same sender within 3 min
+          const baseRadius = 18;
+          let borderRadius;
+          if (mine) {
+            borderRadius = `${baseRadius}px ${baseRadius}px ${hasNextSameSender ? 4 : baseRadius}px ${baseRadius}px`;
+          } else {
+            borderRadius = `${baseRadius}px ${baseRadius}px ${baseRadius}px ${hasNextSameSender ? 4 : baseRadius}px`;
+          }
+
+          const isEditing = editingMsgId === msg._id;
 
           return (
             <div
               key={item.key}
-              className={`group flex items-start gap-4 px-2 py-1 hover:bg-white/[0.02] transition-colors relative ${grouped ? 'mt-[-4px]' : 'mt-4'}`}
+              className={`group flex ${mine ? 'justify-end' : 'justify-start'} ${grouped ? 'mt-0.5' : 'mt-3'}`}
               onContextMenu={e => handleMessageContextMenu(e, msg)}
               onTouchStart={e => handleMsgTouchStart(e, item.key)}
               onTouchMove={e => handleMsgTouchMove(e, item.key)}
@@ -1538,49 +1628,18 @@ export default function Messages({ currentUser, unreadCounts }) {
                 ? { transform: `translateX(${swipeOffset}px)`, transition: 'none' }
                 : { transition: 'transform 0.2s ease' }}
             >
-              {!grouped ? (
-                <div className="flex-shrink-0 mt-1 cursor-pointer" onClick={() => navigate(`/profile/${mine ? currentUser.username : activeConv.username}`)}>
-                  <Avatar user={mine ? currentUser : activeConv} size={40} />
-                </div>
-              ) : (
-                <div className="w-10 flex-shrink-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="text-[10px] text-discord-muted mt-1.5 select-none font-medium">
-                    {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
-                  </span>
-                </div>
-              )}
-
-              <div className="flex-1 min-w-0">
-                {!grouped && (
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span 
-                      className={`text-[15px] font-bold cursor-pointer hover:underline ${(mine ? (currentUser.isSupa ? 'supa-chat-name' : 'text-discord-text') : (activeConv.isSupa ? 'supa-chat-name' : 'text-discord-text'))}`}
-                      onClick={() => navigate(`/profile/${mine ? currentUser.username : activeConv.username}`)}
-                    >
-                      {mine ? currentUser.name : activeConv.name}
-                    </span>
-                    <span className="text-[11px] text-discord-muted font-medium">
-                      {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
-                    </span>
-                    {mine && !msg.unsent && (
-                      <span className="text-[11px]" title={msg.status === 'read' ? 'Read' : msg.status === 'delivered' ? 'Delivered' : 'Sent'}>
-                        {msg.status === 'read'
-                          ? <span className="text-discord-brand font-bold">✓✓</span>
-                          : msg.status === 'delivered'
-                          ? <span className="text-discord-muted">✓✓</span>
-                          : <span className="text-discord-muted">✓</span>}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                <div className={`text-[15px] leading-relaxed break-words text-[#dbdee1] ${msg.unsent ? 'italic text-discord-muted opacity-60' : ''}`}>
-                  {msg.unsent ? (
-                    <span>This message was unsent</span>
-                  ) : editingMsgId === msg._id ? (
-                    <div className="mt-1 bg-discord-hover/30 rounded-lg p-2 border border-discord-brand/30">
+              <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[78%]`}>
+                {/* Bubble */}
+                <div
+                  className={`relative px-3.5 py-2 text-[15px] leading-relaxed break-words
+                    ${mine ? 'bg-white text-[#111]' : 'bg-[#1c1c1e] text-white'}
+                  `}
+                  style={{ borderRadius }}
+                >
+                  {isEditing ? (
+                    <div className="min-w-[180px]">
                       <textarea
-                        className="w-full bg-transparent text-sm resize-none outline-none text-discord-text"
+                        className={`w-full bg-transparent text-sm resize-none outline-none ${mine ? 'text-[#111]' : 'text-white'}`}
                         rows={2}
                         value={editText}
                         onChange={e => setEditText(e.target.value)}
@@ -1590,63 +1649,84 @@ export default function Messages({ currentUser, unreadCounts }) {
                         }}
                         autoFocus
                       />
-                      <div className="flex gap-2 justify-end mt-2">
-                        <button onClick={() => { setEditingMsgId(null); setEditText(''); }} className="text-xs text-discord-text hover:underline">Cancel</button>
-                        <button onClick={() => handleEditSave(msg._id)} className="text-xs bg-discord-brand text-white px-3 py-1 rounded-md font-medium">Save Changes</button>
+                      <div className="flex gap-2 justify-end mt-1">
+                        <button onClick={() => { setEditingMsgId(null); setEditText(''); }} className={`text-xs hover:underline ${mine ? 'text-[#333]' : 'text-white/60'}`}>Cancel</button>
+                        <button onClick={() => handleEditSave(msg._id)} className="text-xs bg-discord-brand text-white px-2 py-0.5 rounded-md font-medium">Save</button>
                       </div>
                     </div>
                   ) : (
-                    <div className="relative group/content">
-                      <MessageContent msg={msg} onOpenImage={setFullscreenImg} isMine={isSentByMe(msg)} />
-                      {msg.edited && !msg.unsent && <span className="text-[10px] text-discord-muted ml-1 select-none">(edited)</span>}
-                    </div>
+                    <MessageContent msg={msg} onOpenImage={setFullscreenImg} isMine={mine} />
+                  )}
+                  {msg.edited && !msg.unsent && (
+                    <span className={`text-[10px] ml-1 select-none ${mine ? 'text-[#666]' : 'text-white/40'}`}>(edited)</span>
+                  )}
+                  {/* Reaction trigger on hover */}
+                  {!msg.unsent && (
+                    <button
+                      className={`absolute ${mine ? '-left-8' : '-right-8'} top-1 opacity-0 group-hover:opacity-100 transition-opacity bg-[#1c1c1e] border border-white/10 rounded-full p-1.5 text-white/50 hover:text-white z-10`}
+                      onClick={(e) => { e.stopPropagation(); setActiveReactionPicker(activeReactionPicker === msg._id ? null : msg._id); }}
+                    >
+                      <FiSmile size={13} />
+                    </button>
                   )}
                 </div>
-                {/* Reaction bubbles */}
+
+                {/* Reactions */}
                 {msg.reactions?.length > 0 && !msg.unsent && (
-                  <div className="flex flex-wrap items-center gap-1 mt-1">
+                  <div className={`flex flex-wrap items-center gap-1 mt-1 ${mine ? 'justify-end' : 'justify-start'}`}>
                     {Object.entries(msg.reactions.reduce((acc, r) => { acc[r.emoji] = (acc[r.emoji] || 0) + 1; return acc; }, {})).map(([emoji, count]) => {
                       const myId = currentUser?._id || currentUser?.id;
-                      const mine = msg.reactions.some(r => (r.userId === myId || r.userId?._id === myId) && r.emoji === emoji);
+                      const iAmReacted = msg.reactions.some(r => (r.userId === myId || r.userId?._id === myId) && r.emoji === emoji);
                       return (
-                        <button key={emoji} onClick={() => handleReact(msg, emoji)} className={`flex items-center text-xs rounded-full px-2 py-0.5 border transition-all active:scale-95 ${mine ? 'bg-discord-brand/20 border-discord-brand/40 text-discord-brand' : 'bg-white/5 border-white/10 text-discord-text hover:border-white/20'}`}>
+                        <button key={emoji} onClick={() => handleReact(msg, emoji)} className={`flex items-center text-xs rounded-full px-2 py-0.5 border transition-all active:scale-95 ${iAmReacted ? 'bg-discord-brand/20 border-discord-brand/40 text-discord-brand' : 'bg-white/5 border-white/10 text-white hover:border-white/20'}`}>
                           <TwemojiEmoji emoji={emoji} size={14} /><span className="font-bold ml-0.5">{count}</span>
                         </button>
                       );
                     })}
-                    <button onClick={(e) => { e.stopPropagation(); setActiveReactionPicker(activeReactionPicker === msg._id ? null : msg._id); }} className="flex items-center text-discord-muted hover:text-discord-text text-xs rounded-full px-1.5 py-0.5 border border-transparent hover:border-white/10 hover:bg-white/5 transition-all">
+                    <button onClick={(e) => { e.stopPropagation(); setActiveReactionPicker(activeReactionPicker === msg._id ? null : msg._id); }} className="flex items-center text-white/40 hover:text-white text-xs rounded-full px-1.5 py-0.5 border border-transparent hover:border-white/10 hover:bg-white/5 transition-all">
                       <FiSmile size={12} />
                     </button>
                   </div>
                 )}
+
                 {/* Reaction picker popup */}
                 {activeReactionPicker === msg._id && (
-                  <div className="flex items-center gap-1 bg-discord-dark border border-white/10 rounded-full px-2 py-1.5 shadow-2xl mt-1 w-fit animate-fade-in" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-1 bg-[#1c1c1e] border border-white/10 rounded-full px-2 py-1.5 shadow-2xl mt-1 w-fit animate-fade-in" onClick={e => e.stopPropagation()}>
                     {MSG_REACTIONS.map(emoji => (
                       <button key={emoji} onClick={() => handleReact(msg, emoji)} className="hover:scale-125 transition-transform active:scale-110 p-0.5 flex items-center justify-center"><TwemojiEmoji emoji={emoji} size={20} /></button>
                     ))}
                   </div>
                 )}
+
+                {/* Timestamp + read receipt — show on last of a group or standalone */}
+                {(!hasNextSameSender) && (
+                  <div className={`flex items-center gap-1 mt-0.5 px-1 ${mine ? 'justify-end' : 'justify-start'}`}>
+                    <span className="text-[10px] text-white/30">
+                      {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
+                    </span>
+                    {mine && !msg.unsent && (
+                      <span className="text-[10px]" title={msg.status === 'read' ? 'Read' : msg.status === 'delivered' ? 'Delivered' : 'Sent'}>
+                        {msg.status === 'read'
+                          ? <span className="text-discord-brand font-bold">✓✓</span>
+                          : msg.status === 'delivered'
+                          ? <span className="text-white/30">✓✓</span>
+                          : <span className="text-white/30">✓</span>}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {!msg.unsent && msg.text && !msg.text.startsWith('[vx:') && <LinkPreview text={msg.text} />}
               </div>
-              {/* Reaction trigger on hover */}
-              {!msg.unsent && (
-                <button
-                  className="absolute right-2 top-1 opacity-0 group-hover:opacity-100 transition-opacity bg-discord-dark border border-white/10 rounded-full p-1.5 text-discord-muted hover:text-discord-text hover:bg-discord-hover shadow-sm z-10"
-                  onClick={(e) => { e.stopPropagation(); setActiveReactionPicker(activeReactionPicker === msg._id ? null : msg._id); }}
-                >
-                  <FiSmile size={14} />
-                </button>
-              )}
             </div>
           );
         })}
         {isTyping && (
-          <div className="flex items-center gap-4 px-2 py-2">
-            <div className="w-10 flex-shrink-0" />
-            <div className="flex items-center gap-2 text-discord-muted text-xs font-bold italic">
-              <div className="typing-indicator flex gap-1"><span className="w-1 h-1"/><span className="w-1 h-1"/><span className="w-1 h-1"/></div>
-              <span>{activeConv.name} is typing...</span>
+          <div className="flex items-center gap-2 justify-start mt-3 pl-1">
+            <div className="bg-[#1c1c1e] rounded-[18px] px-4 py-3 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
           </div>
         )}
@@ -1668,128 +1748,148 @@ export default function Messages({ currentUser, unreadCounts }) {
       )}
 
       {/* Input */}
-      <div className={`flex flex-col flex-shrink-0 bg-discord-bg transition-all duration-300 ${showEmojiPicker ? 'pb-0' : 'pb-safe'}`}>
+      <div className={`flex flex-col flex-shrink-0 bg-black transition-all duration-300 ${showEmojiPicker ? 'pb-0' : 'pb-safe'}`}>
         {blockedByMe ? (
-          <div className="px-4 py-4 border-t border-discord-hover/50 flex flex-col items-center gap-2">
-            <p className="text-discord-muted text-sm text-center">You blocked <span className="font-bold text-discord-text">@{activeConv?.username}</span>. You can't send messages.</p>
+          <div className="px-4 py-4 flex flex-col items-center gap-2" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+            <p className="text-white/50 text-sm text-center">You blocked <span className="font-bold text-white">@{activeConv?.username}</span>. You can't send messages.</p>
             <button onClick={async () => { try { await API.unblockUser(activeConv.username); setBlockedByMe(false); } catch {} }} className="text-discord-brand text-xs font-bold hover:underline">Unblock User</button>
           </div>
         ) : (
-          <form onSubmit={handleSend} className="px-4 py-3">
+          <form onSubmit={handleSend} className="px-3 py-2">
             {/* Reply Preview */}
             {replyingTo && (
-              <div className="mb-3 p-3 bg-discord-hover/30 rounded-xl border border-discord-hover/50 flex items-center gap-3 animate-fade-in">
-                <div className="w-1 h-8 bg-discord-brand rounded-full flex-shrink-0" />
+              <div className="mb-2 px-3 py-2 bg-[#1c1c1e] rounded-xl flex items-center gap-3 animate-fade-in">
+                <div className="w-1 h-7 bg-discord-brand rounded-full flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-discord-brand mb-0.5 flex items-center gap-1">
                     <FiCornerUpLeft size={11} /> Replying to @{isSentByMe(replyingTo) ? currentUser.username : activeConv.username}
                   </p>
-                  <p className="text-xs text-discord-muted truncate">
+                  <p className="text-xs text-white/40 truncate">
                     {(replyingTo.text || '').replace(/^\[vx:[^\]]+\]\n?/, '').trim() || '📷 Photo'}
                   </p>
                 </div>
-                <button type="button" onClick={() => setReplyingTo(null)} className="p-1.5 text-discord-muted hover:text-discord-red flex-shrink-0">
-                  <FiX size={16} />
+                <button type="button" onClick={() => setReplyingTo(null)} className="p-1.5 text-white/40 hover:text-white flex-shrink-0">
+                  <FiX size={15} />
                 </button>
               </div>
             )}
 
             {/* Media Attachment Preview */}
             {mediaAttachment && (
-              <div className="mb-3 p-3 bg-discord-hover/30 rounded-xl border border-discord-hover/50 flex items-center gap-3 animate-fade-in">
+              <div className="mb-2 px-3 py-2 bg-[#1c1c1e] rounded-xl flex items-center gap-3 animate-fade-in">
                 {mediaAttachment.type === 'image' && (
-                  <img src={mediaAttachment.dataUrl} className="w-16 h-16 rounded-lg object-cover cursor-pointer flex-shrink-0" onClick={() => { setPendingImageSrc(mediaAttachment.dataUrl); setShowCropModal(true); }} />
+                  <img src={mediaAttachment.dataUrl} className="w-14 h-14 rounded-lg object-cover cursor-pointer flex-shrink-0" onClick={() => { setPendingImageSrc(mediaAttachment.dataUrl); setShowCropModal(true); }} />
                 )}
                 {mediaAttachment.type === 'video' && (
-                  <div className="w-16 h-16 rounded-lg bg-black/40 flex items-center justify-center flex-shrink-0 border border-white/10">
-                    <FiPlay size={20} className="text-white/70" />
+                  <div className="w-14 h-14 rounded-lg bg-black/60 flex items-center justify-center flex-shrink-0">
+                    <FiPlay size={18} className="text-white/70" />
                   </div>
                 )}
                 {mediaAttachment.type === 'audio' && (
-                  <div className="w-16 h-16 rounded-lg bg-discord-brand/20 flex items-center justify-center flex-shrink-0 border border-discord-brand/20">
-                    <FiMic size={20} className="text-discord-brand" />
+                  <div className="w-14 h-14 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                    <FiMic size={18} className="text-white/70" />
                   </div>
                 )}
                 {mediaAttachment.type === 'file' && (
-                  <div className="w-16 h-16 rounded-lg bg-white/6 flex items-center justify-center flex-shrink-0 border border-white/10">
-                    <FiFile size={20} className="text-discord-muted" />
+                  <div className="w-14 h-14 rounded-lg bg-white/6 flex items-center justify-center flex-shrink-0">
+                    <FiFile size={18} className="text-white/50" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-discord-text truncate">{mediaAttachment.filename}</p>
-                  <p className="text-xs text-discord-muted capitalize">{mediaAttachment.type} · {(mediaAttachment.size / 1024).toFixed(1)} KB</p>
+                  <p className="text-sm font-bold text-white truncate">{mediaAttachment.filename}</p>
+                  <p className="text-xs text-white/40 capitalize">{mediaAttachment.type} · {(mediaAttachment.size / 1024).toFixed(1)} KB</p>
                 </div>
-                <button type="button" onClick={() => setMediaAttachment(null)} className="p-2 text-discord-muted hover:text-discord-red flex-shrink-0"><FiX size={20} /></button>
+                <button type="button" onClick={() => setMediaAttachment(null)} className="p-2 text-white/40 hover:text-white flex-shrink-0"><FiX size={18} /></button>
               </div>
             )}
 
-            <div className="flex items-end gap-3 bg-discord-hover/50 rounded-2xl px-4 py-2.5 min-h-[48px] border border-transparent focus-within:border-discord-brand/20 transition-all">
-              <button
-                type="button"
-                className="p-1 text-discord-muted hover:text-discord-text transition-colors mb-0.5"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <FiPlusSquare size={22} className="fill-discord-muted/10" />
-                <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileAttach} accept="image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv,application/zip,application/x-zip-compressed,application/x-rar-compressed,application/x-7z-compressed,application/gzip" />
-              </button>
-
-              <TwemojiTextarea
-                ref={textareaRef}
-                value={newMsg}
-                onChange={e => { handleTyping(e); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'; }}
-                onFocus={() => setShowEmojiPicker(false)}
-                placeholder={`Message @${activeConv.username}`}
-                wrapperClassName="flex-1 min-w-0"
-                className="w-full bg-transparent text-[15px] text-discord-text outline-none resize-none py-1 max-h-40 no-scrollbar"
-                rows={1}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches) {
-                    e.preventDefault();
-                    handleSend(e);
-                  }
-                }}
-              />
-
-              <div className="flex items-center gap-2 mb-0.5">
+            {/* Recording overlay */}
+            {isRecording ? (
+              <div className="flex items-center gap-3 bg-[#1c1c1e] rounded-2xl px-4 py-3 min-h-[48px]">
+                {/* Red pulsing dot */}
+                <span className={`w-2.5 h-2.5 rounded-full bg-red-500 flex-shrink-0 ${recordingState === 'recording' ? 'animate-pulse' : 'opacity-40'}`} />
+                <span className={`text-sm font-medium flex-shrink-0 ${recordingState === 'cancelling' ? 'text-red-400' : 'text-white'}`}>
+                  {recordingState === 'cancelling' ? 'Release to cancel' : 'Recording...'}
+                </span>
+                <span className="text-white/40 font-mono text-sm flex-shrink-0">{recordDuration}s</span>
+                {recordingState === 'recording' && (
+                  <span className="text-white/25 text-xs ml-auto">← Slide to cancel</span>
+                )}
                 <button
                   type="button"
-                  className={`p-1 transition-colors ${showEmojiPicker ? 'text-discord-brand' : 'text-discord-muted hover:text-discord-text'}`}
-                  onClick={handleEmojiButtonClick}
+                  onTouchStart={handleMicTouchStart}
+                  onTouchMove={handleMicTouchMove}
+                  onTouchEnd={handleMicTouchEnd}
+                  onClick={() => stopRecording(false)}
+                  className={`ml-auto w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${recordingState === 'cancelling' ? 'bg-red-500/20 text-red-400' : 'bg-white/10 text-white'}`}
                 >
-                  <FiSmile size={22} />
+                  <FiMic size={18} />
                 </button>
-                {isRecording ? (
-                  <button
-                    type="button"
-                    onClick={stopRecording}
-                    className="p-1 text-red-500 hover:text-red-400 transition-all active:scale-90 animate-pulse"
-                    title="Stop recording"
-                  >
-                    <FiMic size={22} />
-                    <span className="text-[10px] text-red-400 font-bold ml-0.5">{recordDuration}s</span>
-                  </button>
-                ) : newMsg.trim() || mediaAttachment ? (
-                  <button type="submit" className="p-1 text-discord-brand hover:text-discord-brand-light transition-all active:scale-90">
-                    <FiSend size={22} />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={startRecording}
-                    className="p-1 text-discord-muted hover:text-discord-brand transition-all active:scale-90"
-                    title="Hold to record voice note"
-                  >
-                    <FiMic size={22} />
-                  </button>
-                )}
               </div>
-            </div>
+            ) : (
+              <div className="flex items-end gap-2 bg-[#1c1c1e] rounded-2xl px-3 py-2 min-h-[48px]">
+                {/* Attachment button */}
+                <button
+                  type="button"
+                  className="p-1.5 text-white/40 hover:text-white transition-colors flex-shrink-0 mb-0.5"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <FiPaperclip size={20} />
+                  <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileAttach} accept="image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv,application/zip,application/x-zip-compressed,application/x-rar-compressed,application/x-7z-compressed,application/gzip" />
+                </button>
+
+                <TwemojiTextarea
+                  ref={textareaRef}
+                  value={newMsg}
+                  onChange={e => { handleTyping(e); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'; }}
+                  onFocus={() => setShowEmojiPicker(false)}
+                  placeholder="Message"
+                  wrapperClassName="flex-1 min-w-0"
+                  className="w-full bg-transparent text-[15px] text-white placeholder-white/30 outline-none resize-none py-1.5 max-h-40 no-scrollbar"
+                  rows={1}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches) {
+                      e.preventDefault();
+                      handleSend(e);
+                    }
+                  }}
+                />
+
+                <div className="flex items-center gap-1.5 mb-0.5 flex-shrink-0">
+                  <button
+                    type="button"
+                    className={`p-1.5 transition-colors ${showEmojiPicker ? 'text-discord-brand' : 'text-white/40 hover:text-white'}`}
+                    onClick={handleEmojiButtonClick}
+                  >
+                    <FiSmile size={20} />
+                  </button>
+                  {newMsg.trim() || mediaAttachment ? (
+                    <button type="submit" className="w-8 h-8 rounded-full bg-discord-brand flex items-center justify-center transition-all active:scale-90">
+                      <FiSend size={16} className="text-white ml-0.5" />
+                    </button>
+                  ) : (
+                    <button
+                      ref={micBtnRef}
+                      type="button"
+                      onMouseDown={startRecording}
+                      onTouchStart={handleMicTouchStart}
+                      onTouchMove={handleMicTouchMove}
+                      onTouchEnd={handleMicTouchEnd}
+                      className="p-1.5 text-white/40 hover:text-white transition-all active:scale-90 active:text-white select-none"
+                      title="Hold to record voice note"
+                    >
+                      <FiMic size={20} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </form>
         )}
 
-        {/* Improved Emoji Picker as Keyboard */}
+        {/* Emoji Picker as Keyboard */}
         {showEmojiPicker && (
-          <div className="w-full bg-discord-bg animate-slide-up border-t border-discord-hover/50" style={{ height: '320px' }}>
+          <div className="w-full bg-black animate-slide-up" style={{ height: '320px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
             <EmojiStickerPicker
               onSelectEmoji={insertEmoji}
               onSelectSticker={async (sticker) => {
@@ -1808,13 +1908,13 @@ export default function Messages({ currentUser, unreadCounts }) {
       </div>
     </div>
   ) : (
-    <div className="flex flex-col items-center justify-center h-full text-discord-muted gap-3 bg-discord-bg">
-      <div className="w-16 h-16 rounded-2xl bg-white/4 flex items-center justify-center">
+    <div className="flex flex-col items-center justify-center h-full text-white/40 gap-3 bg-black">
+      <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
         <FiMessageSquare size={28} className="opacity-40" />
       </div>
       <div className="text-center">
-        <p className="font-semibold text-discord-text">Your messages</p>
-        <p className="text-sm mt-1 opacity-70">Search for someone on the left to start chatting</p>
+        <p className="font-semibold text-white">Your messages</p>
+        <p className="text-sm mt-1 opacity-50">Search for someone on the left to start chatting</p>
       </div>
     </div>
   );
