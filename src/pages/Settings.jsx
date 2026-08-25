@@ -1221,10 +1221,10 @@ export default function Settings({ currentUser, unreadCounts }) {
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { label: 'Profile Views', value: profileInsights.profileViews ?? profileInsights.totalProfileVisits ?? '—', icon: FiEye },
-                      { label: 'Impressions', value: profileInsights.impressions ?? profileInsights.totalImpressions ?? '—', icon: FiTrendingUp },
-                      { label: 'Followers', value: profileInsights.followersCount ?? '—', icon: FiUsers },
-                      { label: 'Posts', value: profileInsights.postsCount ?? '—', icon: FiBarChart2 },
+                      { label: 'Profile Views', value: profileInsights.totalProfileVisits ?? '—', icon: FiEye },
+                      { label: 'Impressions', value: profileInsights.totalImpressions ?? '—', icon: FiTrendingUp },
+                      { label: 'Followers', value: profileInsights.followers ?? '—', icon: FiUsers },
+                      { label: 'Posts', value: profileInsights.totalPosts ?? '—', icon: FiBarChart2 },
                     ].map(({ label, value, icon: Icon }) => (
                       <div key={label} className="bg-discord-sidebar border border-white/5 rounded-2xl p-4">
                         <Icon size={18} className="text-discord-brand mb-2" />
