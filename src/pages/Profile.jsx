@@ -71,7 +71,7 @@ export default function Profile({ currentUser, unreadCounts }) {
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [giftPlan, setGiftPlan] = useState('monthly');
   const [giftLoading, setGiftLoading] = useState(false);
-  const [giftPayUrl, setGiftPayUrl] = useState(null);
+
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
   const [followersList, setFollowersList] = useState([]);
@@ -152,7 +152,8 @@ export default function Profile({ currentUser, unreadCounts }) {
       const data = await API.giftSupa(giftPlan, username);
       const url = data?.paymentLink || data?.link || data?.payment_link;
       if (url) {
-        setGiftPayUrl(url);
+        setShowGiftModal(false);
+        window.location.href = url;
       } else {
         showToast('Gift initiated! Check your payment details.', { type: 'success' });
         setShowGiftModal(false);
@@ -1095,26 +1096,8 @@ export default function Profile({ currentUser, unreadCounts }) {
 
       {/* Gift Supa Modal */}
       {showGiftModal && user && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => { setShowGiftModal(false); setGiftPayUrl(null); }}>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowGiftModal(false)}>
           <div className="bg-discord-sidebar rounded-2xl w-full max-w-sm shadow-2xl p-6 animate-fade-in" onClick={e => e.stopPropagation()}>
-            {giftPayUrl ? (
-              <div className="text-center space-y-4">
-                <div className="text-4xl">🎁</div>
-                <h3 className="font-bold text-discord-text text-lg">Gift ready!</h3>
-                <p className="text-discord-muted text-sm">Complete the payment to send Supa to <strong className="text-discord-text">@{username}</strong>.</p>
-                <a
-                  href={giftPayUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="discord-btn w-full py-3 font-bold flex items-center justify-center gap-2 text-sm"
-                  onClick={() => setShowGiftModal(false)}
-                >
-                  <FiZap size={15} /> Pay Now
-                </a>
-                <button onClick={() => { setShowGiftModal(false); setGiftPayUrl(null); }} className="text-discord-muted text-sm hover:underline">Cancel</button>
-              </div>
-            ) : (
-              <>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-2xl bg-yellow-400/15 flex items-center justify-center flex-shrink-0">
                     <FiGift size={18} className="text-yellow-400" />
@@ -1153,8 +1136,6 @@ export default function Profile({ currentUser, unreadCounts }) {
                     : <><FiGift size={15} /> Send Gift</>}
                 </button>
                 <button onClick={() => setShowGiftModal(false)} className="w-full text-center text-discord-muted text-sm mt-3 hover:underline">Cancel</button>
-              </>
-            )}
           </div>
         </div>
       )}
