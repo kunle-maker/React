@@ -231,33 +231,21 @@ export function SupaBadge({ size = 16, username }) {
   const style = getSupaBadgeStyle(styleId);
   // Telegram-style: filled circle + bold white checkmark
   return (
-    <svg
+    <img
+      src="/stickers/CAACAgUAAxUAAWqPCGg6LpBhzEzNjuIckSrpfNkOAAJeCQAC7TPZVcm8pnn2jE5GPQQ/supa.png"
+      alt="Supa"
+      title="Supa"
       width={size}
       height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      className="flex-shrink-0"
-      title="Supa"
+      className="flex-shrink-0 select-none object-contain"
       style={{
         display: 'inline-block',
         verticalAlign: 'middle',
         filter: `drop-shadow(0 0 3px ${style.glow})`,
+        width: size,
+        height: size,
       }}
-    >
-      {/* Filled circle */}
-      <circle cx="12" cy="12" r="11" fill={style.color} />
-      {/* Subtle inner ring for depth */}
-      <circle cx="12" cy="12" r="9.5" stroke="rgba(255,255,255,0.15)" strokeWidth="0.7" fill="none" />
-      {/* Bold white checkmark — matches Telegram's tick proportions */}
-      <polyline
-        points="6.5,12.5 10,16 17.5,8"
-        stroke="white"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
+    />
   );
 }
 

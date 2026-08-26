@@ -1,0 +1,5 @@
+
+# Telegram sticker non-image files
+public/stickers/**/*.lottie
+public/stickers/**/*.tgs
+public/stickers/**/*.json

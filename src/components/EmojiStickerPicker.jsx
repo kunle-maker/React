@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { FiSearch, FiX, FiZap } from 'react-icons/fi';
 import EMOJI_DATA from '../data/emojis';
 import API from '../utils/api';
+import { SUPA_STICKER_PACK } from '../data/stickerPacks';
 
 function twemojiUrl(emoji) {
   const cps = [...emoji]
@@ -120,16 +121,18 @@ function EmojiTab({ onSelect, onClose }) {
 }
 
 function StickerTab({ onSelectSticker, currentUser }) {
-  const [packs, setPacks] = useState([]);
-  const [activePack, setActivePack] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [packs, setPacks] = useState([SUPA_STICKER_PACK]);
+  const [activePack, setActivePack] = useState(SUPA_STICKER_PACK);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Merge local Supa pack with any API packs
     API.getStickerPacks().then(data => {
-      const list = Array.isArray(data) ? data : data?.packs || [];
-      setPacks(list);
-      if (list.length) setActivePack(list[0]);
-    }).catch(() => setPacks([])).finally(() => setLoading(false));
+      const apiPacks = Array.isArray(data) ? data : data?.packs || [];
+      setPacks([SUPA_STICKER_PACK, ...apiPacks]);
+    }).catch(() => {
+      // Local pack is always available even if API fails
+    });
   }, []);
 
   const stickers = activePack?.stickers || [];
