@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiSend, FiArrowLeft, FiUsers, FiInfo, FiTrash2, FiCopy, FiMoreVertical, FiLogOut, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiX, FiMoreHorizontal, FiSave, FiGlobe, FiEdit2, FiPlusSquare } from 'react-icons/fi';
 import ImageCropModal from '../components/ImageCropModal';
@@ -726,13 +726,18 @@ export default function GroupChat({ currentUser, unreadCounts }) {
         lastDate = msgDate;
       }
       const prev = messages[i - 1];
+      const next = messages[i + 1];
       const prevSenderId = prev ? (prev.senderId?._id || prev.senderId) : null;
       const thisSenderId = msg.senderId?._id || msg.senderId;
+      const nextSenderId = next ? (next.senderId?._id || next.senderId) : null;
       const prevDate = prev?.createdAt ? new Date(prev.createdAt) : null;
       const thisDate = msg.createdAt ? new Date(msg.createdAt) : null;
+      const nextDate = next?.createdAt ? new Date(msg.createdAt) : null;
       const timeDiff = prevDate && thisDate ? (thisDate - prevDate) / 60000 : 99;
+      const timeDiffNext = next?.createdAt && msg.createdAt ? (new Date(next.createdAt) - new Date(msg.createdAt)) / 60000 : 99;
       const sameGroup = prevSenderId === thisSenderId && timeDiff < 7 && msgDate === lastDate;
-      result.push({ type: 'message', msg, isFirstInGroup: !sameGroup, key: msg._id || i });
+      const hasNextSameSender = nextSenderId === thisSenderId && timeDiffNext < 3 && msgDate === (next?.createdAt ? new Date(next.createdAt).toDateString() : null);
+      result.push({ type: 'message', msg, isFirstInGroup: !sameGroup, hasNextSameSender, key: msg._id || i });
     });
     return result;
   };
@@ -741,9 +746,9 @@ export default function GroupChat({ currentUser, unreadCounts }) {
 
   return (
     <Layout currentUser={currentUser} unreadCounts={unreadCounts} contentClass="overflow-hidden">
-      <div className="flex flex-col h-full relative bg-discord-bg overflow-hidden">
+      <div className="flex flex-col h-full relative bg-black overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 h-14 border-b border-discord-hover/50 bg-discord-bg/80 backdrop-blur-xl z-20 flex-shrink-0">
+        <div className="flex items-center justify-between px-3 h-14 bg-black z-20 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="flex items-center gap-3 min-w-0">
             <button className="text-discord-muted hover:text-discord-text transition-colors -ml-1 p-1" onClick={() => navigate('/groups')}>
               <FiArrowLeft size={22} />
@@ -831,7 +836,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
         {/* Messages */}
         <div
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto px-4 py-2 scroll-smooth no-scrollbar"
+          className="flex-1 overflow-y-auto px-3 py-2 scroll-smooth no-scrollbar bg-black"
           onScroll={handleScroll}
           onClick={() => { if (showEmojiPicker) setShowEmojiPicker(false); }}
         >
@@ -862,17 +867,20 @@ export default function GroupChat({ currentUser, unreadCounts }) {
             </div>
           ) : items.map(item => {
             if (item.type === 'date') return <DateSeparator key={item.key} date={item.date} />;
-            const { msg, isFirstInGroup } = item;
+            const { msg, isFirstInGroup, hasNextSameSender } = item;
 
             if (msg.type === 'system') {
               return (
-                <div key={item.key} className="flex items-center gap-4 px-2 py-1 my-1">
-                   <div className="w-10 flex-shrink-0 flex justify-center">
-                     <div className="w-0.5 h-full bg-discord-hover/30" />
-                   </div>
-                   <span className="text-[13px] text-discord-muted font-medium italic">
-                     {msg.text}
-                   </span>
+                <div key={item.key} className="flex justify-center my-1.5">
+                  <span className="text-xs text-white/35 bg-white/[0.06] px-3 py-1 rounded-full italic">{msg.text || msg.formattedText || ''}</span>
+                </div>
+              );
+            }
+
+            if (msg.unsent) {
+              return (
+                <div key={item.key} className={`flex ${isSentByMe(msg) ? 'justify-end' : 'justify-start'} mb-0.5`}>
+                  <span className="text-xs italic text-white/30 px-3 py-1">This message was unsent</span>
                 </div>
               );
             }
@@ -881,190 +889,85 @@ export default function GroupChat({ currentUser, unreadCounts }) {
             const sender = msg.senderId || { username: msg.senderUsername, name: msg.senderUsername };
             const msgKey = msg._id;
             const isSwiping = swipingMsgId === msgKey;
+            const baseRadius = 18;
+            const borderRadius = mine
+              ? `${baseRadius}px ${baseRadius}px ${hasNextSameSender ? 4 : baseRadius}px ${baseRadius}px`
+              : `${baseRadius}px ${baseRadius}px ${baseRadius}px ${hasNextSameSender ? 4 : baseRadius}px`;
+            const isEditing = editingMsgId === msg._id;
 
             return (
               <div
                 key={item.key}
-                className={`group flex items-start gap-4 px-2 py-0.5 hover:bg-white/[0.02] transition-colors relative ${isFirstInGroup ? 'mt-4' : 'mt-[-2px]'}`}
+                className={`group flex ${mine ? 'justify-end' : 'justify-start'} ${isFirstInGroup ? 'mt-3' : 'mt-0.5'}`}
                 onContextMenu={e => handleMessageContextMenu(e, msg)}
                 onTouchStart={e => handleMsgTouchStart(e, msgKey)}
                 onTouchMove={e => handleMsgTouchMove(e, msgKey)}
                 onTouchEnd={() => handleMsgTouchEnd(msg)}
                 style={isSwiping ? { transform: `translateX(${swipeOffset}px)`, transition: 'none' } : { transition: 'transform 0.2s ease' }}
               >
-                {!isFirstInGroup ? (
-                   <div className="w-10 flex-shrink-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                     <span className="text-[10px] text-discord-muted mt-1.5 select-none font-medium">
-                       {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
-                     </span>
-                   </div>
-                ) : (
-                  <div className="flex-shrink-0 mt-1 cursor-pointer" onClick={() => navigate(`/profile/${sender.username}`)}>
-                    <Avatar user={sender} size={40} supaRing={sender.isSupa} />
-                  </div>
-                )}
-
-                <div className="flex-1 min-w-0">
-                  {isFirstInGroup && (
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span
-                        className={`text-[15px] font-bold cursor-pointer hover:underline ${sender.isSupa ? 'supa-chat-name' : 'text-discord-text'}`}
-                        style={sender.isSupa ? {} : { color: stringToColor(sender.username || '') }}
-                        onClick={() => navigate(`/profile/${sender.username}`)}
-                      >
-                        {sender.name || sender.username}
-                      </span>
-                      {sender.isVerified && <VerifiedBadge size={14} />}
-                      <span className="text-[11px] text-discord-muted font-medium">
-                        {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
-                      </span>
-                    </div>
+                <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[78%]`}>
+                  {!mine && isFirstInGroup && (
+                    <span
+                      className={`text-xs font-bold mb-0.5 px-1 cursor-pointer hover:underline ${sender.isSupa ? 'supa-chat-name' : ''}`}
+                      style={sender.isSupa ? {} : { color: stringToColor(sender.username || '') }}
+                      onClick={() => navigate(`/profile/${sender.username}`)}
+                    >
+                      {sender.name || sender.username}
+                    </span>
                   )}
-
-                  <div className={`text-[15px] leading-relaxed break-words text-[#dbdee1] ${msg.unsent ? 'italic text-discord-muted opacity-60' : ''}`}>
-                    {msg.unsent ? (
-                      <span>This message was unsent</span>
-                    ) : editingMsgId === msg._id ? (
-                      <div className="mt-1 bg-discord-hover/30 rounded-lg p-2 border border-discord-brand/30">
-                        <textarea
-                          className="w-full bg-transparent text-sm resize-none outline-none text-discord-text"
-                          rows={2}
-                          value={editText}
-                          onChange={e => setEditText(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches) { e.preventDefault(); handleEditSave(msg._id); }
-                            if (e.key === 'Escape') { setEditingMsgId(null); setEditText(''); }
-                          }}
-                          autoFocus
-                        />
-                        <div className="flex gap-2 justify-end mt-2">
-                          <button onClick={() => { setEditingMsgId(null); setEditText(''); }} className="text-xs text-discord-text hover:underline">Cancel</button>
-                          <button onClick={() => handleEditSave(msg._id)} className="text-xs bg-discord-brand text-white px-3 py-1 rounded-md font-medium">Save Changes</button>
+                  <div
+                    className={`relative px-3.5 py-2 text-[15px] leading-relaxed break-words ${mine ? 'bg-white text-[#111]' : 'bg-[#1c1c1e] text-white'}`}
+                    style={{ borderRadius }}
+                  >
+                    {isEditing ? (
+                      <div className="min-w-[180px]">
+                        <textarea className={`w-full bg-transparent text-sm resize-none outline-none ${mine ? 'text-[#111]' : 'text-white'}`} rows={2} value={editText} onChange={e => setEditText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches) { e.preventDefault(); handleEditSave(msg._id); } if (e.key === 'Escape') { setEditingMsgId(null); setEditText(''); } }} autoFocus />
+                        <div className="flex gap-2 justify-end mt-1">
+                          <button onClick={() => { setEditingMsgId(null); setEditText(''); }} className={`text-xs hover:underline ${mine ? 'text-[#333]' : 'text-white/60'}`}>Cancel</button>
+                          <button onClick={() => handleEditSave(msg._id)} className="text-xs bg-discord-brand text-white px-2 py-0.5 rounded-md font-medium">Save</button>
                         </div>
                       </div>
                     ) : (
-                      <div className="relative group/content">
+                      <div className="relative">
                         {(() => {
                           const text = msg.text || '';
                           const replyMatch = text.match(/^↩ (@[^\n]+)\n([\s\S]*)$/);
-                          if (replyMatch) {
-                            return (
-                              <div className="mb-1">
-                                <div className="flex items-center gap-2 text-xs text-discord-muted mb-0.5 opacity-80 hover:opacity-100 cursor-pointer">
-                                   <div className="w-4 h-4 rounded-full bg-discord-hover flex items-center justify-center"><FiArrowLeft size={10} className="rotate-180" /></div>
-                                   <span className="font-bold">{replyMatch[1]}</span>
-                                </div>
-                                <FormattedText text={replyMatch[2].trim()} />
-                              </div>
-                            );
-                          }
+                          if (replyMatch) return (<div><div className={`flex items-center gap-1.5 text-xs mb-1 opacity-80 ${mine ? 'text-[#444]' : 'text-white/60'}`}><FiArrowLeft size={9} className="rotate-180 flex-shrink-0" /><span className="font-bold truncate">{replyMatch[1]}</span></div><FormattedText text={replyMatch[2].trim()} /></div>);
                           const imgMatch = text.match(/^\[vx:img:([^\]]+)\](.*)$/s);
                           const audioMatch = text.match(/^\[vx:audio:([^\]]+)\](.*)$/s);
                           const callMatch = text.match(/^\[vx:call:([^\]]+)\](.*)$/s);
-                          // New-style audio message
-                          if (msg.type === 'audio' && msg.mediaUrl) {
-                            return (
-                              <div className="flex flex-col gap-1.5 mt-1">
-                                <VoiceNotePlayer src={msg.mediaUrl} duration={msg.duration} isMine={isSentByMe(msg)} />
-                                {text?.trim() && <FormattedText text={text.trim()} />}
-                              </div>
-                            );
-                          }
-                          if (audioMatch) {
-                            return (
-                              <div className="flex flex-col gap-1.5 mt-1">
-                                <VoiceNotePlayer src={audioMatch[1]} isMine={isSentByMe(msg)} />
-                                {audioMatch[2]?.trim() && <FormattedText text={audioMatch[2].trim()} />}
-                              </div>
-                            );
-                          }
-                          if (imgMatch) {
-                            return (
-                              <div>
-                                <img
-                                  src={imgMatch[1]}
-                                  alt="Image"
-                                  className="rounded-xl max-w-full md:max-w-[400px] max-h-[500px] object-cover cursor-pointer hover:brightness-90 transition-all mt-1 shadow-sm"
-                                  onClick={() => setFullscreenImg(imgMatch[1])}
-                                  loading="lazy"
-                                />
-                                {imgMatch[2]?.trim() && <div className="mt-2"><FormattedText text={imgMatch[2].trim()} /></div>}
-                              </div>
-                            );
-                          }
-                          if (callMatch) {
-                             return (
-                               <div className="flex flex-col gap-3 mt-2 max-w-sm bg-discord-hover/30 border border-discord-hover/50 rounded-2xl p-4">
-                                 <div className="flex items-center gap-3">
-                                   <div className="w-10 h-10 rounded-full bg-discord-green/20 flex items-center justify-center text-discord-green"><FiVideo size={20} /></div>
-                                   <div>
-                                     <p className="text-sm font-bold text-discord-text">Video Call Started</p>
-                                     <p className="text-xs text-discord-muted">Join the ongoing conversation</p>
-                                   </div>
-                                 </div>
-                                 <a
-                                   href={callMatch[1]}
-                                   target="_blank"
-                                   rel="noopener noreferrer"
-                                   className="flex items-center justify-center gap-2 bg-discord-green hover:bg-discord-green-dark text-white py-2 rounded-xl text-sm font-bold transition-all shadow-lg shadow-discord-green/20"
-                                   onClick={e => e.stopPropagation()}
-                                 >
-                                   Join Call
-                                 </a>
-                               </div>
-                             );
-                          }
+                          if (msg.type === 'audio' && msg.mediaUrl) return <VoiceNotePlayer src={msg.mediaUrl} duration={msg.duration} isMine={mine} />;
+                          if (audioMatch) return <VoiceNotePlayer src={audioMatch[1]} isMine={mine} />;
+                          if (imgMatch) return (<div><img src={imgMatch[1]} alt="Image" className="rounded-xl max-w-[260px] max-h-[320px] object-cover cursor-pointer hover:opacity-90" onClick={() => setFullscreenImg(imgMatch[1])} loading="lazy" />{imgMatch[2]?.trim() && <div className="mt-1.5 text-sm"><FormattedText text={imgMatch[2].trim()} /></div>}</div>);
+                          if (callMatch) return (<div className="flex flex-col gap-2 min-w-[180px]"><div className="flex items-center gap-2"><FiVideo size={14} className="text-discord-green" /><span className="text-xs font-semibold text-discord-green">Video Call</span></div><a href={callMatch[1]} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 bg-discord-brand text-white px-3 py-1.5 rounded-xl text-xs font-bold">Join Call</a></div>);
                           return <FormattedText text={text} />;
                         })()}
-                        {msg.edited && !msg.unsent && <span className="text-[10px] text-discord-muted ml-1 select-none">(edited)</span>}
+                        {msg.edited && <span className={`text-[10px] ml-1 select-none ${mine ? 'text-[#666]' : 'text-white/40'}`}>(edited)</span>}
+                        {!msg.unsent && (<button className={`absolute ${mine ? '-left-8' : '-right-8'} top-0 opacity-0 group-hover:opacity-100 transition-opacity bg-[#1c1c1e] border border-white/10 rounded-full p-1.5 text-white/50 hover:text-white z-10`} onClick={(e) => { e.stopPropagation(); setActiveReactionPicker(activeReactionPicker === msg._id ? null : msg._id); }}><FiSmile size={13} /></button>)}
                       </div>
                     )}
                   </div>
-                  {/* Reaction bubbles */}
                   {msg.reactions?.length > 0 && !msg.unsent && (
-                    <div className="flex flex-wrap items-center gap-1 mt-1">
+                    <div className={`flex flex-wrap items-center gap-1 mt-1 ${mine ? 'justify-end' : 'justify-start'}`}>
                       {Object.entries(msg.reactions.reduce((acc, r) => { acc[r.emoji] = (acc[r.emoji] || 0) + 1; return acc; }, {})).map(([emoji, count]) => {
                         const myId = currentUser?._id || currentUser?.id;
-                        const mine = msg.reactions.some(r => (r.userId === myId || r.userId?._id === myId) && r.emoji === emoji);
-                        return (
-                          <button key={emoji} onClick={() => handleReactGroup(msg, emoji)} className={`flex items-center text-xs rounded-full px-2 py-0.5 border transition-all active:scale-95 ${mine ? 'bg-discord-brand/20 border-discord-brand/40 text-discord-brand' : 'bg-white/5 border-white/10 text-discord-text hover:border-white/20'}`}>
-                            <TwemojiEmoji emoji={emoji} size={14} /><span className="font-bold ml-0.5">{count}</span>
-                          </button>
-                        );
+                        const iAmReacted = msg.reactions.some(r => (r.userId === myId || r.userId?._id === myId) && r.emoji === emoji);
+                        return (<button key={emoji} onClick={() => handleReactGroup(msg, emoji)} className={`flex items-center text-xs rounded-full px-2 py-0.5 border transition-all active:scale-95 ${iAmReacted ? 'bg-discord-brand/20 border-discord-brand/40 text-discord-brand' : 'bg-white/5 border-white/10 text-white hover:border-white/20'}`}><TwemojiEmoji emoji={emoji} size={14} /><span className="font-bold ml-0.5">{count}</span></button>);
                       })}
-                      <button onClick={(e) => { e.stopPropagation(); setActiveReactionPicker(activeReactionPicker === msg._id ? null : msg._id); }} className="flex items-center text-discord-muted hover:text-discord-text text-xs rounded-full px-1.5 py-0.5 border border-transparent hover:border-white/10 hover:bg-white/5 transition-all">
-                        <FiSmile size={12} />
-                      </button>
                     </div>
                   )}
-                  {/* Reaction picker popup */}
-                  {activeReactionPicker === msg._id && (
-                    <div className="flex items-center gap-1 bg-discord-dark border border-white/10 rounded-full px-2 py-1.5 shadow-2xl mt-1 w-fit animate-fade-in" onClick={e => e.stopPropagation()}>
-                      {MSG_REACTIONS.map(emoji => (
-                        <button key={emoji} onClick={() => handleReactGroup(msg, emoji)} className="hover:scale-125 transition-transform active:scale-110 p-0.5 flex items-center justify-center"><TwemojiEmoji emoji={emoji} size={20} /></button>
-                      ))}
-                    </div>
-                  )}
+                  {activeReactionPicker === msg._id && (<div className="flex items-center gap-1 bg-[#1c1c1e] border border-white/10 rounded-full px-2 py-1.5 shadow-2xl mt-1 w-fit animate-fade-in" onClick={e => e.stopPropagation()}>{MSG_REACTIONS.map(emoji => (<button key={emoji} onClick={() => handleReactGroup(msg, emoji)} className="hover:scale-125 transition-transform p-0.5"><TwemojiEmoji emoji={emoji} size={20} /></button>))}</div>)}
+                  {!hasNextSameSender && (<div className={`flex items-center gap-1 mt-0.5 px-1 ${mine ? 'justify-end' : 'justify-start'}`}><span className="text-[10px] text-white/30">{msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}</span></div>)}
                   {!msg.unsent && msg.text && !msg.text.startsWith('[vx:') && <LinkPreview text={msg.text} />}
                 </div>
-                {/* Reaction trigger on hover */}
-                {!msg.unsent && (
-                  <button
-                    className="absolute right-2 top-1 opacity-0 group-hover:opacity-100 transition-opacity bg-discord-dark border border-white/10 rounded-full p-1.5 text-discord-muted hover:text-discord-text hover:bg-discord-hover shadow-sm z-10"
-                    onClick={(e) => { e.stopPropagation(); setActiveReactionPicker(activeReactionPicker === msg._id ? null : msg._id); }}
-                  >
-                    <FiSmile size={14} />
-                  </button>
-                )}
               </div>
             );
-          })}
-          {typingUsers.length > 0 && (
-            <div className="flex items-center gap-4 px-2 py-2">
-              <div className="w-10 flex-shrink-0" />
-              <div className="flex items-center gap-2 text-discord-muted text-xs font-bold italic">
-                <div className="typing-indicator flex gap-1"><span className="w-1 h-1"/><span className="w-1 h-1"/><span className="w-1 h-1"/></div>
-                <span>{typingUsers.slice(0, 2).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...</span>
+          })}          {typingUsers.length > 0 && (
+            <div className="flex items-center gap-2 justify-start mt-3 pl-1">
+              <div className="bg-[#1c1c1e] rounded-[18px] px-4 py-3 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             </div>
           )}
@@ -1091,7 +994,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
 
         {/* Input */}
         {canPost && (
-          <div className={`flex flex-col flex-shrink-0 bg-discord-bg transition-all duration-300 ${showEmojiPicker ? 'pb-0' : 'pb-safe'}`}>
+          <div className={`flex flex-col flex-shrink-0 bg-black transition-all duration-300 ${showEmojiPicker ? 'pb-0' : 'pb-safe'}`}>
             <form onSubmit={handleSend} className="px-4 py-3">
               {/* Reply Preview */}
               {replyingTo && (
@@ -1158,7 +1061,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                 </div>
               )}
 
-              <div className="flex items-end gap-3 bg-discord-hover/50 rounded-2xl px-4 py-2.5 min-h-[48px] border border-transparent focus-within:border-discord-brand/20 transition-all">
+              <div className="flex items-end gap-2 bg-[#1c1c1e] rounded-2xl px-3 py-2 min-h-[48px]">
                 {!group?.textOnly && (
                   <button
                     type="button"
@@ -1177,7 +1080,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                   onFocus={() => setShowEmojiPicker(false)}
                   placeholder={`Message ${group?.name}`}
                   wrapperClassName="flex-1 min-w-0"
-                  className="w-full bg-transparent text-[15px] text-discord-text outline-none resize-none py-1 max-h-40 no-scrollbar"
+                  className="w-full bg-transparent text-[15px] text-white placeholder-white/30 outline-none resize-none py-1.5 max-h-40 no-scrollbar"
                   rows={1}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches) {
