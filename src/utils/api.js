@@ -672,6 +672,8 @@ class API {
     this.clearCache('/api/supa');
     return data;
   }
+
+  static async giftSupa(plan, recipientUsername) {
     return this.request('/api/supa/gift', {
       method: 'POST',
       body: JSON.stringify({ plan, recipientUsername }),
