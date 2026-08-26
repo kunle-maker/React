@@ -1555,12 +1555,26 @@ export default function Settings({ currentUser, unreadCounts }) {
                   </button>
                   <form onSubmit={handleCreateTicket} className="space-y-3">
                     <div>
-                      <label className="block text-discord-muted text-xs font-bold uppercase tracking-wide mb-1.5">Category</label>
-                      <select value={newTicketForm.category} onChange={e => setNewTicketForm(f => ({ ...f, category: e.target.value }))} className="discord-input w-full text-sm">
-                        {['account_access','account_hacked','billing','bug_report','content_appeal','feature_request','harassment','impersonation','data_privacy','other'].map(c => (
-                          <option key={c} value={c}>{c.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</option>
-                        ))}
-                      </select>
+                      <label className="block text-discord-muted text-xs font-bold uppercase tracking-wide mb-2">Category</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['account_access','account_hacked','billing','bug_report','content_appeal','feature_request','harassment','impersonation','data_privacy','other'].map(c => {
+                          const active = newTicketForm.category === c;
+                          return (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => setNewTicketForm(f => ({ ...f, category: c }))}
+                              className={`px-3 py-2 rounded-xl text-xs font-semibold text-left transition-all border ${
+                                active
+                                  ? 'bg-discord-brand text-white border-discord-brand'
+                                  : 'bg-discord-sidebar border-discord-hover text-discord-muted hover:text-discord-text hover:border-white/20'
+                              }`}
+                            >
+                              {c.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                     <div>
                       <label className="block text-discord-muted text-xs font-bold uppercase tracking-wide mb-1.5">Subject</label>
