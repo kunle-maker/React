@@ -216,19 +216,24 @@ function SupaSection({ currentUser }) {
 
   const handleStartTrial = async () => {
     setTrialLoading(true);
+    setInitiateError('');
     try {
-      // Use lite_monthly as the trial plan — backend validates: monthly, yearly, lite_monthly, lite_yearly
-      const data = await API.initiateSupaPayment(trial?.plan || 'lite_monthly');
-      if (data.paymentLink) {
-        window.location.href = data.paymentLink;
-      } else if (data.activated) {
-        const updated = { ...currentUser, isSupa: true, supaTier: 'lite' };
-        localStorage.setItem('user', JSON.stringify(updated));
-        window.dispatchEvent(new CustomEvent('profileUpdate', { detail: updated }));
-        setTrial(prev => ({ ...prev, available: false }));
-      }
+      const data = await API.startSupaTrial();
+      // Trial activates immediately — no redirect
+      const tier = data.tier || 'full';
+      const updated = { ...currentUser, isSupa: true, supaTier: tier };
+      localStorage.setItem('user', JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent('profileUpdate', { detail: updated }));
+      setTrial(prev => ({ ...prev, available: false }));
+      setSupaTier(tier);
+      // Refresh supa status to get accurate expiry/state
+      API.getSupaStatus().then(status => {
+        if (status?.supaTier) setSupaTier(status.supaTier);
+      }).catch(() => {});
+      const msg = data.message || `Free trial activated! ${data.daysRemaining ? `${data.daysRemaining} days remaining.` : ''}`;
+      showToast(msg, { type: 'success' });
     } catch (err) {
-      setInitiateError(err.message || 'Failed to start trial');
+      setInitiateError(err.message || 'Failed to start trial. Try again.');
     } finally { setTrialLoading(false); }
   };
 

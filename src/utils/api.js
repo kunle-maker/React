@@ -667,7 +667,11 @@ class API {
   }
 
   // ── Supa Gifting ───────────────────────────────────────────────────────────
-  static async giftSupa(plan, recipientUsername) {
+  static async startSupaTrial() {
+    const data = await this.request('/api/supa/trial/start', { method: 'POST' });
+    this.clearCache('/api/supa');
+    return data;
+  }
     return this.request('/api/supa/gift', {
       method: 'POST',
       body: JSON.stringify({ plan, recipientUsername }),
