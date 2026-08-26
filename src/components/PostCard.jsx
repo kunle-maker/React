@@ -937,19 +937,19 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
               <FormattedText text={caption || ''} />
               {isEdited && <span className="text-[10px] text-discord-muted ml-1">(edited)</span>}
             </span>
-
-            {/* Quoted post preview */}
-            {post.isQuotePost && post.quotedPost && (
-              <div className="mt-2 border border-discord-hover rounded-xl p-3 bg-discord-dark/50 cursor-pointer" onClick={() => navigate(`/post/${post.quotedPost._id}`)}>
-                <div className="flex items-center gap-2 mb-1">
-                  <Avatar user={post.quotedPost.userId} size={18} />
-                  <span className="text-discord-muted text-xs font-semibold">@{post.quotedPost.userId?.username || 'user'}</span>
-                </div>
-                <p className="text-discord-text text-sm line-clamp-3">{post.quotedPost.caption || post.quoteComment}</p>
-              </div>
-            )}
           )}
         </div>
+
+        {/* Quoted post preview */}
+        {post.isQuotePost && post.quotedPost && (
+          <div className="mt-2 mx-4 border border-discord-hover rounded-xl p-3 bg-discord-dark/50 cursor-pointer" onClick={() => navigate(`/post/${post.quotedPost._id}`)}>
+            <div className="flex items-center gap-2 mb-1">
+              <Avatar user={post.quotedPost.userId} size={18} />
+              <span className="text-discord-muted text-xs font-semibold">@{post.quotedPost.userId?.username || 'user'}</span>
+            </div>
+            <p className="text-discord-text text-sm line-clamp-3">{post.quotedPost.caption || post.quoteComment}</p>
+          </div>
+        )}
 
         {hashtags.length > 0 && !editingCaption && (
           <div className="flex flex-wrap gap-x-2">
