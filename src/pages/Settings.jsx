@@ -217,7 +217,8 @@ function SupaSection({ currentUser }) {
   const handleStartTrial = async () => {
     setTrialLoading(true);
     try {
-      const data = await API.initiateSupaPayment('trial');
+      // Use lite_monthly as the trial plan — backend validates: monthly, yearly, lite_monthly, lite_yearly
+      const data = await API.initiateSupaPayment(trial?.plan || 'lite_monthly');
       if (data.paymentLink) {
         window.location.href = data.paymentLink;
       } else if (data.activated) {
