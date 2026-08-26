@@ -11,7 +11,7 @@ import API from '../utils/api';
 
 function TwemojiImg({ emoji, size = 40 }) {
   const cp = [...emoji].map(c => c.codePointAt(0).toString(16)).filter(x => x !== 'fe0f').join('-');
-  return <img src={`https://twemoji.maxcdn.com/v/latest/svg/${cp}.svg`} alt={emoji} width={size} height={size} draggable={false} className="select-none object-contain inline-block" />;
+  return <img src={`https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/apple/64/${cp}.png`} alt={emoji} width={size} height={size} draggable={false} className="select-none object-contain inline-block" />;
 }
 
 const TABS = [
@@ -251,7 +251,7 @@ export default function Feed({ currentUser, unreadCounts }) {
           <div className="py-16 text-center text-discord-muted/40 font-bold text-xs uppercase tracking-[0.2em] flex flex-col items-center gap-4">
             <div className="w-px h-12 bg-discord-hover/50" />
             <div className="relative w-10 h-10">
-              <img src="/favicon.svg" alt="VesselX" className="w-10 h-10 opacity-60" />
+              <img src="/favicon.png" alt="VesselX" className="w-10 h-10 opacity-60" />
               <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center shadow-md">
                 <FiCheck size={9} strokeWidth={3} className="text-white" />
               </div>

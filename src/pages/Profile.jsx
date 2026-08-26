@@ -17,7 +17,7 @@ import { parseEmojisToHtml } from '../utils/emoji';
 
 function twemojiUrl(emoji) {
   const cps = [...emoji].map(c => c.codePointAt(0).toString(16)).filter(cp => parseInt(cp, 16) !== 0xfe0f);
-  return `https://twemoji.maxcdn.com/v/latest/svg/${cps.join('-')}.svg`;
+  return `https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/apple/64/${cps.join('-')}.png`;
 }
 function TwemojiImg({ emoji, size = 24, className = '' }) {
   return <img src={twemojiUrl(emoji)} alt={emoji} width={size} height={size} draggable={false} className={`select-none object-contain inline-block ${className}`} loading="lazy" />;
@@ -25,7 +25,7 @@ function TwemojiImg({ emoji, size = 24, className = '' }) {
 
 const TwemojiImgLegacy = ({ emoji, size = 14 }) => {
   const cp = [...emoji].map(c => c.codePointAt(0).toString(16)).filter(x => x !== 'fe0f').join('-');
-  return <img src={`https://twemoji.maxcdn.com/v/latest/svg/${cp}.svg`} alt={emoji} style={{ width: size, height: size, display: 'inline-block', verticalAlign: 'middle' }} draggable={false} />;
+  return <img src={`https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/apple/64/${cp}.png`} alt={emoji} style={{ width: size, height: size, display: 'inline-block', verticalAlign: 'middle' }} draggable={false} />;
 };
 
 const BOT_PROFILES = {

@@ -6,7 +6,7 @@ function twemojiUrl(emoji) {
   const cps = [...emoji]
     .map(c => c.codePointAt(0).toString(16))
     .filter(cp => parseInt(cp, 16) !== 0xfe0f);
-  return `https://twemoji.maxcdn.com/v/latest/svg/${cps.join('-')}.svg`;
+  return `https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/apple/64/${cps.join('-')}.png`;
 }
 
 function TwemojiImg({ emoji, size = 24 }) {

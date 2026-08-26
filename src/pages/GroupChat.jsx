@@ -106,7 +106,7 @@ function VoiceNotePlayer({ src, duration: initDuration, isMine = false }) {
 function TwemojiEmoji({ emoji, size = 18 }) {
   try {
     const cp = [...emoji].map(c => c.codePointAt(0).toString(16)).filter(x => x !== 'fe0f').join('-');
-    return <img src={`https://twemoji.maxcdn.com/v/latest/svg/${cp}.svg`} alt={emoji} width={size} height={size} className="inline-block select-none object-contain align-middle" />;
+    return <img src={`https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/apple/64/${cp}.png`} alt={emoji} width={size} height={size} className="inline-block select-none object-contain align-middle" />;
   } catch { return <span>{emoji}</span>; }
 }
 
