@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiSettings, FiMessageSquare, FiUserPlus, FiUserCheck, FiEdit2, FiGrid, FiCamera, FiFlag, FiSlash, FiUsers, FiZap, FiBookmark, FiLock, FiClock, FiMapPin, FiLink, FiCheck, FiX, FiVideo, FiFileText, FiGift } from 'react-icons/fi';
+import { FiSettings, FiMessageSquare, FiUserPlus, FiUserCheck, FiEdit2, FiGrid, FiCamera, FiFlag, FiSlash, FiUsers, FiZap, FiBookmark, FiLock, FiClock, FiMapPin, FiLink, FiCheck, FiX, FiVideo, FiFileText, FiGift, FiExternalLink } from 'react-icons/fi';
 import ReportModal from '../components/ReportModal';
 import ProfilePictureModal from '../components/ProfilePictureModal';
 import StoryViewer from '../components/StoryViewer';
@@ -81,6 +81,7 @@ export default function Profile({ currentUser, unreadCounts }) {
   const [showPicModal, setShowPicModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [showVerifPicker, setShowVerifPicker] = useState(false);
+  const [bioLinks, setBioLinks] = useState([]);
   const [showVerifPickerVerified, setShowVerifPickerVerified] = useState(false);
   const [supaStyleId, setSupaStyleId] = useState('red');
   const [verifiedStyleId, setVerifiedStyleId] = useState('blue');
@@ -126,6 +127,10 @@ export default function Profile({ currentUser, unreadCounts }) {
     fetchPosts();
     setSupaStyleId(getStoredSupaBadgeStyle(username));
     setVerifiedStyleId(getStoredVerifiedBadgeStyle(username) || 'blue');
+    // Load bio links
+    API.getUserBioLinks(username).then(data => {
+      setBioLinks(Array.isArray(data) ? data : data?.links || []);
+    }).catch(() => setBioLinks([]));
     if (!isMyProfile) {
       API.getBlockedUsers().then(list => {
         const arr = Array.isArray(list) ? list : list?.blocked || [];
@@ -516,6 +521,18 @@ export default function Profile({ currentUser, unreadCounts }) {
                       <TwemojiImg emoji="🔗" size={12} /> {user.website.replace(/^https?:\/\//, '')}
                     </a>
                   )}
+                </div>
+              )}
+              {/* Bio links */}
+              {bioLinks.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {bioLinks.map((link, i) => (
+                    <a key={i} href={link.url?.startsWith('http') ? link.url : `https://${link.url}`} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 bg-discord-sidebar border border-discord-hover rounded-xl px-3 py-1.5 text-xs text-discord-brand hover:bg-discord-hover transition-colors">
+                      <FiExternalLink size={11} />
+                      {link.title || link.url}
+                    </a>
+                  ))}
                 </div>
               )}
               {isMyProfile && followRequests.length > 0 && (

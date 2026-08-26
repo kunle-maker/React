@@ -4,9 +4,9 @@ import {
   FiUser, FiLock, FiTrash2, FiLogOut, FiShield, FiZap,
   FiChevronRight, FiCheck, FiX, FiClock, FiCopy, FiGlobe,
   FiRefreshCw, FiAlertCircle, FiBell, FiChevronDown,
-  FiLink, FiExternalLink, FiBarChart2, FiPlus, FiEye, FiUsers, FiTrendingUp
-} from 'react-icons/fi';
-import { HiSparkles } from 'react-icons/hi';
+  FiLink, FiExternalLink, FiBarChart2, FiPlus, FiEye, FiUsers, FiTrendingUp,
+  FiHelpCircle, FiMessageSquare, FiStar, FiSend
+} from 'react-icons/fi';import { HiSparkles } from 'react-icons/hi';
 import { format } from 'date-fns';
 import Layout from '../components/Layout';
 import Avatar from '../components/Avatar';
@@ -708,7 +708,27 @@ export default function Settings({ currentUser, unreadCounts }) {
   // Auto-load bio links when section becomes active
   useEffect(() => {
     if (section === 'bio-links' && bioLinks.length === 0 && !bioLinksLoading) loadBioLinks();
+    if (section === 'support' && supportTickets === null) loadSupportTickets();
   }, [section]);
+
+  // Support tickets state
+  const [supportTickets, setSupportTickets] = useState(null);
+  const [supportLoading, setSupportLoading] = useState(false);
+  const [activeTicket, setActiveTicket] = useState(null);
+  const [activeTicketData, setActiveTicketData] = useState(null);
+  const [ticketLoading, setTicketLoading] = useState(false);
+  const [showNewTicket, setShowNewTicket] = useState(false);
+  const [newTicketForm, setNewTicketForm] = useState({ category: 'bug_report', subject: '', message: '' });
+  const [newTicketLoading, setNewTicketLoading] = useState(false);
+  const [ticketReply, setTicketReply] = useState('');
+  const [ticketReplySending, setTicketReplySending] = useState(false);
+  const [ticketRating, setTicketRating] = useState(0);
+  const [ticketClosing, setTicketClosing] = useState(false);
+
+  // Moderator bot state
+  const [modBotStatus, setModBotStatus] = useState(null);
+  const [modBotMessages, setModBotMessages] = useState([]);
+  const [modBotLoading, setModBotLoading] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -832,6 +852,86 @@ export default function Settings({ currentUser, unreadCounts }) {
     finally { setInsightsLoading(false); }
   };
 
+  const loadSupportTickets = async () => {
+    setSupportLoading(true);
+    try {
+      const data = await API.getSupportTickets();
+      setSupportTickets(Array.isArray(data) ? data : data?.tickets || []);
+    } catch { setSupportTickets([]); }
+    finally { setSupportLoading(false); }
+  };
+
+  const openTicket = async (id) => {
+    setTicketLoading(true);
+    setActiveTicket(id);
+    try {
+      const data = await API.getSupportTicket(id);
+      setActiveTicketData(data);
+    } catch { }
+    finally { setTicketLoading(false); }
+  };
+
+  const handleCreateTicket = async (e) => {
+    e.preventDefault();
+    if (!newTicketForm.subject.trim() || !newTicketForm.message.trim()) return;
+    setNewTicketLoading(true);
+    try {
+      const data = await API.createSupportTicket(newTicketForm);
+      const ticket = data.ticket || data;
+      const aiReply = data.aiResponse;
+      // Add to list
+      setSupportTickets(prev => [ticket, ...(prev || [])]);
+      setShowNewTicket(false);
+      setNewTicketForm({ category: 'bug_report', subject: '', message: '' });
+      // Open the thread with AI response pre-loaded
+      setActiveTicket(ticket._id);
+      setActiveTicketData({ ...ticket, messages: aiReply ? [{ _id: 'ai-1', sender: 'ai', message: aiReply, createdAt: new Date().toISOString() }] : [] });
+    } catch (err) { showToast(err.message || 'Failed to create ticket', { type: 'error' }); }
+    finally { setNewTicketLoading(false); }
+  };
+
+  const handleTicketReply = async () => {
+    if (!ticketReply.trim() || ticketReplySending) return;
+    setTicketReplySending(true);
+    try {
+      const data = await API.replySupportTicket(activeTicket, ticketReply.trim());
+      const msg = data.message || { sender: 'user', message: ticketReply.trim(), createdAt: new Date().toISOString() };
+      setActiveTicketData(prev => ({ ...prev, messages: [...(prev?.messages || []), msg] }));
+      setTicketReply('');
+    } catch (err) { showToast(err.message || 'Failed to send reply', { type: 'error' }); }
+    finally { setTicketReplySending(false); }
+  };
+
+  const handleCloseTicket = async () => {
+    if (!activeTicket || ticketRating === 0) { showToast('Select a rating first', { type: 'error' }); return; }
+    setTicketClosing(true);
+    try {
+      await API.closeSupportTicket(activeTicket, ticketRating);
+      setActiveTicketData(prev => ({ ...prev, status: 'closed' }));
+      setSupportTickets(prev => (prev || []).map(t => t._id === activeTicket ? { ...t, status: 'closed' } : t));
+      showToast('Ticket closed. Thank you for the rating!', { type: 'success' });
+    } catch (err) { showToast(err.message || 'Failed to close ticket', { type: 'error' }); }
+    finally { setTicketClosing(false); }
+  };
+
+  const loadModBotStatus = async () => {
+    setModBotLoading(true);
+    try {
+      const data = await API.getModeratorBotStatus();
+      setModBotStatus(data);
+    } catch { }
+    finally { setModBotLoading(false); }
+  };
+
+  const handleModBotAction = async (buttonId) => {
+    try {
+      const data = await API.chatWithModeratorBot({ buttonId });
+      const reply = data.message || data.reply || JSON.stringify(data);
+      setModBotMessages(prev => [...prev, { from: 'bot', text: reply }]);
+      if (data.status) setModBotStatus(prev => ({ ...prev, status: data.status }));
+    } catch (err) { showToast(err.message || 'Failed', { type: 'error' }); }
+  };
+
   const SECTIONS = [
     { id: 'account', icon: FiUser, label: 'My Account' },
     { id: 'privacy', icon: FiLock, label: 'Privacy' },
@@ -843,6 +943,7 @@ export default function Settings({ currentUser, unreadCounts }) {
     { id: 'bio-links', icon: FiExternalLink, label: 'Bio Links' },
     { id: 'insights', icon: FiBarChart2, label: 'Insights' },
     { id: 'supa', icon: FiZap, label: 'Supa Premium' },
+    { id: 'support', icon: FiHelpCircle, label: 'Support' },
   ];
 
   return (
@@ -940,6 +1041,47 @@ export default function Settings({ currentUser, unreadCounts }) {
                     <p className="text-discord-muted text-xs">Report, moderate & manage community safety</p>
                   </div>
                   <FiChevronRight size={15} className="text-discord-muted group-hover:text-discord-text transition-colors flex-shrink-0" />
+                </div>
+              </div>
+
+              {/* Account Status / Moderator Bot */}
+              <div className="bg-discord-sidebar border border-white/5 rounded-2xl overflow-hidden">
+                <div className="px-4 pt-4 pb-3 border-b border-discord-hover">
+                  <p className="text-discord-text text-sm font-bold">Account Status</p>
+                  <p className="text-discord-muted text-xs mt-0.5">Your content moderation standing</p>
+                </div>
+                <div className="p-4">
+                  {!modBotStatus && !modBotLoading && (
+                    <button onClick={loadModBotStatus} className="discord-btn w-full py-2.5 text-sm font-semibold flex items-center justify-center gap-2">
+                      <FiShield size={14} /> Check Account Status
+                    </button>
+                  )}
+                  {modBotLoading && (
+                    <div className="flex justify-center py-4">
+                      <div className="w-5 h-5 border-2 border-discord-brand border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+                  {modBotStatus && (
+                    <div className="space-y-3">
+                      <div className={`flex items-center gap-2 px-3 py-2 rounded-xl ${modBotStatus.status === 'active' ? 'bg-green-500/10 border border-green-500/20' : modBotStatus.status === 'limited' ? 'bg-yellow-500/10 border border-yellow-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
+                        <span className="text-lg">{modBotStatus.status === 'active' ? '✅' : modBotStatus.status === 'limited' ? '⚠️' : '⛔'}</span>
+                        <div>
+                          <p className={`text-sm font-bold ${modBotStatus.status === 'active' ? 'text-green-400' : modBotStatus.status === 'limited' ? 'text-yellow-400' : 'text-red-400'}`}>
+                            {modBotStatus.status === 'active' ? 'Your account is in good standing' : modBotStatus.status === 'limited' ? 'Your account is temporarily limited' : 'Your account has been banned'}
+                          </p>
+                          {modBotStatus.reason && <p className="text-discord-muted text-xs mt-0.5">{modBotStatus.reason}</p>}
+                        </div>
+                      </div>
+                      {modBotMessages.map((m, i) => (
+                        <div key={i} className="bg-discord-dark rounded-xl px-3 py-2.5 text-sm text-discord-text">{m.text}</div>
+                      ))}
+                      {(modBotStatus.suggestedButtons || []).map(btn => (
+                        <button key={btn.id} onClick={() => handleModBotAction(btn.id)} className="discord-btn w-full py-2.5 text-sm font-semibold">
+                          {btn.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1258,6 +1400,133 @@ export default function Settings({ currentUser, unreadCounts }) {
           {section === 'supa' && (
             <div className="animate-fade-in bg-discord-sidebar border border-white/5 rounded-2xl p-5">
               <SupaSection currentUser={currentUser} />
+            </div>
+          )}
+
+          {/* ── Support ── */}
+          {section === 'support' && (
+            <div className="space-y-3 animate-fade-in">
+              <h2 className="text-lg font-bold text-discord-text flex items-center gap-2">
+                <FiHelpCircle size={18} className="text-discord-brand" /> Support
+              </h2>
+
+              {/* Thread view */}
+              {activeTicket && activeTicketData ? (
+                <div className="space-y-3">
+                  <button onClick={() => { setActiveTicket(null); setActiveTicketData(null); setTicketRating(0); }} className="flex items-center gap-2 text-discord-brand text-sm font-semibold hover:underline">
+                    ← Back to tickets
+                  </button>
+                  <div className="bg-discord-sidebar border border-white/5 rounded-2xl p-4">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <h3 className="font-bold text-discord-text">{activeTicketData.subject}</h3>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${activeTicketData.status === 'open' ? 'bg-green-500/15 text-green-400' : activeTicketData.status === 'in_progress' ? 'bg-yellow-500/15 text-yellow-400' : 'bg-white/10 text-discord-muted'}`}>
+                        {activeTicketData.status || 'open'}
+                      </span>
+                    </div>
+                    <p className="text-discord-muted text-xs">{activeTicketData.category}</p>
+                  </div>
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {ticketLoading ? (
+                      <div className="flex justify-center py-6"><div className="w-5 h-5 border-2 border-discord-brand border-t-transparent rounded-full animate-spin" /></div>
+                    ) : (activeTicketData.messages || []).map((m, i) => {
+                      const isBot = m.sender === 'ai' || m.sender === 'bot' || m.sender === 'support';
+                      return (
+                        <div key={m._id || i} className={`flex ${isBot ? 'justify-start' : 'justify-end'}`}>
+                          <div className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm ${isBot ? 'bg-discord-sidebar border border-white/5 text-discord-text' : 'bg-discord-brand text-white'}`}>
+                            {isBot && <p className="text-[10px] font-bold text-discord-brand mb-1">Support Bot</p>}
+                            <p className="whitespace-pre-wrap break-words">{m.message || m.text}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {activeTicketData.status !== 'closed' && (
+                    <>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={ticketReply}
+                          onChange={e => setTicketReply(e.target.value)}
+                          placeholder="Write a reply..."
+                          className="discord-input flex-1 text-sm"
+                          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTicketReply(); } }}
+                        />
+                        <button onClick={handleTicketReply} disabled={ticketReplySending || !ticketReply.trim()} className="discord-btn px-4 text-sm font-semibold disabled:opacity-50">
+                          {ticketReplySending ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiSend size={14} />}
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between bg-discord-sidebar border border-white/5 rounded-2xl px-4 py-3">
+                        <div>
+                          <p className="text-discord-text text-sm font-semibold">Close &amp; Rate</p>
+                          <p className="text-discord-muted text-xs">Rate this support session</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[1,2,3,4,5].map(star => (
+                            <button key={star} onClick={() => setTicketRating(star)} className={`transition-colors ${star <= ticketRating ? 'text-yellow-400' : 'text-discord-muted hover:text-yellow-400'}`}>
+                              <FiStar size={18} fill={star <= ticketRating ? 'currentColor' : 'none'} />
+                            </button>
+                          ))}
+                          <button onClick={handleCloseTicket} disabled={ticketClosing || ticketRating === 0} className="ml-2 discord-btn px-3 py-1.5 text-xs font-semibold disabled:opacity-50">
+                            {ticketClosing ? '...' : 'Close'}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : showNewTicket ? (
+                <div className="space-y-3">
+                  <button onClick={() => setShowNewTicket(false)} className="flex items-center gap-2 text-discord-brand text-sm font-semibold hover:underline">
+                    ← Back
+                  </button>
+                  <form onSubmit={handleCreateTicket} className="space-y-3">
+                    <div>
+                      <label className="block text-discord-muted text-xs font-bold uppercase tracking-wide mb-1.5">Category</label>
+                      <select value={newTicketForm.category} onChange={e => setNewTicketForm(f => ({ ...f, category: e.target.value }))} className="discord-input w-full text-sm">
+                        {['account_access','account_hacked','billing','bug_report','content_appeal','feature_request','harassment','impersonation','data_privacy','other'].map(c => (
+                          <option key={c} value={c}>{c.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-discord-muted text-xs font-bold uppercase tracking-wide mb-1.5">Subject</label>
+                      <input type="text" value={newTicketForm.subject} onChange={e => setNewTicketForm(f => ({ ...f, subject: e.target.value }))} placeholder="Brief description" className="discord-input w-full text-sm" required />
+                    </div>
+                    <div>
+                      <label className="block text-discord-muted text-xs font-bold uppercase tracking-wide mb-1.5">Message</label>
+                      <textarea value={newTicketForm.message} onChange={e => setNewTicketForm(f => ({ ...f, message: e.target.value }))} placeholder="Describe your issue in detail..." rows={4} className="discord-input w-full text-sm resize-none" required />
+                    </div>
+                    <button type="submit" disabled={newTicketLoading} className="discord-btn w-full py-2.5 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
+                      {newTicketLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiSend size={14} />}
+                      Submit Ticket
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <button onClick={() => setShowNewTicket(true)} className="discord-btn w-full py-2.5 text-sm font-semibold flex items-center justify-center gap-2">
+                    <FiPlus size={14} /> New Support Ticket
+                  </button>
+                  {supportLoading ? (
+                    <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-discord-brand border-t-transparent rounded-full animate-spin" /></div>
+                  ) : (supportTickets || []).length === 0 ? (
+                    <div className="text-center py-10 bg-discord-sidebar rounded-2xl border border-white/5">
+                      <FiHelpCircle size={28} className="text-discord-muted/40 mx-auto mb-2" />
+                      <p className="text-discord-muted text-sm">No tickets yet. Open one if you need help.</p>
+                    </div>
+                  ) : (supportTickets || []).map(ticket => (
+                    <button key={ticket._id} onClick={() => openTicket(ticket._id)} className="w-full text-left bg-discord-sidebar border border-white/5 rounded-2xl p-4 hover:bg-discord-hover/30 transition-colors">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <p className="font-semibold text-discord-text text-sm truncate flex-1">{ticket.subject}</p>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${ticket.status === 'open' ? 'bg-green-500/15 text-green-400' : ticket.status === 'in_progress' ? 'bg-yellow-500/15 text-yellow-400' : 'bg-white/10 text-discord-muted'}`}>
+                          {ticket.status || 'open'}
+                        </span>
+                      </div>
+                      <p className="text-discord-muted text-xs">{(ticket.category || '').replace(/_/g, ' ')} · {ticket.updatedAt ? new Date(ticket.updatedAt).toLocaleDateString() : ''}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

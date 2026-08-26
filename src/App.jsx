@@ -142,6 +142,14 @@ function AppInner() {
     try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
   });
   const [unreadCounts, setUnreadCounts] = useState({ notifications: 0, messages: 0, groups: 0 });
+  const [moderationModal, setModerationModal] = useState(null);
+  const [moderationBanner, setModerationBanner] = useState(null); // { status: 'limited'|'banned' }
+
+  useEffect(() => {
+    const handler = (e) => setModerationModal(e.detail);
+    window.addEventListener('moderationViolation', handler);
+    return () => window.removeEventListener('moderationViolation', handler);
+  }, []);
 
   const loadUser = useCallback(async () => {
     const t = localStorage.getItem('token');
@@ -158,6 +166,10 @@ function AppInner() {
           loadTranslations(user.language).catch(() => {});
         }
         API.getVesselXDomainGroup().catch(() => {});
+        // Show moderation banner if account is limited or banned
+        if (user.moderation?.status === 'limited' || user.moderation?.status === 'banned') {
+          setModerationBanner({ status: user.moderation.status });
+        }
       }
     } catch (err) {
       if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
@@ -301,6 +313,73 @@ function AppInner() {
       <DigitalPlatAd currentUser={currentUser} />
       <PWAInstallBanner />
       <GlobalFeatures />
+
+      {/* Moderation sticky banner */}
+      {moderationBanner && (
+        <div className={`fixed top-0 left-0 right-0 z-[9998] flex items-center justify-between gap-3 px-4 py-2.5 text-sm font-semibold ${moderationBanner.status === 'banned' ? 'bg-red-600 text-white' : 'bg-yellow-500 text-black'}`}>
+          <span>
+            {moderationBanner.status === 'banned'
+              ? '⛔ Your account has been banned. Some features are disabled.'
+              : '⚠️ Your account is temporarily limited. Some features may be restricted.'}
+          </span>
+          <button
+            onClick={() => setModerationBanner(null)}
+            className="flex-shrink-0 opacity-80 hover:opacity-100 font-black text-lg leading-none"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Moderation violation modal */}
+      {moderationModal && (
+        <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#1a1c23] border border-red-500/30 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex flex-col items-center gap-3 mb-4">
+              <div className="w-14 h-14 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center">
+                <span className="text-2xl">🚫</span>
+              </div>
+              <h3 className="text-lg font-black text-white">Action Blocked</h3>
+            </div>
+            <p className="text-gray-300 text-sm text-center mb-4">{moderationModal.error || moderationModal.message}</p>
+            {(moderationModal.violation || moderationModal.reason) && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-4 space-y-1.5">
+                {moderationModal.violation && (
+                  <p className="text-red-400 text-xs font-semibold">Violation: {moderationModal.violation}</p>
+                )}
+                {moderationModal.reason && (
+                  <p className="text-red-300 text-xs">Reason: {moderationModal.reason}</p>
+                )}
+              </div>
+            )}
+            {moderationModal.moderation?.status === 'limited' && (
+              <p className="text-yellow-400 text-xs font-semibold text-center mb-3">⚠️ Your account is temporarily limited</p>
+            )}
+            {moderationModal.moderation?.status === 'banned' && (
+              <p className="text-red-400 text-xs font-semibold text-center mb-3">⛔ Your account has been banned</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setModerationModal(null);
+                  window.location.hash = '/settings?section=support';
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 font-semibold text-sm hover:bg-red-500/30 transition-colors"
+              >
+                Contact Support
+              </button>
+              <button
+                onClick={() => setModerationModal(null)}
+                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-semibold text-sm hover:bg-white/10 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>

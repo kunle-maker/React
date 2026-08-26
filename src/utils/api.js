@@ -40,6 +40,9 @@ class API {
             if (retryAfter) err.retryAfter = parseInt(retryAfter, 10);
             throw err;
           }
+          if (res.status === 403 && data?.moderation) {
+            window.dispatchEvent(new CustomEvent('moderationViolation', { detail: data }));
+          }
           const err = new Error(data.error || data.message || 'Request failed');
           err.raw = data;
           err.status = res.status;
@@ -887,6 +890,26 @@ class API {
       method: 'PUT',
       body: JSON.stringify({ weeklyDigestEnabled: enabled }),
     });
+  }
+
+  // ── Support Tickets ────────────────────────────────────────────────────────
+  static async createSupportTicket(data) {
+    return this.request('/api/support/tickets', { method: 'POST', body: JSON.stringify(data) });
+  }
+  static async getSupportTickets() {
+    return this.request('/api/support/tickets');
+  }
+  static async getSupportTicket(id) {
+    return this.request(`/api/support/tickets/${id}`);
+  }
+  static async replySupportTicket(id, message) {
+    return this.request(`/api/support/tickets/${id}/reply`, { method: 'POST', body: JSON.stringify({ message }) });
+  }
+  static async closeSupportTicket(id, rating) {
+    return this.request(`/api/support/tickets/${id}/close`, { method: 'POST', body: JSON.stringify({ rating }) });
+  }
+  static async getSupportUnreadCount() {
+    try { return this.request('/api/support/unread-count'); } catch { return { count: 0 }; }
   }
 }
 

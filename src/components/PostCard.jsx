@@ -546,6 +546,20 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
       </div>
 
       {/* Media Content */}
+      {post.isSupaOnly && !currentUser?.isSupa && !isOwn ? (
+        <div className="relative aspect-square w-full bg-discord-dark flex flex-col items-center justify-center gap-2">
+          <div className="absolute inset-0 bg-gradient-to-b from-discord-dark/60 to-discord-dark/90" />
+          <span className="relative text-3xl">✦</span>
+          <p className="relative text-white font-bold text-sm">Supa Members Only</p>
+          <p className="relative text-white/50 text-xs">Upgrade to Supa to unlock this post</p>
+        </div>
+      ) : (
+      <>
+      {post.isSupaOnly && isOwn && (
+        <div className="absolute top-2 right-2 z-10 bg-black/50 rounded-full px-2 py-0.5 flex items-center gap-1 text-yellow-400 text-[10px] font-bold backdrop-blur-sm">
+          ✦ Supa only
+        </div>
+      )}
       {(() => {
         const photos = isPhotoSlideshow ? slideshowPhotos : media.filter(m => m.type === 'image');
         const activeIdx = isPhotoSlideshow ? slideshowIndex : mediaIndex;
@@ -745,6 +759,8 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
           </div>
         );
       })()}
+      </>
+      )}
 
       {/* Sound Label */}
       {post.soundName && (
@@ -921,6 +937,17 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
               <FormattedText text={caption || ''} />
               {isEdited && <span className="text-[10px] text-discord-muted ml-1">(edited)</span>}
             </span>
+
+            {/* Quoted post preview */}
+            {post.isQuotePost && post.quotedPost && (
+              <div className="mt-2 border border-discord-hover rounded-xl p-3 bg-discord-dark/50 cursor-pointer" onClick={() => navigate(`/post/${post.quotedPost._id}`)}>
+                <div className="flex items-center gap-2 mb-1">
+                  <Avatar user={post.quotedPost.userId} size={18} />
+                  <span className="text-discord-muted text-xs font-semibold">@{post.quotedPost.userId?.username || 'user'}</span>
+                </div>
+                <p className="text-discord-text text-sm line-clamp-3">{post.quotedPost.caption || post.quoteComment}</p>
+              </div>
+            )}
           )}
         </div>
 
@@ -983,6 +1010,19 @@ export default function PostCard({ post, currentUser, onDelete, onUpdate, onClic
                     className="w-full py-2.5 text-left px-4 text-discord-text text-sm font-bold hover:bg-discord-hover rounded-xl flex items-center gap-3"
                   >
                     <FiMapPin size={16} /> {post.isPinned ? 'Unpin post' : 'Pin post'}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await API.toggleSupaOnly(post._id);
+                        setShowMenu(false);
+                        toast.success(post.isSupaOnly ? 'Supa-only removed' : 'Post set to Supa-only');
+                        onUpdate?.({ ...post, isSupaOnly: !post.isSupaOnly });
+                      } catch { toast.error('Failed to update'); }
+                    }}
+                    className="w-full py-2.5 text-left px-4 text-yellow-400 text-sm font-bold hover:bg-yellow-400/10 rounded-xl flex items-center gap-3"
+                  >
+                    ✦ {post.isSupaOnly ? 'Remove Supa-only' : 'Make Supa-only'}
                   </button>
                   <button onClick={handleDelete} className="w-full py-2.5 text-left px-4 text-red-400 text-sm font-bold hover:bg-red-400/10 rounded-xl flex items-center gap-3">
                     <FiTrash2 size={16} /> Delete post
