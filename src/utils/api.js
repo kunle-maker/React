@@ -673,6 +673,17 @@ class API {
     return data;
   }
 
+  // ── Sticker Admin ──────────────────────────────────────────────────────────
+  static async adminCreateStickerPack(formData) {
+    return this.request('/api/stickers/admin/packs', { method: 'POST', body: formData });
+  }
+  static async adminAddStickers(packId, formData) {
+    return this.request(`/api/stickers/admin/packs/${packId}/stickers`, { method: 'POST', body: formData });
+  }
+  static async adminToggleSupaPack(packId, isSupa) {
+    return this.request(`/api/stickers/admin/packs/${packId}/supa`, { method: 'PATCH', body: JSON.stringify({ isSupa }) });
+  }
+
   static async giftSupa(plan, recipientUsername) {
     return this.request('/api/supa/gift', {
       method: 'POST',
