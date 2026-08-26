@@ -304,20 +304,11 @@ function SupaSection({ currentUser }) {
               {supaTier === 'lite' && <p className="text-green-400/60 text-xs">Upgrade to Full for all features</p>}
             </div>
           </div>
-          {/* Boost button — only when canBoostThisWeek */}
+          {/* Boost button — only when canBoostThisWeek — endpoint TBD */}
           {supaFeatures?.canBoostThisWeek && (
-            <button
-              onClick={async () => {
-                try {
-                  await API.request('/api/supa/boost', { method: 'POST' });
-                  showToast('Your profile has been boosted! 🚀', { type: 'success' });
-                  setSupaFeatures(prev => ({ ...prev, canBoostThisWeek: false }));
-                } catch (err) { showToast(err.message || 'Boost failed', { type: 'error' }); }
-              }}
-              className="flex-shrink-0 flex items-center gap-1.5 bg-orange-500/15 border border-orange-500/30 text-orange-400 text-xs font-bold px-3 py-1.5 rounded-full hover:bg-orange-500/25 transition-colors"
-            >
-              🚀 Boost
-            </button>
+            <span className="flex-shrink-0 flex items-center gap-1.5 bg-orange-500/15 border border-orange-500/30 text-orange-400 text-xs font-bold px-3 py-1.5 rounded-full">
+              🚀 Boost available
+            </span>
           )}
         </div>
       )}
