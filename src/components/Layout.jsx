@@ -139,7 +139,7 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
                 className={`w-full h-12 flex items-center ${isSidebarExpanded ? 'justify-start px-3 gap-3' : 'justify-center'} rounded-2xl hover:rounded-xl hover:bg-discord-hover transition-all`}
                 onClick={() => setShowUserMenu(!showUserMenu)}
               >
-                <Avatar user={currentUser} size={32} showStatus />
+                <Avatar user={currentUser} size={32} showStatus ghostMode={currentUser?.ghostMode} />
                 {isSidebarExpanded && (
                   <div className="flex flex-col items-start min-w-0 animate-fade-in">
                     <span className="text-xs font-bold text-discord-text truncate w-full text-left">{currentUser.name}</span>

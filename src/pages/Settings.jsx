@@ -177,12 +177,18 @@ function SupaSection({ currentUser }) {
   const [historyTab, setHistoryTab] = useState('plans');
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [existingAccount, setExistingAccount] = useState(null);
+  const [trial, setTrial] = useState(null); // { available, daysLeft }
+  const [supaTier, setSupaTier] = useState(null); // 'full' | 'lite' | null
+  const [supaFeatures, setSupaFeatures] = useState(null); // { canBoostThisWeek, ... }
+  const [trialLoading, setTrialLoading] = useState(false);
 
   useEffect(() => {
     API.getSupaPlans().then(data => {
       const list = Array.isArray(data) ? data : data.plans || [];
       setPlans(list);
       if (list.length) setSelectedPlan(list[0].id || list[0].plan || 'monthly');
+      // trial object may come with plans response
+      if (data?.trial) setTrial(data.trial);
     }).catch(() => {
       setPlans([
         { id: 'monthly', label: 'Monthly', price: '₦1,100', period: '/month' },
@@ -190,12 +196,40 @@ function SupaSection({ currentUser }) {
       ]);
     });
 
+    // Load status for supaTier
+    API.getSupaStatus().then(data => {
+      if (data?.supaTier) setSupaTier(data.supaTier);
+      if (data?.trial) setTrial(data.trial);
+    }).catch(() => {});
+
+    // Load features for canBoostThisWeek
+    API.getSupaFeatures().then(data => {
+      setSupaFeatures(data);
+    }).catch(() => {});
+
     API.getSupaPaymentAccount().then(data => {
       if (data?.accountNumber || data?.payment?.accountNumber) {
         setExistingAccount(data?.payment || data);
       }
     }).catch(() => { });
   }, []);
+
+  const handleStartTrial = async () => {
+    setTrialLoading(true);
+    try {
+      const data = await API.initiateSupaPayment('trial');
+      if (data.paymentLink) {
+        window.location.href = data.paymentLink;
+      } else if (data.activated) {
+        const updated = { ...currentUser, isSupa: true, supaTier: 'lite' };
+        localStorage.setItem('user', JSON.stringify(updated));
+        window.dispatchEvent(new CustomEvent('profileUpdate', { detail: updated }));
+        setTrial(prev => ({ ...prev, available: false }));
+      }
+    } catch (err) {
+      setInitiateError(err.message || 'Failed to start trial');
+    } finally { setTrialLoading(false); }
+  };
 
   const loadHistory = async () => {
     if (historyTab === 'history' && history.length === 0) {
@@ -254,9 +288,52 @@ function SupaSection({ currentUser }) {
       <p className="text-discord-muted text-sm mb-5">Unlock the full VesselX experience.</p>
 
       {currentUser?.isSupa && (
-        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 mb-5 flex items-center gap-2">
-          <FiCheck size={16} className="text-green-400 flex-shrink-0" />
-          <p className="text-green-400 text-sm font-semibold">Your Supa subscription is active!</p>
+        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 mb-5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <FiCheck size={16} className="text-green-400 flex-shrink-0" />
+            <div>
+              <p className="text-green-400 text-sm font-semibold">
+                Supa {supaTier === 'full' ? 'Full' : supaTier === 'lite' ? 'Lite' : ''} is active!
+              </p>
+              {supaTier === 'lite' && <p className="text-green-400/60 text-xs">Upgrade to Full for all features</p>}
+            </div>
+          </div>
+          {/* Boost button — only when canBoostThisWeek */}
+          {supaFeatures?.canBoostThisWeek && (
+            <button
+              onClick={async () => {
+                try {
+                  await API.request('/api/supa/boost', { method: 'POST' });
+                  showToast('Your profile has been boosted! 🚀', { type: 'success' });
+                  setSupaFeatures(prev => ({ ...prev, canBoostThisWeek: false }));
+                } catch (err) { showToast(err.message || 'Boost failed', { type: 'error' }); }
+              }}
+              className="flex-shrink-0 flex items-center gap-1.5 bg-orange-500/15 border border-orange-500/30 text-orange-400 text-xs font-bold px-3 py-1.5 rounded-full hover:bg-orange-500/25 transition-colors"
+            >
+              🚀 Boost
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Free trial banner — only for non-Supa users when trial is available */}
+      {!currentUser?.isSupa && trial?.available && (
+        <div className="bg-discord-brand/10 border border-discord-brand/30 rounded-xl p-4 mb-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-discord-brand font-bold text-sm">🎁 Free Trial Available</p>
+              <p className="text-discord-muted text-xs mt-0.5">
+                Try Supa free{trial.daysLeft ? ` for ${trial.daysLeft} days` : ''} — no card required
+              </p>
+            </div>
+            <button
+              onClick={handleStartTrial}
+              disabled={trialLoading}
+              className="flex-shrink-0 discord-btn px-4 py-2 text-sm font-bold rounded-xl disabled:opacity-50"
+            >
+              {trialLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Start Free Trial'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -954,7 +1031,7 @@ export default function Settings({ currentUser, unreadCounts }) {
         <div className={`relative overflow-hidden ${currentUser?.isSupa ? 'supa-profile-banner' : 'bg-gradient-to-br from-discord-brand/30 via-purple-700/20 to-discord-bg'}`}>
           <div className="px-5 pt-8 pb-6 flex items-center gap-4">
             <div className="relative flex-shrink-0">
-              <Avatar user={currentUser} size={72} showStatus supaRing={currentUser?.isSupa} className="border-4 border-discord-bg rounded-full shadow-xl" />
+              <Avatar user={currentUser} size={72} showStatus supaRing={currentUser?.isSupa} className="border-4 border-discord-bg rounded-full shadow-xl" ghostMode={currentUser?.ghostMode} />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">

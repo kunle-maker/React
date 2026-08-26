@@ -185,8 +185,8 @@ export const SUPA_SHAPE_MAP    = { hex: HexSVG, crown: CrownSVG, star: StarSVG }
 
 /* ── Badge render components ─────────────────────────────────────── */
 
-export function VerifiedBadge({ size = 16, username }) {
-  const styleId = username ? getStoredVerifiedBadgeStyle(username) : 'blue';
+export function VerifiedBadge({ size = 16, username, forceGold = false }) {
+  const styleId = forceGold ? 'gold' : (username ? getStoredVerifiedBadgeStyle(username) : 'blue');
   const style = getVerifiedBadgeStyle(styleId);
   // Instagram-style verification badge: rosette/seal outer shape + bold white checkmark
   return (
@@ -282,9 +282,10 @@ export default function UserBadge({ user, small = false }) {
   if (!user) return null;
   const badgeId = user.badge;
   const size = small ? 13 : 16;
+  const isFullSupa = user.supaTier === 'full' && user.isSupa;
   return (
     <>
-      {user.isVerified && <VerifiedBadge size={size} username={user.username} />}
+      {user.isVerified && <VerifiedBadge size={size} username={user.username} forceGold={isFullSupa} />}
       {user.isSupa && <SupaBadge size={size} username={user.username} />}
       {badgeId && <AnimatedBadge badgeId={badgeId} size={size} />}
     </>

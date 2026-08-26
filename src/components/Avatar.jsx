@@ -6,7 +6,7 @@ export function getStoredProfileFrame(username) {
 }
 export function setStoredProfileFrame(username, frameId) {}
 
-export default function Avatar({ user, size = 40, showStatus = false, className = '', supaRing = false }) {
+export default function Avatar({ user, size = 40, showStatus = false, className = '', supaRing = false, ghostMode = false }) {
   const src = user?.profilePicture ? API.getAvatarUrl(user.profilePicture, size * 2) : null;
   const initials = (user?.name || user?.username || '?')[0].toUpperCase();
 
@@ -25,7 +25,7 @@ export default function Avatar({ user, size = 40, showStatus = false, className 
   const frameSize = Math.round(size * 1.28);
   const frameOffset = -Math.round((frameSize - size) / 2);
 
-  const statusColor = user?.isOnline ? '#10b981' : '#6b7280';
+  const statusColor = ghostMode ? '#9ca3af' : (user?.isOnline ? '#10b981' : '#6b7280');
   const statusBorder = '#0d0f14';
 
   const picEl = src ? (
@@ -67,9 +67,11 @@ export default function Avatar({ user, size = 40, showStatus = false, className 
         right: 0,
         backgroundColor: statusColor,
         borderColor: statusBorder,
-        zIndex: 3
+        zIndex: 3,
+        opacity: ghostMode ? 0.6 : 1,
       }}
-      aria-label={user?.isOnline ? 'Online' : 'Offline'}
+      aria-label={ghostMode ? 'Ghost mode active' : (user?.isOnline ? 'Online' : 'Offline')}
+      title={ghostMode ? "Ghost mode — you're hidden from others" : undefined}
     />
   ) : null;
 
@@ -144,9 +146,11 @@ export default function Avatar({ user, size = 40, showStatus = false, className 
             width: size * 0.28,
             height: size * 0.28,
             backgroundColor: statusColor,
-            borderColor: statusBorder
+            borderColor: statusBorder,
+            opacity: ghostMode ? 0.6 : 1,
           }}
-          aria-label={user?.isOnline ? 'Online' : 'Offline'}
+          aria-label={ghostMode ? 'Ghost mode active' : (user?.isOnline ? 'Online' : 'Offline')}
+          title={ghostMode ? "Ghost mode — you're hidden from others" : undefined}
         />
       )}
     </div>
