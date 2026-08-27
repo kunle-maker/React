@@ -743,6 +743,20 @@ class API {
   }
   static async getDevDocs() { return this.request('/api/dev/docs'); }
 
+  // ── Dev Platform Extensions ────────────────────────────────────────────────
+  static async getWebhookLogs(appId) { try { return this.request(`/api/dev/apps/${appId}/webhook-logs`); } catch { return []; } }
+  static async getAppUsageStats(appId) { try { return this.request(`/api/dev/apps/${appId}/stats`); } catch { return null; } }
+  static async getBotCommands(botId) { try { return this.request(`/api/dev/bots/${botId}/commands`); } catch { return []; } }
+  static async createBotCommand(botId, data) { return this.request(`/api/dev/bots/${botId}/commands`, { method: 'POST', body: JSON.stringify(data) }); }
+  static async updateBotCommand(botId, cmdId, data) { return this.request(`/api/dev/bots/${botId}/commands/${cmdId}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  static async deleteBotCommand(botId, cmdId) { return this.request(`/api/dev/bots/${botId}/commands/${cmdId}`, { method: 'DELETE' }); }
+  static async getBotAnalytics(botId) { try { return this.request(`/api/dev/bots/${botId}/analytics`); } catch { return null; } }
+  static async getOAuthApps() { try { return this.request('/api/dev/oauth/apps'); } catch { return []; } }
+  static async createOAuthApp(data) { return this.request('/api/dev/oauth/apps', { method: 'POST', body: JSON.stringify(data) }); }
+  static async deleteOAuthApp(appId) { return this.request(`/api/dev/oauth/apps/${appId}`, { method: 'DELETE' }); }
+  static async getDevChangelog() { try { return this.request('/api/dev/changelog'); } catch { return []; } }
+  static async runApiPlayground(data) { try { return this.request('/api/dev/playground', { method: 'POST', body: JSON.stringify(data) }); } catch (err) { return { error: err.message }; } }
+
   static async getBots(params = {}) {
     const q = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([,v]) => v != null && v !== ''))).toString();
     return this.request(`/api/bots${q ? '?' + q : ''}`);

@@ -123,6 +123,8 @@ function AppsTab({ apps, onRefresh }) {
   const [regenKey, setRegenKey] = useState({});
   const [webhookResults, setWebhookResults] = useState({});
   const [deleting, setDeleting] = useState(null);
+  const [showLogs, setShowLogs] = useState({});
+  const [showUsage, setShowUsage] = useState({});
 
   const toggleEvent = (ev) => setForm(f => ({ ...f, webhookEvents: f.webhookEvents.includes(ev) ? f.webhookEvents.filter(e => e !== ev) : [...f.webhookEvents, ev] }));
 
@@ -262,8 +264,16 @@ function AppsTab({ apps, onRefresh }) {
                 {webhookResults[app._id]?.loading ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <FiPlay size={11} />}
                 {webhookResults[app._id]?.success === true ? `OK ${webhookResults[app._id].status}` : webhookResults[app._id]?.success === false ? 'Failed' : 'Test Webhook'}
               </button>
+              {showLogs[app._id] && <div className="mt-2"><WebhookLogsPanel appId={app._id} /></div>}
+              <button onClick={() => setShowLogs(s => ({...s, [app._id]: !s[app._id]}))} className="text-[11px] text-discord-muted hover:text-discord-brand mt-1">
+                {showLogs[app._id] ? 'Hide Logs' : 'View Logs'}
+              </button>
             </div>
           )}
+          {showUsage[app._id] && <div className="border-t border-white/6 pt-3 mt-1"><UsageStatsPanel appId={app._id} /></div>}
+          <button onClick={() => setShowUsage(s => ({...s, [app._id]: !s[app._id]}))} className="text-[11px] text-discord-muted hover:text-discord-brand">
+            {showUsage[app._id] ? 'Hide Usage' : 'View Usage Stats'}
+          </button>
         </div>
       ))}
     </div>
@@ -375,6 +385,8 @@ function MyBotsTab({ onRefresh }) {
   const [creating, setCreating] = useState(false);
   const [newBotKey, setNewBotKey] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const [showCmds, setShowCmds] = useState({});
+  const [showAnalytics, setShowAnalytics] = useState({});
 
   const fetchMyBots = async () => {
     setLoading(true);
@@ -507,6 +519,16 @@ function MyBotsTab({ onRefresh }) {
               )}
             </div>
           )}
+          <div className="flex gap-3 mt-2 pt-2 border-t border-white/5">
+            <button onClick={() => setShowCmds(s => ({...s, [bot._id]: !s[bot._id]}))} className={`text-xs font-semibold transition-colors ${showCmds[bot._id] ? 'text-discord-brand' : 'text-discord-muted hover:text-discord-brand'}`}>
+              ⌨ Commands
+            </button>
+            <button onClick={() => setShowAnalytics(s => ({...s, [bot._id]: !s[bot._id]}))} className={`text-xs font-semibold transition-colors ${showAnalytics[bot._id] ? 'text-purple-400' : 'text-discord-muted hover:text-purple-400'}`}>
+              📊 Analytics
+            </button>
+          </div>
+          {showCmds[bot._id] && <div className="mt-2 border-t border-white/5 pt-2"><BotCommandsPanel botId={bot._id} /></div>}
+          {showAnalytics[bot._id] && <div className="mt-2 border-t border-white/5 pt-2"><BotAnalyticsPanel botId={bot._id} /></div>}
         </div>
       ))}
     </div>
@@ -746,13 +768,377 @@ function LeaderboardTab() {
   );
 }
 
+// ── Webhook Logs Tab (inside AppsTab expansion) ───────────────────────────
+function WebhookLogsPanel({ appId }) {
+  const [logs, setLogs] = useState(null);
+  useEffect(() => {
+    API.getWebhookLogs(appId).then(setLogs).catch(() => setLogs([]));
+  }, [appId]);
+  if (!logs) return <div className="flex justify-center py-4"><div className="w-5 h-5 border-2 border-discord-brand border-t-transparent rounded-full animate-spin" /></div>;
+  if (!logs.length) return <p className="text-discord-muted text-xs text-center py-4">No webhook deliveries yet.</p>;
+  return (
+    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+      {logs.map((log, i) => (
+        <div key={log._id || i} className={`flex items-start gap-2 px-3 py-2 rounded-xl text-xs border ${log.success ? 'bg-green-500/5 border-green-500/15' : 'bg-red-500/5 border-red-500/15'}`}>
+          <span className={`font-bold flex-shrink-0 ${log.success ? 'text-green-400' : 'text-red-400'}`}>{log.statusCode || (log.success ? 200 : 'ERR')}</span>
+          <span className="text-discord-muted flex-shrink-0">{log.event}</span>
+          <span className="text-discord-muted truncate flex-1">{log.responseBody?.slice?.(0,60) || log.error || '—'}</span>
+          <span className="text-discord-muted/60 flex-shrink-0">{log.createdAt ? new Date(log.createdAt).toLocaleTimeString() : ''}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Usage Stats Panel ─────────────────────────────────────────────────────
+function UsageStatsPanel({ appId }) {
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    API.getAppUsageStats(appId).then(setStats).catch(() => setStats(null));
+  }, [appId]);
+  if (!stats) return <p className="text-discord-muted text-xs text-center py-3">No usage data yet.</p>;
+  const days = stats.daily || [];
+  const max = Math.max(...days.map(d => d.count || 0), 1);
+  return (
+    <div>
+      <p className="text-discord-muted text-xs font-bold uppercase mb-2">Requests (last 7 days)</p>
+      <div className="flex items-end gap-1 h-16">
+        {(days.length ? days : Array(7).fill({ count: 0 })).slice(-7).map((d, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+            <div className="w-full bg-discord-brand/60 rounded-sm" style={{ height: `${Math.max(4, (d.count / max) * 52)}px` }} />
+            <span className="text-[8px] text-discord-muted/60">{d.date?.slice(-5) || ''}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-4 mt-2 text-xs">
+        <span className="text-discord-muted">Total: <span className="text-discord-text font-bold">{stats.total || 0}</span></span>
+        {stats.rateLimit && <span className="text-discord-muted">Remaining: <span className="text-discord-text font-bold">{stats.rateLimit.remaining}</span>/{stats.rateLimit.limit}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ── Bot Command Manager ───────────────────────────────────────────────────
+function BotCommandsPanel({ botId }) {
+  const [commands, setCommands] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ trigger: '', response: '', description: '' });
+  const [saving, setSaving] = useState(false);
+
+  const load = () => API.getBotCommands(botId).then(setCommands).catch(() => setCommands([]));
+  useEffect(() => { load(); }, [botId]);
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await API.createBotCommand(botId, form);
+      setForm({ trigger: '', response: '', description: '' });
+      setShowAdd(false);
+      load();
+    } catch (err) { showToast(err.message || 'Failed', { type: 'error' }); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (cmdId) => {
+    try { await API.deleteBotCommand(botId, cmdId); load(); }
+    catch (err) { showToast(err.message || 'Failed', { type: 'error' }); }
+  };
+
+  if (!commands) return <div className="flex justify-center py-4"><div className="w-5 h-5 border-2 border-discord-brand border-t-transparent rounded-full animate-spin" /></div>;
+
+  return (
+    <div className="space-y-2">
+      <button onClick={() => setShowAdd(v => !v)} className="flex items-center gap-1.5 text-xs font-bold text-discord-brand hover:underline">
+        <FiPlus size={11} /> Add Command
+      </button>
+      {showAdd && (
+        <form onSubmit={handleAdd} className="bg-discord-dark border border-white/8 rounded-xl p-3 space-y-2 animate-fade-in">
+          <input required value={form.trigger} onChange={e => setForm(f => ({...f, trigger: e.target.value}))} placeholder="/command (e.g. /help)" className="discord-input w-full text-xs py-1.5" />
+          <textarea required value={form.response} onChange={e => setForm(f => ({...f, response: e.target.value}))} placeholder="Bot response text" className="discord-input w-full text-xs py-1.5 resize-none" rows={2} />
+          <input value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} placeholder="Description (optional)" className="discord-input w-full text-xs py-1.5" />
+          <div className="flex gap-2">
+            <button type="submit" disabled={saving} className="discord-btn text-xs px-3 py-1.5 disabled:opacity-50">Save</button>
+            <button type="button" onClick={() => setShowAdd(false)} className="text-xs text-discord-muted hover:text-discord-text">Cancel</button>
+          </div>
+        </form>
+      )}
+      {commands.length === 0 ? <p className="text-discord-muted text-xs">No commands yet.</p> : commands.map(cmd => (
+        <div key={cmd._id} className="flex items-center gap-2 bg-discord-dark border border-white/6 rounded-xl px-3 py-2">
+          <code className="text-discord-brand text-xs font-bold flex-shrink-0">{cmd.trigger}</code>
+          <span className="text-discord-muted text-xs truncate flex-1">{cmd.response?.slice(0,60)}</span>
+          <button onClick={() => handleDelete(cmd._id)} className="text-discord-muted hover:text-discord-red flex-shrink-0"><FiTrash2 size={12} /></button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Bot Analytics Tab ─────────────────────────────────────────────────────
+function BotAnalyticsPanel({ botId }) {
+  const [analytics, setAnalytics] = useState(null);
+  useEffect(() => {
+    API.getBotAnalytics(botId).then(setAnalytics).catch(() => setAnalytics(null));
+  }, [botId]);
+  if (!analytics) return <p className="text-discord-muted text-xs text-center py-3">No analytics available yet.</p>;
+  const days = analytics.daily || [];
+  const max = Math.max(...days.map(d => d.messages || 0), 1);
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-2">
+        {[['DAU', analytics.dau], ['WAU', analytics.wau], ['MAU', analytics.mau]].map(([l,v]) => (
+          <div key={l} className="bg-discord-dark border border-white/6 rounded-xl p-2.5 text-center">
+            <p className="text-discord-muted text-[10px] font-bold">{l}</p>
+            <p className="text-discord-text font-black text-lg">{v ?? '—'}</p>
+          </div>
+        ))}
+      </div>
+      {days.length > 0 && (
+        <div>
+          <p className="text-discord-muted text-[10px] font-bold uppercase mb-1.5">Messages/day (7d)</p>
+          <div className="flex items-end gap-1 h-12">
+            {days.slice(-7).map((d, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                <div className="w-full bg-purple-500/60 rounded-sm" style={{ height: `${Math.max(3, (d.messages / max) * 44)}px` }} />
+                <span className="text-[7px] text-discord-muted/60">{d.date?.slice(-5) || ''}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {analytics.topCommands?.length > 0 && (
+        <div>
+          <p className="text-discord-muted text-[10px] font-bold uppercase mb-1.5">Top Commands</p>
+          {analytics.topCommands.slice(0,5).map((c, i) => (
+            <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-white/4">
+              <code className="text-discord-brand">{c.command}</code>
+              <span className="text-discord-muted">{c.count} uses</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── OAuth Apps Tab ────────────────────────────────────────────────────────
+function OAuthTab() {
+  const [oauthApps, setOAuthApps] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ name: '', redirectUri: '', description: '' });
+  const [creating, setCreating] = useState(false);
+  const [newCreds, setNewCreds] = useState(null);
+
+  useEffect(() => {
+    API.getOAuthApps().then(data => setOAuthApps(Array.isArray(data) ? data : data?.apps || [])).finally(() => setLoading(false));
+  }, []);
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    setCreating(true);
+    try {
+      const data = await API.createOAuthApp(form);
+      setNewCreds({ clientId: data.clientId || data.app?.clientId, clientSecret: data.clientSecret || data.app?.clientSecret, name: form.name });
+      setForm({ name: '', redirectUri: '', description: '' });
+      setShowCreate(false);
+      API.getOAuthApps().then(d => setOAuthApps(Array.isArray(d) ? d : d?.apps || []));
+    } catch (err) { showToast(err.message || 'Failed', { type: 'error' }); }
+    finally { setCreating(false); }
+  };
+
+  return (
+    <div className="space-y-4">
+      {newCreds && (
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4 animate-fade-in">
+          <p className="text-yellow-400 font-bold text-sm mb-2">OAuth App: {newCreds.name}</p>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2"><span className="text-yellow-400/70 text-xs w-24">Client ID:</span><code className="text-yellow-300 text-xs break-all flex-1">{newCreds.clientId}</code><CopyBtn text={newCreds.clientId} /></div>
+            {newCreds.clientSecret && <div className="flex items-center gap-2"><span className="text-yellow-400/70 text-xs w-24">Client Secret:</span><code className="text-yellow-300 text-xs break-all flex-1">{newCreds.clientSecret}</code><CopyBtn text={newCreds.clientSecret} /></div>}
+          </div>
+          <p className="text-yellow-400/60 text-xs mt-2">Store your client secret safely — it won't be shown again.</p>
+          <button onClick={() => setNewCreds(null)} className="text-discord-muted hover:text-discord-text text-xs mt-1">Dismiss</button>
+        </div>
+      )}
+      <button onClick={() => setShowCreate(v => !v)} className="flex items-center gap-2 bg-discord-brand hover:bg-discord-brand/90 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all">
+        <FiPlus size={16} /> New OAuth App
+      </button>
+      {showCreate && (
+        <form onSubmit={handleCreate} className="bg-discord-sidebar border border-white/8 rounded-2xl p-5 space-y-3 animate-fade-in">
+          <h3 className="font-bold text-discord-text">Create OAuth App</h3>
+          <input required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} placeholder="App name *" className="discord-input w-full" />
+          <input required value={form.redirectUri} onChange={e => setForm(f => ({...f, redirectUri: e.target.value}))} placeholder="Redirect URI *" className="discord-input w-full" />
+          <input value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} placeholder="Description" className="discord-input w-full" />
+          <div className="flex gap-2">
+            <button type="submit" disabled={creating} className="flex items-center gap-2 bg-discord-brand text-white font-bold px-4 py-2 rounded-xl text-sm disabled:opacity-60">
+              {creating ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiPlus size={14} />} Create
+            </button>
+            <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 rounded-xl text-sm text-discord-muted border border-white/10 hover:border-white/20">Cancel</button>
+          </div>
+        </form>
+      )}
+      {loading ? <div className="space-y-2">{[...Array(2)].map((_, i) => <div key={i} className="h-16 bg-discord-sidebar rounded-2xl animate-pulse" />)}</div>
+        : oauthApps.length === 0 ? (
+          <div className="text-center py-12 text-discord-muted">
+            <FiKey size={36} className="mx-auto mb-3 opacity-30" />
+            <p className="font-semibold">No OAuth apps yet</p>
+            <p className="text-xs mt-1">Register an app to enable "Login with VesselX"</p>
+          </div>
+        ) : oauthApps.map(app => (
+          <div key={app._id} className="bg-discord-sidebar border border-white/8 rounded-2xl p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-bold text-discord-text text-sm">{app.name}</p>
+                {app.description && <p className="text-discord-muted text-xs">{app.description}</p>}
+              </div>
+              <button onClick={() => { API.deleteOAuthApp(app._id).then(() => setOAuthApps(a => a.filter(o => o._id !== app._id))).catch(e => showToast(e.message, {type:'error'})); }} className="text-discord-muted hover:text-discord-red transition-colors"><FiTrash2 size={14} /></button>
+            </div>
+            <div className="font-mono text-xs bg-black/20 rounded-lg px-3 py-1.5 text-discord-muted flex items-center gap-2">
+              <span className="text-discord-muted/60">Client ID:</span> {app.clientId}
+              {app.clientId && <CopyBtn text={app.clientId} />}
+            </div>
+            {app.redirectUri && <p className="text-discord-muted text-xs">↩ {app.redirectUri}</p>}
+          </div>
+        ))}
+      <div className="bg-discord-sidebar border border-white/6 rounded-2xl p-4 mt-2">
+        <p className="text-discord-muted text-xs font-bold uppercase mb-2">OAuth Flow</p>
+        <code className="text-discord-brand text-xs block">{`GET /api/oauth/authorize?client_id=...&redirect_uri=...&response_type=code`}</code>
+        <p className="text-discord-muted text-xs mt-1">Then exchange the code for an access token via POST /api/oauth/token</p>
+      </div>
+    </div>
+  );
+}
+
+// ── API Playground Tab ────────────────────────────────────────────────────
+const PLAYGROUND_ENDPOINTS = [
+  { label: 'Get Profile', method: 'GET', path: '/api/profile' },
+  { label: 'Get Feed', method: 'GET', path: '/api/feed/recommended?limit=5' },
+  { label: 'Search Users', method: 'GET', path: '/api/users/search?q=test' },
+  { label: 'Get Notifications', method: 'GET', path: '/api/notifications?limit=5' },
+  { label: 'Send Message', method: 'POST', path: '/api/messages', body: '{"receiverUsername":"username","text":"Hello!"}' },
+  { label: 'Create Post', method: 'POST', path: '/api/posts', body: '{"caption":"Hello world!"}' },
+];
+
+function ApiPlaygroundTab() {
+  const [method, setMethod] = useState('GET');
+  const [path, setPath] = useState('/api/profile');
+  const [body, setBody] = useState('');
+  const [result, setResult] = useState(null);
+  const [running, setRunning] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState('');
+
+  const handlePreset = (preset) => {
+    const ep = PLAYGROUND_ENDPOINTS.find(e => e.label === preset);
+    if (ep) { setMethod(ep.method); setPath(ep.path); setBody(ep.body || ''); setSelectedPreset(preset); }
+  };
+
+  const handleRun = async () => {
+    setRunning(true);
+    setResult(null);
+    try {
+      const data = await API.runApiPlayground({ method, path, body: body ? JSON.parse(body) : undefined });
+      setResult({ ok: !data.error, data });
+    } catch (err) {
+      setResult({ ok: false, data: { error: err.message } });
+    } finally { setRunning(false); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-discord-sidebar border border-white/8 rounded-2xl p-4 space-y-3">
+        <p className="text-discord-text font-bold text-sm">API Request Builder</p>
+        <div>
+          <p className="text-discord-muted text-xs font-bold mb-1.5">Presets</p>
+          <div className="flex flex-wrap gap-2">
+            {PLAYGROUND_ENDPOINTS.map(ep => (
+              <button key={ep.label} onClick={() => handlePreset(ep.label)} className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${selectedPreset === ep.label ? 'bg-discord-brand text-white border-discord-brand' : 'bg-white/4 text-discord-muted border-white/10 hover:border-white/20 hover:text-discord-text'}`}>
+                {ep.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <select value={method} onChange={e => setMethod(e.target.value)} className="discord-input text-sm py-2 w-24 flex-shrink-0">
+            {['GET','POST','PUT','PATCH','DELETE'].map(m => <option key={m}>{m}</option>)}
+          </select>
+          <input value={path} onChange={e => setPath(e.target.value)} placeholder="/api/..." className="discord-input flex-1 text-sm font-mono" />
+        </div>
+        {(method !== 'GET' && method !== 'DELETE') && (
+          <textarea value={body} onChange={e => setBody(e.target.value)} placeholder='{"key": "value"}' className="discord-input w-full text-xs font-mono resize-none" rows={3} />
+        )}
+        <button onClick={handleRun} disabled={running || !path} className="flex items-center gap-2 bg-discord-brand text-white font-bold px-4 py-2.5 rounded-xl text-sm disabled:opacity-60 transition-all active:scale-95">
+          {running ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiPlay size={14} />}
+          {running ? 'Running...' : 'Run Request'}
+        </button>
+      </div>
+
+      {result && (
+        <div className={`border rounded-2xl p-4 animate-fade-in ${result.ok ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-xs font-bold ${result.ok ? 'text-green-400' : 'text-red-400'}`}>{result.ok ? '✓ Success' : '✗ Error'}</span>
+            <CopyBtn text={JSON.stringify(result.data, null, 2)} label="Copy Response" />
+          </div>
+          <pre className="text-xs text-discord-muted overflow-x-auto max-h-64 overflow-y-auto font-mono bg-black/20 rounded-xl p-3 whitespace-pre-wrap break-words">
+            {JSON.stringify(result.data, null, 2)}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Dev Changelog ─────────────────────────────────────────────────────────
+function ChangelogBanner() {
+  const [logs, setLogs] = useState([]);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { API.getDevChangelog().then(d => setLogs(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
+
+  // Fallback static entries if backend returns nothing
+  const entries = logs.length ? logs : [
+    { version: 'v2.1', date: '2026-08-01', title: 'Bot Command Manager added', type: 'feature', body: 'Developers can now define trigger-response command patterns directly from the Developer page.' },
+    { version: 'v2.0', date: '2026-07-15', title: 'OAuth 2.0 Apps', type: 'feature', body: 'Register OAuth apps and enable "Login with VesselX" for your platform.' },
+    { version: 'v1.9', date: '2026-06-20', title: 'Webhook logs', type: 'feature', body: 'View last 10 webhook delivery attempts per app including status codes and response bodies.' },
+    { version: 'v1.8', date: '2026-05-10', title: 'Rate limit headers', type: 'improvement', body: 'API responses now include X-RateLimit-Remaining and X-RateLimit-Reset headers.' },
+  ];
+
+  return (
+    <div className="bg-discord-sidebar border border-white/8 rounded-2xl overflow-hidden mb-4">
+      <button className="flex items-center justify-between w-full px-4 py-3" onClick={() => setOpen(v => !v)}>
+        <div className="flex items-center gap-2">
+          <FiBookOpen size={14} className="text-discord-brand" />
+          <span className="text-discord-text text-sm font-bold">API Changelog</span>
+          {entries[0] && <span className="text-[10px] text-discord-brand bg-discord-brand/10 px-2 py-0.5 rounded-full font-bold border border-discord-brand/20">{entries[0].version}</span>}
+        </div>
+        <FiChevronDown size={14} className={`text-discord-muted transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="border-t border-white/6 divide-y divide-white/5">
+          {entries.map((e, i) => (
+            <div key={i} className="px-4 py-3">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-discord-muted text-xs">{e.version}</span>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${e.type === 'feature' ? 'text-green-400 bg-green-500/10 border-green-500/20' : e.type === 'breaking' ? 'text-red-400 bg-red-500/10 border-red-500/20' : 'text-blue-400 bg-blue-500/10 border-blue-500/20'}`}>{e.type || 'update'}</span>
+                <span className="text-discord-muted/50 text-[10px]">{e.date}</span>
+              </div>
+              <p className="text-discord-text text-sm font-semibold">{e.title}</p>
+              {e.body && <p className="text-discord-muted text-xs mt-0.5 leading-relaxed">{e.body}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const TABS = [
-  { id: 'dashboard', label: 'Dashboard', icon: FiZap },
-  { id: 'apps',      label: 'Apps',      icon: FiBox },
-  { id: 'botstore',  label: 'Bot Store', icon: FiCpu },
-  { id: 'mybots',    label: 'My Bots',   icon: FiCpu },
-  { id: 'snippets',  label: 'Snippets',  icon: FiCode },
-  { id: 'leaderboard', label: 'Leaderboard', icon: FiAward },
+  { id: 'dashboard',  label: 'Dashboard',  icon: FiZap },
+  { id: 'apps',       label: 'Apps',        icon: FiBox },
+  { id: 'oauth',      label: 'OAuth',       icon: FiKey },
+  { id: 'playground', label: 'Playground',  icon: FiPlay },
+  { id: 'botstore',   label: 'Bot Store',   icon: FiCpu },
+  { id: 'mybots',     label: 'My Bots',     icon: FiCpu },
+  { id: 'snippets',   label: 'Snippets',    icon: FiCode },
+  { id: 'leaderboard',label: 'Leaderboard', icon: FiAward },
 ];
 
 export default function Developer({ currentUser, unreadCounts }) {
@@ -784,6 +1170,8 @@ export default function Developer({ currentUser, unreadCounts }) {
           </div>
         </div>
 
+        <ChangelogBanner />
+
         <div className="flex gap-1 overflow-x-auto no-scrollbar mb-6 bg-discord-hover rounded-xl p-1">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => setTab(id)} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all flex-shrink-0 ${tab === id ? 'bg-discord-sidebar text-discord-text shadow' : 'text-discord-muted hover:text-discord-text'}`}>
@@ -794,6 +1182,8 @@ export default function Developer({ currentUser, unreadCounts }) {
 
         {tab === 'dashboard'   && <Dashboard profile={profile} />}
         {tab === 'apps'        && <AppsTab apps={apps} onRefresh={refreshProfile} />}
+        {tab === 'oauth'       && <OAuthTab />}
+        {tab === 'playground'  && <ApiPlaygroundTab />}
         {tab === 'botstore'    && <BotStoreTab currentUser={currentUser} />}
         {tab === 'mybots'      && <MyBotsTab onRefresh={refreshProfile} />}
         {tab === 'snippets'    && <SnippetsTab currentUser={currentUser} />}
