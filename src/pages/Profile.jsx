@@ -965,12 +965,12 @@ export default function Profile({ currentUser, unreadCounts }) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-discord-hover/30 border border-discord-hover rounded-2xl p-4 text-center group hover:border-discord-brand/50 transition-colors shadow-lg">
-                <div className="mb-2 flex justify-center"><TwemojiImg emoji="🔤" size={32} /></div>
+                <div className="mb-2 flex justify-center"><img src="/favicon.svg" alt="Word Sprint" width={32} height={32} className="select-none" /></div>
                 <p className="text-2xl font-black text-discord-text leading-tight">{user?.gameStats?.wordSprintWins || 0}</p>
                 <p className="text-[11px] font-bold uppercase tracking-widest text-discord-muted mt-1">Word Sprint Wins</p>
               </div>
               <div className="bg-discord-hover/30 border border-discord-hover rounded-2xl p-4 text-center group hover:border-discord-brand/50 transition-colors shadow-lg">
-                <div className="mb-2 flex justify-center"><TwemojiImg emoji="🎭" size={32} /></div>
+                <div className="mb-2 flex justify-center"><img src="/favicon.svg" alt="Emoji Trivia" width={32} height={32} className="select-none" /></div>
                 <p className="text-2xl font-black text-discord-text leading-tight">{user?.gameStats?.emojiTriviaWins || 0}</p>
                 <p className="text-[11px] font-bold uppercase tracking-widest text-discord-muted mt-1">Emoji Trivia Wins</p>
               </div>
