@@ -770,10 +770,11 @@ export default function Settings({ currentUser, unreadCounts }) {
   const [customUrlSaving, setCustomUrlSaving] = useState(false);
   const customUrlTimer = useRef(null);
 
-  // Bio links state
-  const [bioLinks, setBioLinks] = useState([]);
+  // Bio links state — start with one empty row so the form is always usable
+  const [bioLinks, setBioLinks] = useState([{ title: '', url: '' }]);
   const [bioLinksLoading, setBioLinksLoading] = useState(false);
   const [bioLinksSaving, setBioLinksSaving] = useState(false);
+  const [bioLinksLoaded, setBioLinksLoaded] = useState(false);
 
   // Profile insights state
   const [profileInsights, setProfileInsights] = useState(null);
@@ -781,7 +782,7 @@ export default function Settings({ currentUser, unreadCounts }) {
 
   // Auto-load bio links when section becomes active
   useEffect(() => {
-    if (section === 'bio-links' && bioLinks.length === 0 && !bioLinksLoading) loadBioLinks();
+    if (section === 'bio-links' && !bioLinksLoaded && !bioLinksLoading) loadBioLinks();
     if (section === 'support' && supportTickets === null) loadSupportTickets();
   }, [section]);
 
@@ -903,15 +904,21 @@ export default function Settings({ currentUser, unreadCounts }) {
     setBioLinksLoading(true);
     try {
       const data = await API.getMyBioLinks();
-      setBioLinks(Array.isArray(data) ? data : data?.links || []);
-    } catch { setBioLinks([]); }
+      const links = Array.isArray(data) ? data : data?.links || [];
+      // Always keep at least one empty row so the form is usable
+      setBioLinks(links.length > 0 ? links : [{ title: '', url: '' }]);
+      setBioLinksLoaded(true);
+    } catch { setBioLinks([{ title: '', url: '' }]); }
     finally { setBioLinksLoading(false); }
   };
 
   const handleSaveBioLinks = async () => {
     setBioLinksSaving(true);
     try {
-      await API.updateBioLinks(bioLinks.filter(l => l.url?.trim()));
+      const toSave = bioLinks.filter(l => l.url?.trim());
+      await API.updateBioLinks(toSave);
+      // Update state to reflect what was actually saved
+      setBioLinks(toSave.length > 0 ? toSave : [{ title: '', url: '' }]);
       showToast('Bio links saved!', { type: 'success' });
     } catch (err) { showToast(err.message || 'Failed to save links', { type: 'error' }); }
     finally { setBioLinksSaving(false); }
@@ -1365,7 +1372,7 @@ export default function Settings({ currentUser, unreadCounts }) {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {(bioLinks.length === 0 ? [{ title: '', url: '' }] : bioLinks).map((link, i) => (
+                    {bioLinks.map((link, i) => (
                       <div key={i} className="flex items-center gap-2">
                         <div className="flex-1 space-y-1">
                           <input
@@ -1384,7 +1391,10 @@ export default function Settings({ currentUser, unreadCounts }) {
                           />
                         </div>
                         <button
-                          onClick={() => setBioLinks(prev => prev.filter((_, idx) => idx !== i))}
+                          onClick={() => {
+                            const next = bioLinks.filter((_, idx) => idx !== i);
+                            setBioLinks(next.length > 0 ? next : [{ title: '', url: '' }]);
+                          }}
                           className="text-discord-muted hover:text-discord-red p-1.5 flex-shrink-0"
                         >
                           <FiX size={14} />
@@ -1403,7 +1413,7 @@ export default function Settings({ currentUser, unreadCounts }) {
                 )}
                 <div className="flex gap-2">
                   <button
-                    onClick={loadBioLinks}
+                    onClick={() => { setBioLinksLoaded(false); loadBioLinks(); }}
                     disabled={bioLinksLoading}
                     className="flex-1 py-2.5 rounded-xl border border-discord-hover text-discord-muted text-sm font-semibold hover:text-discord-text transition-colors"
                   >

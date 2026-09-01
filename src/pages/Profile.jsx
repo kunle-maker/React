@@ -509,7 +509,7 @@ export default function Profile({ currentUser, unreadCounts }) {
               {(isBotProfile?.bio || user.bio) && (
                 <p className="text-discord-text text-sm mt-2 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(isBotProfile?.bio || user.bio) }} />
               )}
-              {(user.website || user.location) && (
+              {(user.website || user.location || user.customUrl) && (
                 <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
                   {user.location && (
                     <span className="flex items-center gap-1 text-discord-muted text-xs">
@@ -519,6 +519,11 @@ export default function Profile({ currentUser, unreadCounts }) {
                   {user.website && (
                     <a href={user.website.startsWith('http') ? user.website : `https://${user.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-discord-brand text-xs hover:underline">
                       <TwemojiImg emoji="🔗" size={12} /> {user.website.replace(/^https?:\/\//, '')}
+                    </a>
+                  )}
+                  {user.customUrl && (
+                    <a href={`${window.location.origin}/#/u/${user.customUrl}`} className="flex items-center gap-1 text-discord-muted text-xs hover:text-discord-brand transition-colors" title="Custom profile URL">
+                      <FiLink size={11} /> vesselx.qzz.io/u/{user.customUrl}
                     </a>
                   )}
                 </div>
