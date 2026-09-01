@@ -950,7 +950,12 @@ export default function Settings({ currentUser, unreadCounts }) {
     if (!newTicketForm.subject.trim() || !newTicketForm.message.trim()) return;
     setNewTicketLoading(true);
     try {
-      const data = await API.createSupportTicket(newTicketForm);
+      const data = await API.createSupportTicket({
+        category: newTicketForm.category,
+        subject: newTicketForm.subject,
+        description: newTicketForm.message,
+        message: newTicketForm.message,
+      });
       const ticket = data.ticket || data;
       const aiReply = data.aiResponse;
       // Add to list
