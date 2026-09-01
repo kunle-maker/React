@@ -1,0 +1,3 @@
+# Proxy /u/* to backend so Telegram/WhatsApp bots get OG HTML from the server
+# Type 200 = rewrite (proxy), URL stays as vesselx.qzz.io/u/slug in the preview
+/u/*  https://vesselx-backend.onrender.com/u/:splat  200
