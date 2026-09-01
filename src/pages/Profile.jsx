@@ -127,9 +127,13 @@ export default function Profile({ currentUser, unreadCounts }) {
     fetchPosts();
     setSupaStyleId(getStoredSupaBadgeStyle(username));
     setVerifiedStyleId(getStoredVerifiedBadgeStyle(username) || 'blue');
-    // Load bio links
+    // Load bio links — handle all possible response shapes from backend
     API.getUserBioLinks(username).then(data => {
-      setBioLinks(Array.isArray(data) ? data : data?.links || []);
+      // Backend may return: array, { links: [] }, { bioLinks: [] }, { data: [] }
+      const links = Array.isArray(data)
+        ? data
+        : data?.links || data?.bioLinks || data?.data || [];
+      setBioLinks(links.filter(l => l?.url?.trim()));
     }).catch(() => setBioLinks([]));
     if (!isMyProfile) {
       API.getBlockedUsers().then(list => {
