@@ -95,7 +95,7 @@ function VoiceNotePlayer({ src, duration: initDuration, isMine = false }) {
         </div>
         <div className={`flex items-center justify-between text-[10px] font-mono ${textColor}`}>
           <span>{playing ? fmt(current) : fmt(duration)}</span>
-          <button onClick={cycleSpeed} className={`font-bold text-[10px] px-1.5 py-0.5 rounded-full ${isMine ? 'text-white/80 hover:bg-white/20' : 'text-discord-muted hover:bg-white/10'}`}>{speed}×</button>
+          <button onClick={cycleSpeed} className={`font-bold text-[10px] px-1.5 py-0.5 rounded-full ${isMine ? 'text-white/80 hover:bg-white/20' : 'text-discord-muted hover:bg-white/10'}`}>{speed}ï¿½</button>
         </div>
       </div>
       <FiMic size={13} className={`flex-shrink-0 opacity-50 ${isMine ? 'text-white' : 'text-discord-muted'}`} />
@@ -931,7 +931,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                       <div className="relative">
                         {(() => {
                           const text = msg.text || '';
-                          const replyMatch = text.match(/^? (@[^\n]+)\n([\s\S]*)$/);
+                          const replyMatch = text.match(/^â†© (@[^\n]+)\n([\s\S]*)$/);
                           if (replyMatch) return (<div><div className={`flex items-center gap-1.5 text-xs mb-1 opacity-80 ${mine ? 'text-[#444]' : 'text-white/60'}`}><FiArrowLeft size={9} className="rotate-180 flex-shrink-0" /><span className="font-bold truncate">{replyMatch[1]}</span></div><FormattedText text={replyMatch[2].trim()} /></div>);
                           const imgMatch = text.match(/^\[vx:img:([^\]]+)\](.*)$/s);
                           const audioMatch = text.match(/^\[vx:audio:([^\]]+)\](.*)$/s);
@@ -1031,7 +1031,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-discord-text truncate">{mediaAttachment.filename}</p>
-                    <p className="text-xs text-discord-muted capitalize">{mediaAttachment.type} · {(mediaAttachment.size / 1024).toFixed(1)} KB</p>
+                    <p className="text-xs text-discord-muted capitalize">{mediaAttachment.type} ï¿½ {(mediaAttachment.size / 1024).toFixed(1)} KB</p>
                   </div>
                   <button type="button" onClick={() => setMediaAttachment(null)} className="p-2 text-discord-muted hover:text-discord-red flex-shrink-0"><FiX size={20} /></button>
                 </div>
