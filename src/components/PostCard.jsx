@@ -22,7 +22,7 @@ function TwemojiIcon({ emoji, size = '1.4em', className = '' }) {
     const cp = [...emoji].map(c => c.codePointAt(0).toString(16)).filter(x => x !== 'fe0f').join('-');
     return (
       <img 
-        src={`https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/apple/64/${cp}.png`} 
+        src={`https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/64/${cp}.png`} 
         alt={emoji} 
         style={{ width: size, height: size }}
         className={`select-none object-contain inline-block ${className}`}

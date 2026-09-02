@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiSend, FiArrowLeft, FiUsers, FiInfo, FiTrash2, FiCopy, FiMoreVertical, FiLogOut, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiX, FiMoreHorizontal, FiSave, FiGlobe, FiEdit2, FiPlusSquare } from 'react-icons/fi';
 import ImageCropModal from '../components/ImageCropModal';
@@ -20,7 +20,7 @@ import { haptic } from '../utils/haptics';
 import { FiPlay, FiMic, FiFile } from 'react-icons/fi';
 import TwemojiTextarea from '../components/TwemojiTextarea';
 
-const MSG_REACTIONS = ['❤️', '😂', '👍', '😮', '😢', '😡', '🔥', '💯'];
+const MSG_REACTIONS = ['??', '??', '??', '??', '??', '??', '??', '??'];
 
 function VoiceNotePlayer({ src, duration: initDuration, isMine = false }) {
   const audioRef = useRef(null);
@@ -74,7 +74,7 @@ function VoiceNotePlayer({ src, duration: initDuration, isMine = false }) {
         className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all active:scale-90 ${isMine ? 'bg-white/20 hover:bg-white/30' : 'bg-discord-brand/20 hover:bg-discord-brand/30'}`}
       >
         {playing
-          ? <span className={`text-xs font-black tracking-tighter ${isMine ? 'text-white' : 'text-discord-brand'}`}>❙❙</span>
+          ? <span className={`text-xs font-black tracking-tighter ${isMine ? 'text-white' : 'text-discord-brand'}`}>??</span>
           : <FiPlay size={14} className={`ml-0.5 ${isMine ? 'text-white' : 'text-discord-brand'}`} />
         }
       </button>
@@ -95,7 +95,7 @@ function VoiceNotePlayer({ src, duration: initDuration, isMine = false }) {
         </div>
         <div className={`flex items-center justify-between text-[10px] font-mono ${textColor}`}>
           <span>{playing ? fmt(current) : fmt(duration)}</span>
-          <button onClick={cycleSpeed} className={`font-bold text-[10px] px-1.5 py-0.5 rounded-full ${isMine ? 'text-white/80 hover:bg-white/20' : 'text-discord-muted hover:bg-white/10'}`}>{speed}×</button>
+          <button onClick={cycleSpeed} className={`font-bold text-[10px] px-1.5 py-0.5 rounded-full ${isMine ? 'text-white/80 hover:bg-white/20' : 'text-discord-muted hover:bg-white/10'}`}>{speed}�</button>
         </div>
       </div>
       <FiMic size={13} className={`flex-shrink-0 opacity-50 ${isMine ? 'text-white' : 'text-discord-muted'}`} />
@@ -106,7 +106,7 @@ function VoiceNotePlayer({ src, duration: initDuration, isMine = false }) {
 function TwemojiEmoji({ emoji, size = 18 }) {
   try {
     const cp = [...emoji].map(c => c.codePointAt(0).toString(16)).filter(x => x !== 'fe0f').join('-');
-    return <img src={`https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/apple/64/${cp}.png`} alt={emoji} width={size} height={size} className="inline-block select-none object-contain align-middle" />;
+    return <img src={`https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/64/${cp}.png`} alt={emoji} width={size} height={size} className="inline-block select-none object-contain align-middle" />;
   } catch { return <span>{emoji}</span>; }
 }
 
@@ -500,7 +500,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
       replyToId = replyingTo._id || null;
       const rawPreview = (replyingTo.text || '').replace(/^\[vx:[^\]]+\]\n?/, '').trim().slice(0, 60);
       const senderName = replyingTo.senderId?.username || replyingTo.senderUsername || 'someone';
-      text = `↩ @${senderName}: ${rawPreview || '📷 Photo'}\n${text}`;
+      text = `? @${senderName}: ${rawPreview || '?? Photo'}\n${text}`;
       setReplyingTo(null);
     }
     const savedAttachment = mediaAttachment;
@@ -769,7 +769,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                   <span className="text-[15px] font-bold text-discord-text truncate group-hover:underline">
                     {group?.name}
                   </span>
-                  {isChannel && <span className="text-[10px] font-bold text-discord-brand bg-discord-brand/15 px-1.5 py-0.5 rounded-full border border-discord-brand/30 flex-shrink-0">📢 Channel</span>}
+                  {isChannel && <span className="text-[10px] font-bold text-discord-brand bg-discord-brand/15 px-1.5 py-0.5 rounded-full border border-discord-brand/30 flex-shrink-0">?? Channel</span>}
                 </div>
                 <p className="text-[11px] font-medium leading-none text-discord-muted mt-0.5">
                   {group?.members?.length || 0} {isChannel ? 'subscribers' : 'members'}
@@ -931,7 +931,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                       <div className="relative">
                         {(() => {
                           const text = msg.text || '';
-                          const replyMatch = text.match(/^↩ (@[^\n]+)\n([\s\S]*)$/);
+                          const replyMatch = text.match(/^? (@[^\n]+)\n([\s\S]*)$/);
                           if (replyMatch) return (<div><div className={`flex items-center gap-1.5 text-xs mb-1 opacity-80 ${mine ? 'text-[#444]' : 'text-white/60'}`}><FiArrowLeft size={9} className="rotate-180 flex-shrink-0" /><span className="font-bold truncate">{replyMatch[1]}</span></div><FormattedText text={replyMatch[2].trim()} /></div>);
                           const imgMatch = text.match(/^\[vx:img:([^\]]+)\](.*)$/s);
                           const audioMatch = text.match(/^\[vx:audio:([^\]]+)\](.*)$/s);
@@ -1002,7 +1002,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                    <div className="w-1 h-8 bg-discord-brand rounded-full" />
                    <div className="flex-1 min-w-0">
                      <p className="text-xs font-bold text-discord-brand mb-0.5">Replying to @{replyingTo.senderId?.username || replyingTo.senderUsername}</p>
-                     <p className="text-xs text-discord-muted truncate">{(replyingTo.text || '').replace(/^\[vx:[^\]]+\]\n?/, '').trim() || '📷 Photo'}</p>
+                     <p className="text-xs text-discord-muted truncate">{(replyingTo.text || '').replace(/^\[vx:[^\]]+\]\n?/, '').trim() || '?? Photo'}</p>
                    </div>
                    <button type="button" onClick={() => setReplyingTo(null)} className="p-2 text-discord-muted hover:text-discord-red"><FiX size={18} /></button>
                 </div>
@@ -1031,7 +1031,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-discord-text truncate">{mediaAttachment.filename}</p>
-                    <p className="text-xs text-discord-muted capitalize">{mediaAttachment.type} · {(mediaAttachment.size / 1024).toFixed(1)} KB</p>
+                    <p className="text-xs text-discord-muted capitalize">{mediaAttachment.type} � {(mediaAttachment.size / 1024).toFixed(1)} KB</p>
                   </div>
                   <button type="button" onClick={() => setMediaAttachment(null)} className="p-2 text-discord-muted hover:text-discord-red flex-shrink-0"><FiX size={20} /></button>
                 </div>
@@ -1169,7 +1169,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
               className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
               onClick={() => { setReplyingTo(contextMenu.msg); setContextMenu(null); setTimeout(() => textareaRef.current?.focus(), 100); }}
             >
-              ↩ Reply
+              ? Reply
             </button>
           )}
           {!contextMenu.msg.unsent && (
@@ -1252,7 +1252,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
               className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
               onClick={() => { setReplyingTo(contextMenu.msg); setContextMenu(null); setTimeout(() => textareaRef.current?.focus(), 100); }}
             >
-              ↩ Reply
+              ? Reply
             </button>
           )}
           {!contextMenu.msg.unsent && (

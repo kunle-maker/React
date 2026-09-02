@@ -1,7 +1,7 @@
 import twemoji from 'twemoji';
 
 // Apple emoji CDN via jsDelivr (emoji-datasource-apple)
-const APPLE_BASE = 'https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/apple/64/';
+const APPLE_BASE = 'https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/64/';
 
 function getAppleUrl(emoji) {
   const cps = [...emoji]
