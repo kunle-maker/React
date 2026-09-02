@@ -1,5 +1,3 @@
-import twemoji from 'twemoji';
-
 // Apple emoji CDN via jsDelivr (emoji-datasource-apple)
 const APPLE_BASE = 'https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/64/';
 
@@ -10,26 +8,30 @@ function getAppleUrl(emoji) {
   return `${APPLE_BASE}${cps.join('-')}.png`;
 }
 
-const TWEMOJI_OPTIONS = {
-  folder: 'svg',
-  ext: '.svg',
-  base: 'https://twemoji.maxcdn.com/v/latest/',
-  className: 'twemoji',
-  // Override the URL callback to use Apple images
-  callback: (icon, options) => {
-    return `${APPLE_BASE}${icon}.png`;
-  },
-};
+// Matches any emoji sequence (ZWJ sequences, skin tone variants, flags, etc.)
+// Uses Unicode property escapes — works in all modern browsers
+const EMOJI_REGEX = /\p{Emoji_Presentation}(\u200D\p{Emoji_Presentation})*|\p{Emoji}\uFE0F(\u200D(\p{Emoji}\uFE0F?))*|\p{Regional_Indicator}{2}/gu;
 
+/**
+ * Replaces emoji characters in text with Apple CDN <img> tags.
+ * Drop-in replacement for twemoji.parse() — no external CDN dependency.
+ */
 export function parseEmojisToHtml(text) {
   if (!text) return '';
-  return twemoji.parse(String(text), TWEMOJI_OPTIONS);
+  const str = String(text);
+  return str.replace(EMOJI_REGEX, (match) => {
+    try {
+      const url = getAppleUrl(match);
+      return `<img src="${url}" alt="${match}" class="twemoji" style="height:1.2em;width:1.2em;display:inline-block;vertical-align:-0.2em;object-fit:contain;" draggable="false" loading="lazy" />`;
+    } catch {
+      return match;
+    }
+  });
 }
 
 export function containsEmoji(text) {
   if (!text) return false;
-  const emojiRegex = /\p{Emoji}/u;
-  return emojiRegex.test(text);
+  return /\p{Emoji}/u.test(text);
 }
 
 export function getTwemojiUrl(emoji) {
