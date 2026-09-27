@@ -215,23 +215,23 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
           {/* Home */}
           <Link
             to="/"
-            className={`mobile-pill-item ${location.pathname === '/' ? 'active text-brand-primary' : ''}`}
+            className={`mobile-pill-item ${location.pathname === '/' ? 'active' : ''}`}
             aria-label="Home"
           >
-            {location.pathname === '/' ? <HiHome size={24} /> : <FiHome size={22} />}
-            {location.pathname === '/' && <span className="mobile-pill-label text-brand-primary">Home</span>}
+            {location.pathname === '/' ? <HiHome size={20} /> : <FiHome size={19} />}
+            {location.pathname === '/' && <span className="mobile-pill-label">Home</span>}
           </Link>
 
           {/* Messages */}
           <Link
             to="/messages"
-            className={`mobile-pill-item ${isActive('/messages') ? 'active text-brand-primary' : ''}`}
+            className={`mobile-pill-item ${isActive('/messages') ? 'active' : ''}`}
             aria-label="Messages"
           >
-            {isActive('/messages') ? <HiChatAlt2 size={24} /> : <FiMessageSquare size={22} />}
-            {isActive('/messages') && <span className="mobile-pill-label text-brand-primary">Chat</span>}
+            {isActive('/messages') ? <HiChatAlt2 size={20} /> : <FiMessageSquare size={19} />}
+            {isActive('/messages') && <span className="mobile-pill-label">Chat</span>}
             {(unreadCounts.messages || 0) > 0 && (
-              <span className="badge absolute top-1 right-2 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
+              <span className="badge absolute top-1 right-1 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
                 {unreadCounts.messages > 99 ? '99+' : unreadCounts.messages}
               </span>
             )}
@@ -241,19 +241,19 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
           <div className="mobile-pill-vbox-wrap">
             <button
               ref={vboxRef}
-              className={`mobile-pill-vbox ${showPopup ? 'open scale-110 rotate-90' : ''} ${isPopupRouteActive && !showPopup ? 'route-active' : ''}`}
+              className={`mobile-pill-vbox ${showPopup ? 'open' : ''} ${isPopupRouteActive && !showPopup ? 'route-active' : ''}`}
               onClick={() => {
                 setShowPopup(p => !p);
-                if (navigator.vibrate) navigator.vibrate(12);
+                if (navigator.vibrate) navigator.vibrate(8);
               }}
               aria-label="Actions"
               aria-expanded={showPopup}
             >
               {showPopup ? (
-                <FiX size={20} className="text-white" />
+                <FiX size={18} className="text-white" />
               ) : (
                 <>
-                  <VLogo size={24} />
+                  <VLogo size={22} />
                   {popupBadge > 0 && (
                     <span className="badge absolute -top-1 -right-1 text-[8px] min-w-[14px] h-3.5 flex items-center justify-center px-0.5 border border-brand-primary">
                       {popupBadge > 99 ? '99+' : popupBadge}
@@ -267,13 +267,13 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
           {/* Groups */}
           <Link
             to="/groups"
-            className={`mobile-pill-item ${isActive('/groups') ? 'active text-brand-primary' : ''}`}
+            className={`mobile-pill-item ${isActive('/groups') ? 'active' : ''}`}
             aria-label="Groups"
           >
-            {isActive('/groups') ? <HiUsers size={24} /> : <FiUsers size={22} />}
-            {isActive('/groups') && <span className="mobile-pill-label text-brand-primary">Groups</span>}
+            {isActive('/groups') ? <HiUsers size={20} /> : <FiUsers size={19} />}
+            {isActive('/groups') && <span className="mobile-pill-label">Groups</span>}
             {(unreadCounts.groups || 0) > 0 && (
-              <span className="badge absolute top-1 right-2 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
+              <span className="badge absolute top-1 right-1 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
                 {unreadCounts.groups > 99 ? '99+' : unreadCounts.groups}
               </span>
             )}
@@ -283,11 +283,13 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
           {currentUser && (
             <Link
               to={`/profile/${currentUser.username}`}
-              className={`mobile-pill-item ${isActive(`/profile/${currentUser.username}`) ? 'active ring-2 ring-brand-primary/30' : ''}`}
+              className={`mobile-pill-item ${isActive(`/profile/${currentUser.username}`) ? 'active' : ''}`}
               aria-label="Profile"
             >
-              <Avatar user={currentUser} size={24} className={isActive(`/profile/${currentUser.username}`) ? 'opacity-100' : 'opacity-60'} />
-              {isActive(`/profile/${currentUser.username}`) && <span className="mobile-pill-label text-brand-primary">Profile</span>}
+              <div style={{ zIndex: 1 }}>
+                <Avatar user={currentUser} size={22} className={isActive(`/profile/${currentUser.username}`) ? 'opacity-100' : 'opacity-50'} />
+              </div>
+              {isActive(`/profile/${currentUser.username}`) && <span className="mobile-pill-label">Me</span>}
             </Link>
           )}
         </nav>

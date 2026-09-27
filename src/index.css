@@ -698,63 +698,74 @@
   .mobile-pill-nav { display: none; }
 }
 
-/* ===== FLOATING PILL NAVIGATION (mobile) ===== */
+/* ===== LIQUID GLASS FLOATING NAV (mobile) ===== */
 .mobile-pill-nav {
   display: none;
 }
 
 @media (max-width: 768px) {
   .mobile-content-pad {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 12px));
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 12px));
   }
 
   .mobile-pill-nav {
     display: flex;
     align-items: center;
     position: fixed;
-    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(17, 19, 24, 0.92);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 30px;
-    padding: 6px 10px;
+    /* Liquid glass background */
+    background: rgba(18, 18, 26, 0.55);
+    backdrop-filter: blur(40px) saturate(200%) brightness(1.1);
+    -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.1);
+    /* Shimmer top border */
+    border: 1px solid rgba(255,255,255,0.12);
+    border-top: 1px solid rgba(255,255,255,0.22);
+    border-radius: 28px;
+    padding: 5px 8px;
     gap: 0;
     z-index: 50;
-    width: calc(100vw - 24px);
-    max-width: 460px;
+    width: auto;
+    max-width: 340px;
+    min-width: 280px;
     box-sizing: border-box;
     box-shadow:
-      0 10px 40px rgba(0,0,0,0.6),
-      0 2px 10px rgba(0,0,0,0.4),
-      inset 0 1px 0 rgba(255,255,255,0.07);
+      0 8px 32px rgba(0,0,0,0.55),
+      0 2px 8px rgba(0,0,0,0.3),
+      inset 0 1px 0 rgba(255,255,255,0.1),
+      inset 0 -1px 0 rgba(0,0,0,0.2);
+    /* Subtle glass shimmer animation */
+    animation: glassAppear 0.4s cubic-bezier(0.34, 1.4, 0.64, 1) both;
   }
 }
 
-/* Small phones (≤ 374px) */
+@keyframes glassAppear {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px) scale(0.94); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+/* Small phones */
 @media (max-width: 374px) {
   .mobile-pill-nav {
-    padding: 5px 8px;
-    gap: 2px;
-    border-radius: 26px;
-    width: calc(100vw - 16px);
+    padding: 4px 6px;
+    border-radius: 24px;
+    min-width: 250px;
   }
-  .mobile-pill-item { height: 42px; }
-  .mobile-pill-vbox { width: 38px; height: 38px; }
+  .mobile-pill-item { height: 44px; min-width: 44px; }
+  .mobile-pill-vbox { width: 36px; height: 36px; }
 }
 
-/* Large phones (≥ 428px, ≤ 768px) */
+/* Large phones */
 @media (min-width: 428px) and (max-width: 768px) {
   .mobile-pill-nav {
-    padding: 8px 16px;
-    gap: 6px;
-    border-radius: 34px;
+    padding: 6px 10px;
+    border-radius: 30px;
+    max-width: 380px;
   }
-  .mobile-pill-item { height: 52px; }
-  .mobile-pill-vbox { width: 46px; height: 46px; border-radius: 14px; }
-  .mobile-pill-label { font-size: 10px; }
+  .mobile-pill-item { height: 50px; }
+  .mobile-pill-vbox { width: 44px; height: 44px; border-radius: 14px; }
+  .mobile-pill-label { font-size: 9.5px; }
 }
 
 .mobile-pill-item {
@@ -765,41 +776,58 @@
   justify-content: center;
   flex: 1;
   min-width: 0;
-  height: 48px;
-  border-radius: 24px;
-  padding: 0 10px;
-  color: rgba(255,255,255,0.45);
-  transition: color 0.18s, background 0.18s, padding 0.18s;
+  height: 46px;
+  min-width: 46px;
+  border-radius: 22px;
+  padding: 0 4px;
+  color: rgba(255,255,255,0.38);
+  transition: color 0.2s ease, transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
   -webkit-tap-highlight-color: transparent;
   gap: 2px;
+  text-decoration: none;
 }
 
 .mobile-pill-item:active {
-  transform: scale(0.88);
-  transition: transform 0.1s;
+  transform: scale(0.82);
 }
 
+/* Active item: glowing filled bubble behind the icon */
 .mobile-pill-item.active {
-  color: #8b5cf6;
-  background: rgba(139,148,242,0.1);
+  color: #fff;
+}
+.mobile-pill-item.active::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(139,92,246,0.85), rgba(88,101,242,0.75));
+  box-shadow: 0 2px 12px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+  animation: bubbleIn 0.25s cubic-bezier(0.34,1.6,0.64,1) both;
+  z-index: -1;
+}
+
+@keyframes bubbleIn {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 .mobile-pill-label {
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
   line-height: 1;
   white-space: nowrap;
-  color: #8b5cf6;
-  animation: labelAppear 0.15s ease both;
+  color: rgba(255,255,255,0.9);
+  animation: labelSlideUp 0.2s cubic-bezier(0.34,1.4,0.64,1) both;
+  z-index: 1;
 }
 
-@keyframes labelAppear {
-  from { opacity: 0; transform: translateY(2px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes labelSlideUp {
+  from { opacity: 0; transform: translateY(4px) scale(0.85); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Equal-width wrapper so V button occupies the same flex slot as nav items */
+/* Equal-width wrapper for center FAB */
 .mobile-pill-vbox-wrap {
   flex: 1;
   display: flex;
@@ -807,7 +835,7 @@
   justify-content: center;
 }
 
-/* VesselX Blue Box button — must be position:relative for badge */
+/* Center VesselX FAB button */
 .mobile-pill-vbox {
   position: relative;
   display: flex;
@@ -815,26 +843,30 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  border-radius: 13px;
+  background: linear-gradient(135deg, #a78bfa, #7c3aed);
   cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
   flex-shrink: 0;
-  box-shadow: 0 2px 12px rgba(139,92,246,0.45);
+  box-shadow:
+    0 3px 14px rgba(139,92,246,0.55),
+    inset 0 1px 0 rgba(255,255,255,0.25),
+    inset 0 -1px 0 rgba(0,0,0,0.2);
   -webkit-tap-highlight-color: transparent;
   border: none;
   outline: none;
 }
 .mobile-pill-vbox:active {
-  transform: scale(0.85);
+  transform: scale(0.84);
 }
 .mobile-pill-vbox.open {
-  background: #7c3aed;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
   border-radius: 50%;
-  box-shadow: 0 2px 16px rgba(139,92,246,0.65);
+  transform: rotate(45deg);
+  box-shadow: 0 3px 20px rgba(139,92,246,0.7), inset 0 1px 0 rgba(255,255,255,0.2);
 }
 .mobile-pill-vbox.route-active {
-  box-shadow: 0 0 0 2px rgba(139,92,246,0.5), 0 2px 10px rgba(139,92,246,0.45);
+  box-shadow: 0 0 0 2px rgba(167,139,250,0.6), 0 3px 14px rgba(139,92,246,0.55), inset 0 1px 0 rgba(255,255,255,0.25);
 }
 
 .vbox-expanded {
@@ -850,19 +882,24 @@
 /* Mobile nav popup */
 .mobile-nav-popup {
   position: fixed;
-  bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(82px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(20, 22, 30, 0.97);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 22px;
-  padding: 14px;
+  background: rgba(14, 14, 22, 0.7);
+  backdrop-filter: blur(48px) saturate(200%) brightness(1.1);
+  -webkit-backdrop-filter: blur(48px) saturate(200%) brightness(1.1);
+  border: 1px solid rgba(255,255,255,0.13);
+  border-top: 1px solid rgba(255,255,255,0.2);
+  border-radius: 24px;
+  padding: 12px;
   z-index: 60;
-  box-shadow: 0 -4px 30px rgba(0,0,0,0.45), 0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
-  animation: popupSlideUp 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-  min-width: 230px;
+  box-shadow:
+    0 -4px 20px rgba(0,0,0,0.35),
+    0 8px 40px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.1),
+    inset 0 -1px 0 rgba(0,0,0,0.15);
+  animation: popupSlideUp 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  min-width: 220px;
 }
 @keyframes popupSlideUp {
   from { opacity: 0; transform: translateX(-50%) translateY(20px) scale(0.9); }
