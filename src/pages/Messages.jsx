@@ -1351,21 +1351,36 @@ export default function Messages({ currentUser, unreadCounts }) {
   };
 
   const ConvList = (
-    <div className="flex flex-col h-full">
-      <div className="px-4 pt-4 pb-3 border-b border-white/5">
-        <h2 className="font-bold text-discord-text mb-3 text-lg tracking-tight">Messages</h2>
+    <div className="flex flex-col h-full" style={{ background: 'linear-gradient(160deg, #0d0f14 0%, #120d1f 50%, #0d0f14 100%)' }}>
+      {/* Header */}
+      <div className="px-4 pt-5 pb-3 flex-shrink-0">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-black text-white text-xl tracking-tight">Messages</h2>
+          <button
+            onClick={() => { setSearchQ(''); textareaRef.current?.focus?.(); }}
+            className="w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)' }}
+          >
+            <FiPlusSquare size={15} className="text-purple-400" />
+          </button>
+        </div>
+        {/* Search pill */}
         <div className="relative">
-          <FiSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-discord-muted" />
+          <FiSearch size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
           <input
             type="text"
             value={searchQ}
             onChange={e => searchHandler(e.target.value)}
-            placeholder="Search or start new..."
-            className="discord-input pl-9 py-2 text-sm rounded-xl w-full"
+            placeholder="Search messages..."
+            className="w-full pl-9 pr-8 py-2.5 text-sm text-white placeholder-white/25 rounded-2xl outline-none"
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.08)',
+            }}
           />
           {searchQ && (
             <button
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-discord-muted hover:text-discord-text"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"
               onClick={() => { setSearchQ(''); setSearchUsers([]); }}
             >
               <FiX size={13} />
@@ -1373,96 +1388,118 @@ export default function Messages({ currentUser, unreadCounts }) {
           )}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto">
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto px-3 pb-4">
         {searchQ && searchUsers.length > 0 ? (
-          <div className="p-2">
-            <p className="px-2 py-1.5 text-[11px] text-discord-muted font-bold uppercase tracking-wider">People</p>
+          <div>
+            <p className="px-2 py-2 text-[10px] text-white/30 font-bold uppercase tracking-widest">People</p>
             {searchUsers.map(u => (
               <div
                 key={u._id}
-                className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 cursor-pointer transition-colors rounded-xl"
+                className="flex items-center gap-3 px-3 py-3 cursor-pointer rounded-2xl transition-all active:scale-[0.98]"
+                style={{ background: 'rgba(255,255,255,0.03)' }}
                 onClick={() => { setSearchQ(''); setSearchUsers([]); navigate(`/messages/chat/${u.username}`); }}
               >
-                <Avatar user={u} size={38} showStatus />
+                <Avatar user={u} size={42} showStatus />
                 <div>
-                  <p className="text-discord-text text-sm font-semibold">{u.name}</p>
-                  <p className="text-discord-muted text-xs">@{u.username}</p>
+                  <p className="text-white text-sm font-semibold">{u.name}</p>
+                  <p className="text-white/40 text-xs">@{u.username}</p>
                 </div>
               </div>
             ))}
           </div>
         ) : searchQ && searchUsers.length === 0 ? (
-          <div className="text-center py-8 text-discord-muted text-sm px-4">
-            <p className="mb-1 font-medium">No users found</p>
-            <p className="text-xs opacity-70">Try a different name or username</p>
+          <div className="text-center py-12">
+            <p className="text-white/30 text-sm font-medium">No users found</p>
+            <p className="text-white/20 text-xs mt-1">Try a different name</p>
           </div>
         ) : convsLoading ? (
-          <div className="space-y-0 p-2">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-3 py-2.5 animate-pulse">
-                <div className="skeleton w-10 h-10 rounded-full flex-shrink-0" />
-                <div className="flex-1 space-y-1.5">
-                  <div className="skeleton h-3 w-28 rounded" />
-                  <div className="skeleton h-2.5 w-40 rounded" />
+          <div className="space-y-1 pt-2">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-3 py-3 animate-pulse">
+                <div className="w-11 h-11 rounded-full flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                <div className="flex-1 space-y-2">
+                  <div className="h-2.5 w-24 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                  <div className="h-2 w-36 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }} />
                 </div>
               </div>
             ))}
           </div>
         ) : filteredConvs.length === 0 ? (
-          <div className="text-center py-10 px-6 text-discord-muted">
-            <div className="w-14 h-14 rounded-2xl bg-white/4 flex items-center justify-center mx-auto mb-3">
-              <FiMessageSquare size={24} className="opacity-50" />
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <div className="w-16 h-16 rounded-3xl flex items-center justify-center mb-1"
+              style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)' }}>
+              <FiMessageSquare size={26} className="text-purple-400/60" />
             </div>
-            <p className="font-semibold text-discord-text text-sm mb-1">No conversations yet</p>
-            <p className="text-xs opacity-70">Search for someone above to start chatting</p>
+            <p className="text-white/50 font-semibold text-sm">No conversations yet</p>
+            <p className="text-white/25 text-xs">Search above to start chatting</p>
           </div>
         ) : (
-          <div className="p-2">
-            {filteredConvs.map(c => (
-              <div
-                key={c.userId || c.username}
-                className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-all rounded-xl relative group
-                  ${activeConv?.username === c.username
-                    ? 'bg-discord-brand/15 border border-discord-brand/20'
-                    : 'hover:bg-white/5'
-                  }`}
-                onClick={() => navigate(`/messages/chat/${c.username}`)}
-                onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setConvMenu({ username: c.username, x: e.clientX, y: e.clientY }); }}
-              >
-                <div className="relative flex-shrink-0">
-                  <Avatar user={c} size={40} showStatus={!c.isSupa} supaRing={true} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-baseline gap-1">
-                    <span className={`font-semibold text-sm truncate flex items-center gap-1 ${c.isSupa ? 'supa-chat-name' : 'text-discord-text'}`}>
-                      {c.name || c.username}
-                      {c.isBot && <span className="text-[9px] font-bold text-discord-brand bg-discord-brand/10 border border-discord-brand/20 px-1 py-0.5 rounded leading-none flex-shrink-0">BOT</span>}
-                    </span>
-                    <span className="text-discord-muted text-[11px] flex-shrink-0">{formatConvTime(c.lastMessageTime)}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-1">
-                    <p className={`text-xs truncate flex-1 flex items-center gap-1 ${c.unreadCount > 0 ? 'text-discord-text font-medium' : 'text-discord-muted'}`}>
-                      {c.isMine && <span className="text-discord-muted flex-shrink-0">You: </span>}
-                      {c.lastMessage ? (() => {
-                          const preview = getMessagePreview(c.lastMessage);
-                          const display = preview.length > 40 ? preview.slice(0, 40) + '…' : preview;
-                          return (
-                            <span
-                              className="truncate twemoji-inline"
-                              dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(display) }}
-                            />
-                          );
-                        })() : (
-                        <span className="italic">Start a conversation</span>
-                      )}
-                    </p>
-                    {c.unreadCount > 0 && (
-                      <span className="badge flex-shrink-0">{c.unreadCount > 99 ? '99+' : c.unreadCount}</span>
+          <div className="space-y-0.5 pt-1">
+            {filteredConvs.map(c => {
+              const isActive = activeConv?.username === c.username;
+              return (
+                <div
+                  key={c.userId || c.username}
+                  className="flex items-center gap-3 px-3 py-3 cursor-pointer rounded-2xl transition-all active:scale-[0.97] relative group"
+                  style={{
+                    background: isActive
+                      ? 'linear-gradient(135deg, rgba(139,92,246,0.18), rgba(88,101,242,0.12))'
+                      : 'transparent',
+                    border: isActive ? '1px solid rgba(139,92,246,0.25)' : '1px solid transparent',
+                  }}
+                  onClick={() => navigate(`/messages/chat/${c.username}`)}
+                  onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setConvMenu({ username: c.username, x: e.clientX, y: e.clientY }); }}
+                >
+                  {/* Avatar with online ring */}
+                  <div className="relative flex-shrink-0">
+                    <Avatar user={c} size={44} showStatus={false} supaRing={c.isSupa} />
+                    {c.isOnline && (
+                      <span className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2"
+                        style={{ borderColor: '#0d0f14' }} />
+                    )}
+                    {c.unreadCount > 0 && !isActive && (
+                      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-purple-500 text-white text-[9px] font-black flex items-center justify-center leading-none">
+                        {c.unreadCount > 99 ? '99+' : c.unreadCount}
+                      </span>
                     )}
                   </div>
+
+                  {/* Text */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline justify-between gap-2 mb-0.5">
+                      <span className={`font-bold text-[13.5px] truncate flex items-center gap-1.5 ${c.isSupa ? 'supa-chat-name' : 'text-white'}`}>
+                        {c.name || c.username}
+                        {c.isBot && (
+                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md leading-none flex-shrink-0"
+                            style={{ background: 'rgba(88,101,242,0.15)', color: '#818cf8', border: '1px solid rgba(88,101,242,0.25)' }}>
+                            BOT
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-[10.5px] flex-shrink-0"
+                        style={{ color: c.unreadCount > 0 ? 'rgba(167,139,250,0.9)' : 'rgba(255,255,255,0.25)' }}>
+                        {formatConvTime(c.lastMessageTime)}
+                      </span>
+                    </div>
+                    <p className={`text-[12px] truncate leading-snug ${c.unreadCount > 0 ? 'text-white/70 font-medium' : 'text-white/30'}`}>
+                      {c.isMine && <span style={{ color: 'rgba(255,255,255,0.2)' }}>You: </span>}
+                      {c.lastMessage ? (() => {
+                        const preview = getMessagePreview(c.lastMessage);
+                        const display = preview.length > 38 ? preview.slice(0, 38) + '…' : preview;
+                        return (
+                          <span className="truncate twemoji-inline"
+                            dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(display) }} />
+                        );
+                      })() : (
+                        <span className="italic" style={{ color: 'rgba(255,255,255,0.2)' }}>Start a conversation</span>
+                      )}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
