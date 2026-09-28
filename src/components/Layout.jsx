@@ -231,7 +231,7 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
           <Link
             to="/messages"
             aria-label="Messages"
-            className="relative flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
+            className="nav-btn relative flex items-center justify-center flex-shrink-0"
             style={{
               width: 48, height: 48, borderRadius: '50%',
               background: 'rgba(18,18,26,0.96)',
@@ -252,7 +252,7 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
             <Link
               to="/"
               aria-label="Home"
-              className="flex items-center gap-2 active:scale-95 transition-transform"
+              className="nav-btn-pill flex items-center gap-2"
               style={{
                 height: 48,
                 paddingLeft: 16,
@@ -274,7 +274,7 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
             <button
               onClick={() => navigate('/create')}
               aria-label="Create post"
-              className="flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
+              className="nav-btn-fab flex items-center justify-center flex-shrink-0"
               style={{
                 width: 48, height: 48, borderRadius: '50%',
                 background: 'linear-gradient(135deg, #60a5fa, #3b82f6)',
@@ -293,7 +293,7 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
             <Link
               to={`/profile/${currentUser.username}`}
               aria-label="Profile"
-              className="relative flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform overflow-hidden"
+              className="nav-btn relative flex items-center justify-center flex-shrink-0 overflow-hidden"
               style={{
                 width: 48, height: 48, borderRadius: '50%',
                 background: 'rgba(18,18,26,0.96)',
