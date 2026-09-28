@@ -84,12 +84,9 @@ const StoriesBar = forwardRef(function StoriesBar({ currentUser, onOpenViewer },
 
   if (loading) {
     return (
-      <div className="flex gap-4 px-4 py-4 overflow-x-auto scrollbar-hide border-b border-discord-hover/30">
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className="flex flex-col items-center gap-2 flex-shrink-0 animate-pulse">
-            <div className="w-16 h-16 rounded-full bg-discord-hover/50 border-2 border-transparent" />
-            <div className="h-2 w-12 rounded bg-discord-hover/50" />
-          </div>
+      <div className="flex gap-3 px-4 py-4 overflow-x-auto scrollbar-hide">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="flex-shrink-0 rounded-2xl animate-pulse bg-discord-hover/40" style={{ width: 72, height: 104 }} />
         ))}
       </div>
     );
@@ -133,9 +130,11 @@ const StoriesBar = forwardRef(function StoriesBar({ currentUser, onOpenViewer },
         </div>
       )}
 
-      <div className="flex gap-4 px-4 py-4 overflow-x-auto scrollbar-hide border-b border-discord-hover/30 bg-discord-bg/30">
+      <div className="flex gap-3 px-4 py-4 overflow-x-auto scrollbar-hide">
+        {/* Your Story card */}
         <div
-          className="flex flex-col items-center gap-2 flex-shrink-0 cursor-pointer group"
+          className="flex flex-col items-end justify-end flex-shrink-0 cursor-pointer group relative overflow-hidden rounded-2xl"
+          style={{ width: 72, height: 104 }}
           onClick={() => {
             if (navigator.vibrate) navigator.vibrate(8);
             if (hasMyStory) {
@@ -146,46 +145,77 @@ const StoriesBar = forwardRef(function StoriesBar({ currentUser, onOpenViewer },
           }}
           aria-label={hasMyStory ? 'View your story' : 'Add to your story'}
         >
-          <div className="relative">
-            <AvatarRing
-              src={currentUser?.profilePicture ? API.getAvatarUrl(currentUser.profilePicture, 112) : null}
-              name={currentUser?.name || currentUser?.username}
-              unviewed={hasMyStory}
-              size={60}
+          {/* Background — profile pic or gradient */}
+          {currentUser?.profilePicture ? (
+            <img
+              src={API.getAvatarUrl(currentUser.profilePicture, 200)}
+              alt="Your story"
+              className="absolute inset-0 w-full h-full object-cover"
             />
-            {!hasMyStory && (
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-brand-primary flex items-center justify-center border-4 border-discord-bg shadow-lg group-hover:scale-110 transition-transform">
-                <span className="text-white text-sm font-black leading-none">+</span>
-              </div>
-            )}
-          </div>
-          <span className="text-[10px] font-bold text-discord-muted truncate w-16 text-center group-hover:text-discord-text transition-colors">
-            {hasMyStory ? 'Your story' : 'Add story'}
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/60 to-purple-700/60" />
+          )}
+          {/* Dark gradient overlay at bottom */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+          {/* + add button */}
+          {!hasMyStory && (
+            <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-brand-primary flex items-center justify-center border-2 border-discord-bg shadow-lg">
+              <span className="text-white text-xs font-black leading-none">+</span>
+            </div>
+          )}
+          {hasMyStory && (
+            <div className="absolute inset-0 rounded-2xl ring-2 ring-brand-primary ring-offset-1 ring-offset-transparent" />
+          )}
+          {/* Label */}
+          <span className="relative z-10 text-[10px] font-bold text-white/90 px-1.5 pb-2 leading-tight text-center w-full text-center">
+            Your Story
           </span>
         </div>
 
+        {/* Other stories */}
         {groups.filter(group => {
           const myId = currentUser?._id || currentUser?.id;
           return group.user?._id !== myId && group.user?.username !== currentUser?.username;
         }).map((group, idx) => {
           const { user, hasUnviewed } = group;
+          const src = user?.profilePicture ? API.getAvatarUrl(user.profilePicture, 200) : null;
           return (
             <div
               key={user?._id || idx}
-              className="flex flex-col items-center gap-2 flex-shrink-0 cursor-pointer group"
+              className="flex flex-col items-end justify-end flex-shrink-0 cursor-pointer group relative overflow-hidden rounded-2xl"
+              style={{ width: 72, height: 104 }}
               onClick={() => {
                 if (navigator.vibrate) navigator.vibrate(5);
                 onOpenViewer(groups, idx);
               }}
-              aria-label={`View ${user?.username || user?.name}'s story`}
+              aria-label={`View ${user?.username}'s story`}
             >
-              <AvatarRing
-                src={user?.profilePicture ? API.getAvatarUrl(user.profilePicture, 112) : null}
-                name={user?.name || user?.username}
-                unviewed={hasUnviewed}
-                size={60}
-              />
-              <span className="text-[10px] font-bold text-discord-muted truncate w-16 text-center group-hover:text-discord-text transition-colors">
+              {/* Background */}
+              {src ? (
+                <img src={src} alt={user?.username} className="absolute inset-0 w-full h-full object-cover" />
+              ) : (
+                <div className="absolute inset-0"
+                  style={{ background: `linear-gradient(135deg, hsl(${(user?.username?.charCodeAt(0) || 0) * 7 % 360}deg 60% 35%), hsl(${(user?.username?.charCodeAt(0) || 0) * 11 % 360}deg 50% 25%))` }} />
+              )}
+              {/* Dark overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+              {/* Unviewed ring */}
+              {hasUnviewed && (
+                <div className="absolute inset-0 rounded-2xl ring-2 ring-brand-primary ring-offset-1 ring-offset-black/50" />
+              )}
+              {/* Small avatar at bottom-left */}
+              <div className="absolute bottom-8 left-1.5">
+                {src ? (
+                  <img src={src} alt={user?.username} className="w-6 h-6 rounded-full border-2 border-white object-cover" />
+                ) : (
+                  <div className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-black text-white"
+                    style={{ background: `hsl(${(user?.username?.charCodeAt(0) || 0) * 7 % 360}deg 60% 40%)` }}>
+                    {(user?.name || user?.username || '?')[0].toUpperCase()}
+                  </div>
+                )}
+              </div>
+              {/* Username label */}
+              <span className="relative z-10 text-[10px] font-bold text-white/90 px-1.5 pb-2 leading-tight truncate w-full text-center">
                 {user?.username || user?.name}
               </span>
             </div>
@@ -194,7 +224,7 @@ const StoriesBar = forwardRef(function StoriesBar({ currentUser, onOpenViewer },
 
         {groups.length === 0 && !hasMyStory && (
           <div className="text-discord-muted text-xs flex items-center py-2 pl-2 font-medium opacity-60">
-            No stories yet — tap + to share yours
+            No stories yet
           </div>
         )}
       </div>

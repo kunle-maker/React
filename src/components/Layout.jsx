@@ -209,87 +209,100 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
         </div>
       )}
 
-      {/* Mobile Floating Pill Nav — 5 items: Home | Messages | FAB | Groups | Profile */}
+      {/* Orbix-style bottom nav: left circle | center home pill + blue FAB | right circle */}
       {!isChatRoute && !hideNav && (
-        <nav className="mobile-pill-nav">
-          {/* Home */}
-          <Link
-            to="/"
-            className={`mobile-pill-item ${location.pathname === '/' ? 'active' : ''}`}
-            aria-label="Home"
-          >
-            {location.pathname === '/' ? <HiHome size={20} /> : <FiHome size={19} />}
-            {location.pathname === '/' && <span className="mobile-pill-label">Home</span>}
-          </Link>
-
-          {/* Messages */}
+        <nav
+          className="mobile-pill-nav"
+          style={{
+            background: 'transparent',
+            border: 'none',
+            boxShadow: 'none',
+            backdropFilter: 'none',
+            WebkitBackdropFilter: 'none',
+            padding: 0,
+            minWidth: 'unset',
+            maxWidth: 'unset',
+            width: 'auto',
+            gap: 10,
+            justifyContent: 'center',
+          }}
+        >
+          {/* Left — Messages dark circle */}
           <Link
             to="/messages"
-            className={`mobile-pill-item ${isActive('/messages') ? 'active' : ''}`}
             aria-label="Messages"
+            className="relative flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
+            style={{
+              width: 48, height: 48, borderRadius: '50%',
+              background: 'rgba(18,18,26,0.96)',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)',
+            }}
           >
-            {isActive('/messages') ? <HiChatAlt2 size={20} /> : <FiMessageSquare size={19} />}
-            {isActive('/messages') && <span className="mobile-pill-label">Chat</span>}
+            <FiMessageSquare size={19} className="text-white/75" />
             {(unreadCounts.messages || 0) > 0 && (
-              <span className="badge absolute top-1 right-1 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
-                {unreadCounts.messages > 99 ? '99+' : unreadCounts.messages}
+              <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-0.5 rounded-full bg-blue-500 text-white text-[8px] font-black flex items-center justify-center leading-none">
+                {unreadCounts.messages > 9 ? '9+' : unreadCounts.messages}
               </span>
             )}
           </Link>
 
-          {/* Action Hub — center FAB */}
-          <div className="mobile-pill-vbox-wrap">
-            <button
-              ref={vboxRef}
-              className={`mobile-pill-vbox ${showPopup ? 'open' : ''} ${isPopupRouteActive && !showPopup ? 'route-active' : ''}`}
-              onClick={() => {
-                setShowPopup(p => !p);
-                if (navigator.vibrate) navigator.vibrate(8);
+          {/* Center — Home pill + blue + FAB side by side */}
+          <div className="flex items-center flex-shrink-0" style={{ gap: 8 }}>
+            {/* Dark pill with Home label */}
+            <Link
+              to="/"
+              aria-label="Home"
+              className="flex items-center gap-2 active:scale-95 transition-transform"
+              style={{
+                height: 48,
+                paddingLeft: 16,
+                paddingRight: 18,
+                borderRadius: 28,
+                background: 'rgba(18,18,26,0.96)',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)',
               }}
-              aria-label="Actions"
-              aria-expanded={showPopup}
             >
-              {showPopup ? (
-                <FiX size={18} className="text-white" />
+              {location.pathname === '/' ? (
+                <HiHome size={20} className="text-white" />
               ) : (
-                <>
-                  <VLogo size={22} />
-                  {popupBadge > 0 && (
-                    <span className="badge absolute -top-1 -right-1 text-[8px] min-w-[14px] h-3.5 flex items-center justify-center px-0.5 border border-brand-primary">
-                      {popupBadge > 99 ? '99+' : popupBadge}
-                    </span>
-                  )}
-                </>
+                <FiHome size={18} className="text-white/65" />
               )}
+              <span className="text-[13.5px] font-bold text-white">Home</span>
+            </Link>
+
+            {/* Blue + FAB button */}
+            <button
+              onClick={() => navigate('/create')}
+              aria-label="Create post"
+              className="flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
+              style={{
+                width: 48, height: 48, borderRadius: '50%',
+                background: 'linear-gradient(135deg, #60a5fa, #3b82f6)',
+                boxShadow: '0 4px 20px rgba(59,130,246,0.55)',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
             </button>
           </div>
 
-          {/* Groups */}
-          <Link
-            to="/groups"
-            className={`mobile-pill-item ${isActive('/groups') ? 'active' : ''}`}
-            aria-label="Groups"
-          >
-            {isActive('/groups') ? <HiUsers size={20} /> : <FiUsers size={19} />}
-            {isActive('/groups') && <span className="mobile-pill-label">Groups</span>}
-            {(unreadCounts.groups || 0) > 0 && (
-              <span className="badge absolute top-1 right-1 text-[8px] min-w-[13px] h-3 flex items-center justify-center px-0.5">
-                {unreadCounts.groups > 99 ? '99+' : unreadCounts.groups}
-              </span>
-            )}
-          </Link>
-
-          {/* Profile */}
+          {/* Right — Profile dark circle */}
           {currentUser && (
             <Link
               to={`/profile/${currentUser.username}`}
-              className={`mobile-pill-item ${isActive(`/profile/${currentUser.username}`) ? 'active' : ''}`}
               aria-label="Profile"
+              className="relative flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform overflow-hidden"
+              style={{
+                width: 48, height: 48, borderRadius: '50%',
+                background: 'rgba(18,18,26,0.96)',
+                boxShadow: isActive(`/profile/${currentUser.username}`)
+                  ? '0 4px 24px rgba(0,0,0,0.6), 0 0 0 2px rgba(255,255,255,0.25)'
+                  : '0 4px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)',
+              }}
             >
-              <div style={{ zIndex: 1 }}>
-                <Avatar user={currentUser} size={22} className={isActive(`/profile/${currentUser.username}`) ? 'opacity-100' : 'opacity-50'} />
-              </div>
-              {isActive(`/profile/${currentUser.username}`) && <span className="mobile-pill-label">Me</span>}
+              <Avatar user={currentUser} size={48} />
             </Link>
           )}
         </nav>

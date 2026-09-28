@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiRefreshCw, FiCamera, FiPlusSquare, FiSend, FiCheck } from 'react-icons/fi';
+import { FiRefreshCw, FiCheck } from 'react-icons/fi';
 import Layout from '../components/Layout';
 import PostCard from '../components/PostCard';
 import CreatePost from '../components/CreatePost';
@@ -123,47 +123,67 @@ export default function Feed({ currentUser, unreadCounts }) {
         />
       )}
 
-      {/* Instagram-style Header */}
-      <div className="sticky top-0 z-20 bg-discord-bg/95 backdrop-blur-xl border-b border-discord-hover/50">
+      {/* Orbix-style Header */}
+      <div className="sticky top-0 z-20 bg-discord-bg/95 backdrop-blur-xl">
         <div className="flex items-center justify-between px-4 h-14 max-w-2xl mx-auto">
-          <div className="flex items-center gap-3">
-             <button onClick={() => navigate('/create')} className="text-discord-text hover:text-brand-primary transition-colors">
-               <FiCamera size={24} />
-             </button>
-             <h1 className="text-2xl font-bold text-discord-text tracking-tight" style={{ fontFamily: "'Quicksand', sans-serif" }}>VESSELX</h1>
-          </div>
-          
-          <div className="flex items-center gap-4">
+          {/* Left: hamburger / menu */}
+          <button
+            onClick={() => navigate('/settings')}
+            className="w-9 h-9 flex items-center justify-center rounded-full text-discord-text hover:bg-discord-hover transition-colors"
+          >
+            <svg width="20" height="14" viewBox="0 0 20 14" fill="none">
+              <rect width="20" height="2.5" rx="1.25" fill="currentColor" />
+              <rect y="5.75" width="14" height="2.5" rx="1.25" fill="currentColor" />
+              <rect y="11.5" width="20" height="2.5" rx="1.25" fill="currentColor" />
+            </svg>
+          </button>
+
+          {/* Center: Home title */}
+          <h1 className="text-[17px] font-bold text-discord-text tracking-tight absolute left-1/2 -translate-x-1/2">
+            Home
+          </h1>
+
+          {/* Right: bell with count + search */}
+          <div className="flex items-center gap-2">
             <button
-              onClick={handleRefresh}
-              className={`text-discord-text hover:text-brand-primary transition-all active:scale-90 ${refreshing ? 'animate-spin' : ''}`}
+              onClick={() => navigate('/notifications')}
+              className="relative w-9 h-9 flex items-center justify-center rounded-full border border-discord-hover text-discord-text hover:bg-discord-hover transition-colors"
             >
-              <FiRefreshCw size={22} />
-            </button>
-            <button onClick={() => navigate('/messages')} className="text-discord-text hover:text-brand-primary transition-colors relative">
-              <FiSend size={22} />
-              {(unreadCounts.messages || 0) > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold min-w-[16px] h-4 flex items-center justify-center rounded-full border-2 border-discord-bg">
-                  {unreadCounts.messages}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              {(unreadCounts.notifications || 0) > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 bg-discord-red text-white text-[9px] font-black min-w-[16px] h-4 flex items-center justify-center rounded-full px-0.5 border border-discord-bg">
+                  {unreadCounts.notifications > 9 ? '9+' : unreadCounts.notifications}
                 </span>
               )}
+            </button>
+            <button
+              onClick={() => navigate('/search')}
+              className="w-9 h-9 flex items-center justify-center rounded-full border border-discord-hover text-discord-text hover:bg-discord-hover transition-colors"
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
             </button>
           </div>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex max-w-2xl mx-auto border-t border-discord-hover/30">
+        <div className="flex max-w-2xl mx-auto">
           {TABS.map(t => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex-1 py-3 text-sm font-black uppercase tracking-widest transition-all relative ${
-                tab === t.id ? 'text-brand-primary' : 'text-discord-muted opacity-50'
+              className={`flex-1 py-2.5 text-sm font-bold transition-all relative ${
+                tab === t.id ? 'text-discord-text' : 'text-discord-muted/50'
               }`}
             >
               {t.label}
               {tab === t.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-brand-primary" />
+                <div className="absolute bottom-0 left-1/4 right-1/4 h-[2.5px] bg-discord-text rounded-full" />
               )}
             </button>
           ))}
