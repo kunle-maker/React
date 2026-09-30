@@ -1509,68 +1509,92 @@ export default function Messages({ currentUser, unreadCounts }) {
   const items = buildMessageItems();
 
   const ChatArea = activeConv ? (
-    <div className="flex flex-col h-full relative bg-black overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 h-14 bg-black z-20 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-        <div className="flex items-center gap-2 min-w-0">
-          <button className="text-white/70 hover:text-white transition-colors p-1.5 -ml-1.5 flex-shrink-0" onClick={() => { setActiveConv(null); navigate('/messages'); }}>
-            <FiArrowLeft size={22} />
+    <div className="flex flex-col h-full relative overflow-hidden" style={{ background: '#0a0b10' }}>
+      {/* Header — frosted glass dark */}
+      <div
+        className="flex items-center justify-between px-3 h-[60px] flex-shrink-0 z-20"
+        style={{
+          background: 'rgba(10,11,16,0.92)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+        }}
+      >
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          {/* Back button — pill style */}
+          <button
+            className="flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
+            style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }}
+            onClick={() => { setActiveConv(null); navigate('/messages'); }}
+          >
+            <FiArrowLeft size={18} className="text-white/80" />
           </button>
+
           <div
-            className="cursor-pointer flex items-center gap-2.5 min-w-0"
+            className="cursor-pointer flex items-center gap-2.5 min-w-0 flex-1"
             onClick={() => navigate(`/profile/${activeConv.username}`)}
           >
             <div className="relative flex-shrink-0">
-              <Avatar user={activeConv} size={34} showStatus={false} supaRing={true} />
+              <Avatar user={activeConv} size={36} showStatus={false} supaRing={activeConv.isSupa} />
               {activeConv.isOnline && !activeConv.isBot && (
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-black" />
+                <span className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#0a0b10]" />
               )}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className={`text-[15px] font-bold truncate ${activeConv.isSupa ? 'supa-chat-name' : 'text-white'}`}>
+                <span className={`text-[14.5px] font-bold truncate leading-tight ${activeConv.isSupa ? 'supa-chat-name' : 'text-white'}`}>
                   {activeConv.name}
                 </span>
-                {activeConv.isVerified && <FiCheckCircle size={12} className="text-discord-brand flex-shrink-0" />}
-                {activeConv.isBot && <span className="text-[10px] font-bold text-discord-brand bg-discord-brand/10 border border-discord-brand/20 px-1.5 py-0.5 rounded-md leading-none">BOT</span>}
+                {activeConv.isVerified && <FiCheckCircle size={12} className="text-blue-400 flex-shrink-0" />}
+                {activeConv.isBot && (
+                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md leading-none flex-shrink-0"
+                    style={{ background: 'rgba(88,101,242,0.15)', color: '#818cf8', border: '1px solid rgba(88,101,242,0.25)' }}>
+                    BOT
+                  </span>
+                )}
               </div>
               <p className="text-[11px] leading-none mt-0.5">
-                {activeConv.isBot ? (
-                  <span className="text-discord-brand/70">Bot</span>
+                {isTyping ? (
+                  <span className="text-emerald-400 font-medium">typing…</span>
+                ) : activeConv.isBot ? (
+                  <span style={{ color: 'rgba(129,140,248,0.7)' }}>Bot</span>
                 ) : activeConv.isOnline ? (
-                  <span className="text-green-400 font-medium">Active Now</span>
+                  <span className="text-emerald-400 font-medium">Online</span>
                 ) : (
-                  <span className="text-white/40">Offline</span>
+                  <span className="text-white/30">Offline</span>
                 )}
               </p>
             </div>
           </div>
         </div>
+
         <div className="flex items-center gap-1 flex-shrink-0">
           {!activeConv.isBot && (
             <>
               <button
-                className="w-9 h-9 flex items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/8 transition-all"
+                className="flex items-center justify-center active:scale-90 transition-transform"
+                style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }}
                 onClick={() => sendCallInvite(true)}
                 title="Video Call"
               >
-                <FiVideo size={20} />
+                <FiVideo size={17} className="text-white/70" />
               </button>
               <button
-                className="w-9 h-9 flex items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/8 transition-all"
+                className="flex items-center justify-center active:scale-90 transition-transform"
+                style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }}
                 onClick={() => sendCallInvite(false)}
                 title="Voice Call"
               >
-                <FiPhone size={20} />
+                <FiPhone size={17} className="text-white/70" />
               </button>
             </>
           )}
           <button
-            className="w-9 h-9 flex items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/8 transition-all"
+            className="flex items-center justify-center active:scale-90 transition-transform"
+            style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }}
             onClick={e => { e.stopPropagation(); navigate(`/profile/${activeConv.username}`); }}
-            title="More options"
           >
-            <FiMoreHorizontal size={22} />
+            <FiMoreHorizontal size={18} className="text-white/70" />
           </button>
         </div>
       </div>
@@ -1578,7 +1602,8 @@ export default function Messages({ currentUser, unreadCounts }) {
       {/* Messages */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto px-3 py-2 scroll-smooth no-scrollbar bg-black"
+        className="flex-1 overflow-y-auto px-3 py-2 scroll-smooth no-scrollbar"
+        style={{ background: '#0a0b10' }}
         onScroll={handleScroll}
         onClick={() => { if (showEmojiPicker) setShowEmojiPicker(false); }}
       >
@@ -1785,7 +1810,15 @@ export default function Messages({ currentUser, unreadCounts }) {
       )}
 
       {/* Input */}
-      <div className={`flex flex-col flex-shrink-0 bg-black transition-all duration-300 ${showEmojiPicker ? 'pb-0' : 'pb-safe'}`}>
+      <div
+        className={`flex flex-col flex-shrink-0 transition-all duration-300 ${showEmojiPicker ? 'pb-0' : 'pb-safe'}`}
+        style={{
+          background: 'rgba(10,11,16,0.95)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderTop: '1px solid rgba(255,255,255,0.05)',
+        }}
+      >
         {blockedByMe ? (
           <div className="px-4 py-4 flex flex-col items-center gap-2" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
             <p className="text-white/50 text-sm text-center">You blocked <span className="font-bold text-white">@{activeConv?.username}</span>. You can't send messages.</p>
@@ -1864,11 +1897,12 @@ export default function Messages({ currentUser, unreadCounts }) {
                 </button>
               </div>
             ) : (
-              <div className="flex items-end gap-2 bg-[#1c1c1e] rounded-2xl px-3 py-2 min-h-[48px]">
+              <div className="flex items-end gap-2 rounded-2xl px-3 py-2 min-h-[48px]"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 {/* Attachment button */}
                 <button
                   type="button"
-                  className="p-1.5 text-white/40 hover:text-white transition-colors flex-shrink-0 mb-0.5"
+                  className="p-1.5 text-white/35 hover:text-white transition-colors flex-shrink-0 mb-0.5"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <FiPaperclip size={20} />
@@ -1882,7 +1916,7 @@ export default function Messages({ currentUser, unreadCounts }) {
                   onFocus={() => setShowEmojiPicker(false)}
                   placeholder="Message"
                   wrapperClassName="flex-1 min-w-0"
-                  className="w-full bg-transparent text-[15px] text-white placeholder-white/30 outline-none resize-none py-1.5 max-h-40 no-scrollbar"
+                  className="w-full bg-transparent text-[15px] text-white placeholder-white/25 outline-none resize-none py-1.5 max-h-40 no-scrollbar"
                   rows={1}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches) {
@@ -1895,14 +1929,16 @@ export default function Messages({ currentUser, unreadCounts }) {
                 <div className="flex items-center gap-1.5 mb-0.5 flex-shrink-0">
                   <button
                     type="button"
-                    className={`p-1.5 transition-colors ${showEmojiPicker ? 'text-discord-brand' : 'text-white/40 hover:text-white'}`}
+                    className={`p-1.5 transition-colors ${showEmojiPicker ? 'text-discord-brand' : 'text-white/35 hover:text-white'}`}
                     onClick={handleEmojiButtonClick}
                   >
                     <FiSmile size={20} />
                   </button>
                   {newMsg.trim() || mediaAttachment ? (
-                    <button type="submit" className="w-8 h-8 rounded-full bg-discord-brand flex items-center justify-center transition-all active:scale-90">
-                      <FiSend size={16} className="text-white ml-0.5" />
+                    <button type="submit"
+                      className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90"
+                      style={{ background: 'linear-gradient(135deg, #7c3aed, #5865f2)', boxShadow: '0 2px 12px rgba(88,101,242,0.4)' }}>
+                      <FiSend size={15} className="text-white ml-0.5" />
                     </button>
                   ) : (
                     <button
@@ -1912,7 +1948,7 @@ export default function Messages({ currentUser, unreadCounts }) {
                       onTouchStart={handleMicTouchStart}
                       onTouchMove={handleMicTouchMove}
                       onTouchEnd={handleMicTouchEnd}
-                      className="p-1.5 text-white/40 hover:text-white transition-all active:scale-90 active:text-white select-none"
+                      className="p-1.5 text-white/35 hover:text-white transition-all active:scale-90 active:text-white select-none"
                       title="Hold to record voice note"
                     >
                       <FiMic size={20} />
