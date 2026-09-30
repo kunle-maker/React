@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiSend, FiArrowLeft, FiMessageSquare, FiSearch, FiCheck, FiCheckCircle, FiTrash2, FiCopy, FiX, FiMoreHorizontal, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiPlay, FiShare2, FiSave, FiGlobe, FiEdit2, FiMic, FiFile, FiPlusSquare, FiCornerUpLeft } from 'react-icons/fi';
+import { useTheme } from '../contexts/ThemeContext';
 import ImageCropModal from '../components/ImageCropModal';
 import ReportModal from '../components/ReportModal';
 import TranslateModal from '../components/TranslateModal';
@@ -594,6 +595,36 @@ function getMessagePreview(msgOrText) {
 export default function Messages({ currentUser, unreadCounts }) {
   const { username } = useParams();
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+
+  // Theme-aware color tokens for inline styles
+  const T = {
+    pageBg:       isLight ? '#fafafa'                    : '#0a0b10',
+    convBg:       isLight ? '#fafafa'                    : 'linear-gradient(160deg, #0d0f14 0%, #120d1f 50%, #0d0f14 100%)',
+    headerBg:     isLight ? 'rgba(255,255,255,0.97)'     : 'rgba(10,11,16,0.92)',
+    headerBorder: isLight ? '#dbdbdb'                    : 'rgba(255,255,255,0.06)',
+    searchBg:     isLight ? '#efefef'                    : 'rgba(255,255,255,0.06)',
+    searchBorder: isLight ? 'rgba(0,0,0,0.1)'            : 'rgba(255,255,255,0.08)',
+    searchText:   isLight ? '#262626'                    : '#ffffff',
+    searchPlaceholder: isLight ? '#8e8e8e'               : 'rgba(255,255,255,0.25)',
+    rowHover:     isLight ? 'rgba(0,0,0,0.03)'           : 'rgba(255,255,255,0.03)',
+    rowActive:    isLight ? 'linear-gradient(135deg,rgba(139,92,246,0.1),rgba(88,101,242,0.07))' : 'linear-gradient(135deg,rgba(139,92,246,0.18),rgba(88,101,242,0.12))',
+    rowActiveBorder: isLight ? 'rgba(139,92,246,0.3)'   : 'rgba(139,92,246,0.25)',
+    skeletonBg:   isLight ? 'rgba(0,0,0,0.06)'          : 'rgba(255,255,255,0.06)',
+    emptyIcon:    isLight ? 'rgba(0,0,0,0.05)'          : 'rgba(139,92,246,0.1)',
+    emptyIconBorder: isLight ? 'rgba(0,0,0,0.08)'       : 'rgba(139,92,246,0.2)',
+    nameTxt:      isLight ? '#262626'                    : '#ffffff',
+    mutedTxt:     isLight ? '#8e8e8e'                    : 'rgba(255,255,255,0.3)',
+    timeTxt:      isLight ? '#8e8e8e'                    : 'rgba(255,255,255,0.25)',
+    circleBtn:    isLight ? 'rgba(0,0,0,0.05)'          : 'rgba(255,255,255,0.07)',
+    circleBtnBorder: isLight ? '#dbdbdb'                : 'none',
+    inputBarBg:   isLight ? 'rgba(255,255,255,0.97)'    : 'rgba(10,11,16,0.95)',
+    inputFieldBg: isLight ? '#efefef'                   : 'rgba(255,255,255,0.06)',
+    inputFieldBorder: isLight ? 'rgba(0,0,0,0.1)'      : 'rgba(255,255,255,0.08)',
+    inputText:    isLight ? '#262626'                   : '#ffffff',
+  };
+
   const [conversations, setConversations] = useState([]);
   const [activeConv, setActiveConv] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -1351,11 +1382,11 @@ export default function Messages({ currentUser, unreadCounts }) {
   };
 
   const ConvList = (
-    <div className="flex flex-col h-full" style={{ background: 'linear-gradient(160deg, #0d0f14 0%, #120d1f 50%, #0d0f14 100%)' }}>
+    <div className="flex flex-col h-full" style={{ background: T.convBg }}>
       {/* Header */}
       <div className="px-4 pt-5 pb-3 flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-black text-white text-xl tracking-tight">Messages</h2>
+          <h2 className="font-black text-xl tracking-tight" style={{ color: T.nameTxt }}>Messages</h2>
           <button
             onClick={() => { setSearchQ(''); textareaRef.current?.focus?.(); }}
             className="w-8 h-8 rounded-full flex items-center justify-center"
@@ -1366,21 +1397,23 @@ export default function Messages({ currentUser, unreadCounts }) {
         </div>
         {/* Search pill */}
         <div className="relative">
-          <FiSearch size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
+          <FiSearch size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: T.mutedTxt }} />
           <input
             type="text"
             value={searchQ}
             onChange={e => searchHandler(e.target.value)}
             placeholder="Search messages..."
-            className="w-full pl-9 pr-8 py-2.5 text-sm text-white placeholder-white/25 rounded-2xl outline-none"
+            className="w-full pl-9 pr-8 py-2.5 text-sm rounded-2xl outline-none"
             style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: T.searchBg,
+              border: `1px solid ${T.searchBorder}`,
+              color: T.searchText,
             }}
           />
           {searchQ && (
             <button
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"
+              className="absolute right-3 top-1/2 -translate-y-1/2"
+              style={{ color: T.mutedTxt }}
               onClick={() => { setSearchQ(''); setSearchUsers([]); }}
             >
               <FiX size={13} />
@@ -1393,35 +1426,35 @@ export default function Messages({ currentUser, unreadCounts }) {
       <div className="flex-1 overflow-y-auto px-3 pb-4">
         {searchQ && searchUsers.length > 0 ? (
           <div>
-            <p className="px-2 py-2 text-[10px] text-white/30 font-bold uppercase tracking-widest">People</p>
+            <p className="px-2 py-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: T.mutedTxt }}>People</p>
             {searchUsers.map(u => (
               <div
                 key={u._id}
                 className="flex items-center gap-3 px-3 py-3 cursor-pointer rounded-2xl transition-all active:scale-[0.98]"
-                style={{ background: 'rgba(255,255,255,0.03)' }}
+                style={{ background: T.rowHover }}
                 onClick={() => { setSearchQ(''); setSearchUsers([]); navigate(`/messages/chat/${u.username}`); }}
               >
                 <Avatar user={u} size={42} showStatus />
                 <div>
-                  <p className="text-white text-sm font-semibold">{u.name}</p>
-                  <p className="text-white/40 text-xs">@{u.username}</p>
+                  <p className="text-sm font-semibold" style={{ color: T.nameTxt }}>{u.name}</p>
+                  <p className="text-xs" style={{ color: T.mutedTxt }}>@{u.username}</p>
                 </div>
               </div>
             ))}
           </div>
         ) : searchQ && searchUsers.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-white/30 text-sm font-medium">No users found</p>
-            <p className="text-white/20 text-xs mt-1">Try a different name</p>
+            <p className="text-sm font-medium" style={{ color: T.mutedTxt }}>No users found</p>
+            <p className="text-xs mt-1" style={{ color: T.mutedTxt }}>Try a different name</p>
           </div>
         ) : convsLoading ? (
           <div className="space-y-1 pt-2">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="flex items-center gap-3 px-3 py-3 animate-pulse">
-                <div className="w-11 h-11 rounded-full flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                <div className="w-11 h-11 rounded-full flex-shrink-0" style={{ background: T.skeletonBg }} />
                 <div className="flex-1 space-y-2">
-                  <div className="h-2.5 w-24 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }} />
-                  <div className="h-2 w-36 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                  <div className="h-2.5 w-24 rounded-full" style={{ background: T.skeletonBg }} />
+                  <div className="h-2 w-36 rounded-full" style={{ background: T.skeletonBg, opacity: 0.7 }} />
                 </div>
               </div>
             ))}
@@ -1429,11 +1462,11 @@ export default function Messages({ currentUser, unreadCounts }) {
         ) : filteredConvs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <div className="w-16 h-16 rounded-3xl flex items-center justify-center mb-1"
-              style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)' }}>
+              style={{ background: T.emptyIcon, border: `1px solid ${T.emptyIconBorder}` }}>
               <FiMessageSquare size={26} className="text-purple-400/60" />
             </div>
-            <p className="text-white/50 font-semibold text-sm">No conversations yet</p>
-            <p className="text-white/25 text-xs">Search above to start chatting</p>
+            <p className="font-semibold text-sm" style={{ color: T.mutedTxt }}>No conversations yet</p>
+            <p className="text-xs" style={{ color: T.mutedTxt }}>Search above to start chatting</p>
           </div>
         ) : (
           <div className="space-y-0.5 pt-1">
@@ -1444,10 +1477,8 @@ export default function Messages({ currentUser, unreadCounts }) {
                   key={c.userId || c.username}
                   className="flex items-center gap-3 px-3 py-3 cursor-pointer rounded-2xl transition-all active:scale-[0.97] relative group"
                   style={{
-                    background: isActive
-                      ? 'linear-gradient(135deg, rgba(139,92,246,0.18), rgba(88,101,242,0.12))'
-                      : 'transparent',
-                    border: isActive ? '1px solid rgba(139,92,246,0.25)' : '1px solid transparent',
+                    background: isActive ? T.rowActive : 'transparent',
+                    border: isActive ? `1px solid ${T.rowActiveBorder}` : '1px solid transparent',
                   }}
                   onClick={() => navigate(`/messages/chat/${c.username}`)}
                   onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setConvMenu({ username: c.username, x: e.clientX, y: e.clientY }); }}
@@ -1457,7 +1488,7 @@ export default function Messages({ currentUser, unreadCounts }) {
                     <Avatar user={c} size={44} showStatus={false} supaRing={c.isSupa} />
                     {c.isOnline && (
                       <span className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2"
-                        style={{ borderColor: '#0d0f14' }} />
+                        style={{ borderColor: isLight ? '#fafafa' : '#0d0f14' }} />
                     )}
                     {c.unreadCount > 0 && !isActive && (
                       <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-purple-500 text-white text-[9px] font-black flex items-center justify-center leading-none">
@@ -1469,7 +1500,8 @@ export default function Messages({ currentUser, unreadCounts }) {
                   {/* Text */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-2 mb-0.5">
-                      <span className={`font-bold text-[13.5px] truncate flex items-center gap-1.5 ${c.isSupa ? 'supa-chat-name' : 'text-white'}`}>
+                      <span className={`font-bold text-[13.5px] truncate flex items-center gap-1.5 ${c.isSupa ? 'supa-chat-name' : ''}`}
+                        style={c.isSupa ? undefined : { color: T.nameTxt }}>
                         {c.name || c.username}
                         {c.isBot && (
                           <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md leading-none flex-shrink-0"
@@ -1479,12 +1511,13 @@ export default function Messages({ currentUser, unreadCounts }) {
                         )}
                       </span>
                       <span className="text-[10.5px] flex-shrink-0"
-                        style={{ color: c.unreadCount > 0 ? 'rgba(167,139,250,0.9)' : 'rgba(255,255,255,0.25)' }}>
+                        style={{ color: c.unreadCount > 0 ? 'rgba(167,139,250,0.9)' : T.timeTxt }}>
                         {formatConvTime(c.lastMessageTime)}
                       </span>
                     </div>
-                    <p className={`text-[12px] truncate leading-snug ${c.unreadCount > 0 ? 'text-white/70 font-medium' : 'text-white/30'}`}>
-                      {c.isMine && <span style={{ color: 'rgba(255,255,255,0.2)' }}>You: </span>}
+                    <p className="text-[12px] truncate leading-snug"
+                      style={{ color: c.unreadCount > 0 ? T.nameTxt : T.mutedTxt, fontWeight: c.unreadCount > 0 ? 500 : 400 }}>
+                      {c.isMine && <span style={{ color: T.mutedTxt, opacity: 0.7 }}>You: </span>}
                       {c.lastMessage ? (() => {
                         const preview = getMessagePreview(c.lastMessage);
                         const display = preview.length > 38 ? preview.slice(0, 38) + '…' : preview;
@@ -1493,7 +1526,7 @@ export default function Messages({ currentUser, unreadCounts }) {
                             dangerouslySetInnerHTML={{ __html: parseEmojisToHtml(display) }} />
                         );
                       })() : (
-                        <span className="italic" style={{ color: 'rgba(255,255,255,0.2)' }}>Start a conversation</span>
+                        <span className="italic" style={{ color: T.mutedTxt }}>Start a conversation</span>
                       )}
                     </p>
                   </div>
@@ -1509,25 +1542,24 @@ export default function Messages({ currentUser, unreadCounts }) {
   const items = buildMessageItems();
 
   const ChatArea = activeConv ? (
-    <div className="flex flex-col h-full relative overflow-hidden" style={{ background: '#0a0b10' }}>
-      {/* Header — frosted glass dark */}
+    <div className="flex flex-col h-full relative overflow-hidden" style={{ background: T.pageBg }}>
+      {/* Header — frosted glass */}
       <div
         className="flex items-center justify-between px-3 h-[60px] flex-shrink-0 z-20"
         style={{
-          background: 'rgba(10,11,16,0.92)',
+          background: T.headerBg,
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: `1px solid ${T.headerBorder}`,
         }}
       >
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          {/* Back button — pill style */}
           <button
             className="flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
-            style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }}
+            style={{ width: 36, height: 36, borderRadius: '50%', background: T.circleBtn, border: isLight ? `1px solid ${T.circleBtnBorder}` : 'none' }}
             onClick={() => { setActiveConv(null); navigate('/messages'); }}
           >
-            <FiArrowLeft size={18} className="text-white/80" />
+            <FiArrowLeft size={18} style={{ color: T.nameTxt, opacity: 0.8 }} />
           </button>
 
           <div
@@ -1537,12 +1569,13 @@ export default function Messages({ currentUser, unreadCounts }) {
             <div className="relative flex-shrink-0">
               <Avatar user={activeConv} size={36} showStatus={false} supaRing={activeConv.isSupa} />
               {activeConv.isOnline && !activeConv.isBot && (
-                <span className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#0a0b10]" />
+                <span className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2" style={{ borderColor: isLight ? '#ffffff' : '#0a0b10' }} />
               )}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className={`text-[14.5px] font-bold truncate leading-tight ${activeConv.isSupa ? 'supa-chat-name' : 'text-white'}`}>
+                <span className={`text-[14.5px] font-bold truncate leading-tight ${activeConv.isSupa ? 'supa-chat-name' : ''}`}
+                  style={activeConv.isSupa ? undefined : { color: T.nameTxt }}>
                   {activeConv.name}
                 </span>
                 {activeConv.isVerified && <FiCheckCircle size={12} className="text-blue-400 flex-shrink-0" />}
@@ -1555,13 +1588,13 @@ export default function Messages({ currentUser, unreadCounts }) {
               </div>
               <p className="text-[11px] leading-none mt-0.5">
                 {isTyping ? (
-                  <span className="text-emerald-400 font-medium">typing…</span>
+                  <span className="text-emerald-500 font-medium">typing…</span>
                 ) : activeConv.isBot ? (
                   <span style={{ color: 'rgba(129,140,248,0.7)' }}>Bot</span>
                 ) : activeConv.isOnline ? (
-                  <span className="text-emerald-400 font-medium">Online</span>
+                  <span className="text-emerald-500 font-medium">Online</span>
                 ) : (
-                  <span className="text-white/30">Offline</span>
+                  <span style={{ color: T.mutedTxt }}>Offline</span>
                 )}
               </p>
             </div>
@@ -1573,28 +1606,26 @@ export default function Messages({ currentUser, unreadCounts }) {
             <>
               <button
                 className="flex items-center justify-center active:scale-90 transition-transform"
-                style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }}
+                style={{ width: 36, height: 36, borderRadius: '50%', background: T.circleBtn, border: isLight ? `1px solid ${T.circleBtnBorder}` : 'none' }}
                 onClick={() => sendCallInvite(true)}
-                title="Video Call"
               >
-                <FiVideo size={17} className="text-white/70" />
+                <FiVideo size={17} style={{ color: T.nameTxt, opacity: 0.7 }} />
               </button>
               <button
                 className="flex items-center justify-center active:scale-90 transition-transform"
-                style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }}
+                style={{ width: 36, height: 36, borderRadius: '50%', background: T.circleBtn, border: isLight ? `1px solid ${T.circleBtnBorder}` : 'none' }}
                 onClick={() => sendCallInvite(false)}
-                title="Voice Call"
               >
-                <FiPhone size={17} className="text-white/70" />
+                <FiPhone size={17} style={{ color: T.nameTxt, opacity: 0.7 }} />
               </button>
             </>
           )}
           <button
             className="flex items-center justify-center active:scale-90 transition-transform"
-            style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }}
+            style={{ width: 36, height: 36, borderRadius: '50%', background: T.circleBtn, border: isLight ? `1px solid ${T.circleBtnBorder}` : 'none' }}
             onClick={e => { e.stopPropagation(); navigate(`/profile/${activeConv.username}`); }}
           >
-            <FiMoreHorizontal size={18} className="text-white/70" />
+            <FiMoreHorizontal size={18} style={{ color: T.nameTxt, opacity: 0.7 }} />
           </button>
         </div>
       </div>
@@ -1603,7 +1634,7 @@ export default function Messages({ currentUser, unreadCounts }) {
       <div
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto px-3 py-2 scroll-smooth no-scrollbar"
-        style={{ background: '#0a0b10' }}
+        style={{ background: T.pageBg }}
         onScroll={handleScroll}
         onClick={() => { if (showEmojiPicker) setShowEmojiPicker(false); }}
       >
@@ -1813,10 +1844,10 @@ export default function Messages({ currentUser, unreadCounts }) {
       <div
         className={`flex flex-col flex-shrink-0 transition-all duration-300 ${showEmojiPicker ? 'pb-0' : 'pb-safe'}`}
         style={{
-          background: 'rgba(10,11,16,0.95)',
+          background: T.inputBarBg,
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          borderTop: '1px solid rgba(255,255,255,0.05)',
+          borderTop: `1px solid ${T.headerBorder}`,
         }}
       >
         {blockedByMe ? (
@@ -1898,11 +1929,12 @@ export default function Messages({ currentUser, unreadCounts }) {
               </div>
             ) : (
               <div className="flex items-end gap-2 rounded-2xl px-3 py-2 min-h-[48px]"
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                style={{ background: T.inputFieldBg, border: `1px solid ${T.inputFieldBorder}` }}>
                 {/* Attachment button */}
                 <button
                   type="button"
-                  className="p-1.5 text-white/35 hover:text-white transition-colors flex-shrink-0 mb-0.5"
+                  className="p-1.5 transition-colors flex-shrink-0 mb-0.5"
+                  style={{ color: T.mutedTxt }}
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <FiPaperclip size={20} />
@@ -1916,7 +1948,8 @@ export default function Messages({ currentUser, unreadCounts }) {
                   onFocus={() => setShowEmojiPicker(false)}
                   placeholder="Message"
                   wrapperClassName="flex-1 min-w-0"
-                  className="w-full bg-transparent text-[15px] text-white placeholder-white/25 outline-none resize-none py-1.5 max-h-40 no-scrollbar"
+                  className="w-full bg-transparent text-[15px] outline-none resize-none py-1.5 max-h-40 no-scrollbar"
+                  style={{ color: T.inputText }}
                   rows={1}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches) {
@@ -1929,7 +1962,8 @@ export default function Messages({ currentUser, unreadCounts }) {
                 <div className="flex items-center gap-1.5 mb-0.5 flex-shrink-0">
                   <button
                     type="button"
-                    className={`p-1.5 transition-colors ${showEmojiPicker ? 'text-discord-brand' : 'text-white/35 hover:text-white'}`}
+                    className={`p-1.5 transition-colors ${showEmojiPicker ? 'text-discord-brand' : ''}`}
+                    style={showEmojiPicker ? undefined : { color: T.mutedTxt }}
                     onClick={handleEmojiButtonClick}
                   >
                     <FiSmile size={20} />
@@ -1948,7 +1982,8 @@ export default function Messages({ currentUser, unreadCounts }) {
                       onTouchStart={handleMicTouchStart}
                       onTouchMove={handleMicTouchMove}
                       onTouchEnd={handleMicTouchEnd}
-                      className="p-1.5 text-white/35 hover:text-white transition-all active:scale-90 active:text-white select-none"
+                      className="p-1.5 transition-all active:scale-90 select-none"
+                      style={{ color: T.mutedTxt }}
                       title="Hold to record voice note"
                     >
                       <FiMic size={20} />
