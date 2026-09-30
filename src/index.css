@@ -4,7 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===== THEME CSS VARIABLES ===== */
+/* THEME CSS VARIABLES */
 :root {
   --vx-bg:           #0d0f14;
   --vx-sidebar:      #111318;
@@ -31,7 +31,7 @@
   --vx-nav-text:       rgba(255,255,255,0.8);
 }
 
-/* ── Instagram-style light theme ──────────────────────────────────────── */
+/* ── Instagram-style light theme */
 [data-theme="light"] {
   --vx-bg:           #fafafa;   /* IG exact bg */
   --vx-sidebar:      #ffffff;
@@ -131,6 +131,46 @@
   backdrop-filter: blur(20px) !important;
   border-bottom-color: #dbdbdb !important;
 }
+
+/* Feed header "Home" title */
+[data-theme="light"] h1 { color: #262626 !important; }
+
+/* Stories bar bg */
+[data-theme="light"] .bg-discord-bg\/30 { background-color: rgba(255,255,255,0.9) !important; }
+
+/* Profile page — stats cards, level cards */
+[data-theme="light"] .bg-discord-hover\/30,
+[data-theme="light"] .bg-discord-hover\/50 { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .bg-discord-hover\/10 { background-color: rgba(0,0,0,0.03) !important; }
+
+/* Profile cover gradient fallback */
+[data-theme="light"] .bg-gradient-to-r.from-discord-brand { background: linear-gradient(to right, #8b5cf6, #6d28d9) !important; }
+
+/* Supa premium banner in light mode */
+[data-theme="light"] .supa-profile-banner { background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(88,101,242,0.1)) !important; }
+
+/* XP / level bars */
+[data-theme="light"] .bg-discord-hover { background-color: #ebebeb !important; }
+
+/* Page-level layout wrappers that have inline bg styles we can't override */
+/* Feed content area */
+[data-theme="light"] .page-enter { background-color: #fafafa !important; }
+[data-theme="light"] .bg-discord-bg.page-enter { background-color: #fafafa !important; }
+
+/* Dividers */
+[data-theme="light"] .divide-discord-hover\/20 > * + * { border-color: #efefef !important; }
+[data-theme="light"] hr, [data-theme="light"] .h-px.bg-discord-hover { background-color: #dbdbdb !important; }
+
+/* Badges, pills */
+[data-theme="light"] .bg-discord-brand\/10 { background-color: rgba(139,92,246,0.08) !important; }
+[data-theme="light"] .bg-discord-brand\/15 { background-color: rgba(139,92,246,0.1) !important; }
+[data-theme="light"] .bg-discord-brand\/20 { background-color: rgba(139,92,246,0.12) !important; }
+
+/* Reaction buttons etc */
+[data-theme="light"] .bg-white\/5.border-white\/10 { background-color: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.08) !important; }
+
+/* overflow-hidden sections that still show dark */
+[data-theme="light"] .discord-main > div { background-color: #fafafa; }
 
 /* Nav bottom circles */
 [data-theme="light"] .nav-btn {
@@ -538,7 +578,7 @@ button, a {
     -webkit-backdrop-filter: blur(20px);
   }
 
-  /* ===== SUPA USER STYLES (Discord Nitro-like) ===== */
+  /* SUPA USER STYLES (Discord Nitro-like) */
 
   .supa-badge {
     background: linear-gradient(135deg, #8b5cf6, #10b981, #faa61a, #8b5cf6);
@@ -839,7 +879,7 @@ button, a {
     filter: drop-shadow(0 0 5px rgba(196, 181, 253, 0.45));
   }
 
-  /* ===== SKELETON ===== */
+  /* SKELETON */
   @keyframes shimmer {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
@@ -866,12 +906,12 @@ button, a {
   .mobile-pill-nav { display: none; }
 }
 
-/* ===== LIQUID GLASS FLOATING NAV (mobile) ===== */
+/* LIQUID GLASS FLOATING NAV (mobile) */
 .mobile-pill-nav {
   display: none;
 }
 
-/* ── Nav button tap animations ──────────────────────────────────────────── */
+/* ── Nav button tap animations──── */
 
 /* Spring bounce on press — works on touch AND click */
 .nav-btn {
@@ -1284,7 +1324,7 @@ button, a {
   text-decoration: underline;
 }
 
-/* ===== GLOBAL ENHANCEMENTS ===== */
+/* GLOBAL ENHANCEMENTS */
 
 /* Card depth for modals and sheets */
 .bg-discord-sidebar {
@@ -1387,7 +1427,7 @@ button:focus-visible, a:focus-visible {
 
 
 
-/* ===== TWEMOJI — inline iOS-style emoji images ===== */
+/* TWEMOJI — inline iOS-style emoji images */
 .twemoji {
   display: inline-block;
   width: 1.1em;
@@ -1404,7 +1444,7 @@ button:focus-visible, a:focus-visible {
   vertical-align: -0.2em;
 }
 
-/* ===== APP-LIKE FEEL ===== */
+/* APP-LIKE FEEL */
 
 /* Remove tap highlight on mobile */
 * {
@@ -1480,7 +1520,7 @@ html, body {
   overscroll-behavior: none;
 }
 
-/* ===== FINISHING TOUCHES ===== */
+/* FINISHING TOUCHES */
 
 /* Slide up animation */
 @keyframes slideUp {
@@ -1611,9 +1651,9 @@ select.discord-input {
   ::-webkit-scrollbar-thumb:hover { background: rgba(88,101,242,0.45); }
 }
 
-/* =========================================
+/*=
    BADGE ANIMATIONS (Telegram/Discord style)
-   ========================================= */
+  = */
 
 @keyframes badge-float-kf {
   0%, 100% { transform: translateY(0); }

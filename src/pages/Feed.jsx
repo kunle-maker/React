@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiRefreshCw, FiCheck } from 'react-icons/fi';
+import { useTheme } from '../contexts/ThemeContext';
 import Layout from '../components/Layout';
 import PostCard from '../components/PostCard';
 import CreatePost from '../components/CreatePost';
@@ -21,6 +22,17 @@ const TABS = [
 
 export default function Feed({ currentUser, unreadCounts }) {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+  const T = {
+    headerBg: isLight ? 'rgba(255,255,255,0.97)' : 'rgba(13,15,20,0.95)',
+    border:   isLight ? '#dbdbdb'                : 'rgba(255,255,255,0.06)',
+    text:     isLight ? '#262626'                : '#e2e5ea',
+    muted:    isLight ? '#8e8e8e'                : 'rgba(255,255,255,0.3)',
+    btnBg:    isLight ? 'rgba(0,0,0,0.04)'       : 'rgba(255,255,255,0.05)',
+  };
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const [tab, setTab] = useState('foryou');
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -111,7 +123,7 @@ export default function Feed({ currentUser, unreadCounts }) {
     <Layout
       currentUser={currentUser}
       unreadCounts={unreadCounts}
-      contentClass="overflow-y-auto scrollable no-scrollbar mobile-content-pad page-enter bg-discord-bg"
+      contentClass={`overflow-y-auto scrollable no-scrollbar mobile-content-pad page-enter ${isLight ? 'bg-[#fafafa]' : 'bg-discord-bg'}`}
     >
       {storyViewerOpen && (
         <StoryViewer
@@ -124,12 +136,13 @@ export default function Feed({ currentUser, unreadCounts }) {
       )}
 
       {/* Orbix-style Header */}
-      <div className="sticky top-0 z-20 bg-discord-bg/95 backdrop-blur-xl">
+      <div className="sticky top-0 z-20 backdrop-blur-xl" style={{ background: T.headerBg, borderBottom: `1px solid ${T.border}` }}>
         <div className="flex items-center justify-between px-4 h-14 max-w-2xl mx-auto">
           {/* Left: hamburger / menu */}
           <button
             onClick={() => navigate('/settings')}
-            className="w-9 h-9 flex items-center justify-center rounded-full text-discord-text hover:bg-discord-hover transition-colors"
+            className="w-9 h-9 flex items-center justify-center rounded-full transition-colors"
+            style={{ color: T.text }}
           >
             <svg width="20" height="14" viewBox="0 0 20 14" fill="none">
               <rect width="20" height="2.5" rx="1.25" fill="currentColor" />
@@ -139,7 +152,7 @@ export default function Feed({ currentUser, unreadCounts }) {
           </button>
 
           {/* Center: Home title */}
-          <h1 className="text-[17px] font-bold text-discord-text tracking-tight absolute left-1/2 -translate-x-1/2">
+          <h1 className="text-[17px] font-bold tracking-tight absolute left-1/2 -translate-x-1/2" style={{ color: T.text }}>
             Home
           </h1>
 
@@ -147,21 +160,23 @@ export default function Feed({ currentUser, unreadCounts }) {
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate('/notifications')}
-              className="relative w-9 h-9 flex items-center justify-center rounded-full border border-discord-hover text-discord-text hover:bg-discord-hover transition-colors"
+              className="relative w-9 h-9 flex items-center justify-center rounded-full transition-colors"
+              style={{ border: `1px solid ${T.border}`, color: T.text }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
               {(unreadCounts.notifications || 0) > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-discord-red text-white text-[9px] font-black min-w-[16px] h-4 flex items-center justify-center rounded-full px-0.5 border border-discord-bg">
+                <span className="absolute -top-0.5 -right-0.5 bg-discord-red text-white text-[9px] font-black min-w-[16px] h-4 flex items-center justify-center rounded-full px-0.5">
                   {unreadCounts.notifications > 9 ? '9+' : unreadCounts.notifications}
                 </span>
               )}
             </button>
             <button
               onClick={() => navigate('/search')}
-              className="w-9 h-9 flex items-center justify-center rounded-full border border-discord-hover text-discord-text hover:bg-discord-hover transition-colors"
+              className="w-9 h-9 flex items-center justify-center rounded-full transition-colors"
+              style={{ border: `1px solid ${T.border}`, color: T.text }}
             >
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" />
@@ -172,18 +187,17 @@ export default function Feed({ currentUser, unreadCounts }) {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex max-w-2xl mx-auto">
+        <div className="flex max-w-2xl mx-auto" style={{ borderTop: `1px solid ${T.border}` }}>
           {TABS.map(t => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex-1 py-2.5 text-sm font-bold transition-all relative ${
-                tab === t.id ? 'text-discord-text' : 'text-discord-muted/50'
-              }`}
+              className="flex-1 py-2.5 text-sm font-bold transition-all relative"
+              style={{ color: tab === t.id ? T.text : T.muted }}
             >
               {t.label}
               {tab === t.id && (
-                <div className="absolute bottom-0 left-1/4 right-1/4 h-[2.5px] bg-discord-text rounded-full" />
+                <div className="absolute bottom-0 left-1/4 right-1/4 h-[2.5px] rounded-full" style={{ background: T.text }} />
               )}
             </button>
           ))}

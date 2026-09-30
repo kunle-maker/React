@@ -8,6 +8,7 @@ import PWAInstallBanner from './components/PWAInstallBanner';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { I18nProvider, useI18n } from './contexts/I18nContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Search         from './pages/Search';
 import Notifications  from './pages/Notifications';
 import CreatePostPage from './pages/CreatePostPage';
@@ -433,9 +434,11 @@ function SplashHider() {
 
 export default function App() {
   return (
-    <I18nProvider>
-      <SplashHider />
-      <AppInner />
-    </I18nProvider>
+    <ThemeProvider>
+      <I18nProvider>
+        <SplashHider />
+        <AppInner />
+      </I18nProvider>
+    </ThemeProvider>
   );
 }
