@@ -6,83 +6,170 @@
 
 /* ===== THEME CSS VARIABLES ===== */
 :root {
-  --vx-bg:          #0d0f14;
-  --vx-sidebar:     #111318;
-  --vx-dark:        #0a0b10;
-  --vx-darker:      #060708;
-  --vx-input:       rgba(255,255,255,0.04);
-  --vx-input-border:rgba(255,255,255,0.07);
-  --vx-text:        #e2e5ea;
-  --vx-muted:       #6b7280;
-  --vx-hover:       #1e2028;
-  --vx-card:        #111318;
-  --vx-border:      rgba(255,255,255,0.06);
-  --vx-surface:     rgba(255,255,255,0.04);
-  --vx-body-grad1:  rgba(139,92,246,0.15);
-  --vx-body-grad2:  rgba(16,185,129,0.1);
+  --vx-bg:           #0d0f14;
+  --vx-sidebar:      #111318;
+  --vx-dark:         #0a0b10;
+  --vx-darker:       #060708;
+  --vx-input:        rgba(255,255,255,0.04);
+  --vx-input-border: rgba(255,255,255,0.07);
+  --vx-text:         #e2e5ea;
+  --vx-muted:        #6b7280;
+  --vx-hover:        #1e2028;
+  --vx-card:         #111318;
+  --vx-border:       rgba(255,255,255,0.06);
+  --vx-surface:      rgba(255,255,255,0.04);
+  --vx-body-grad1:   rgba(139,92,246,0.15);
+  --vx-body-grad2:   rgba(16,185,129,0.1);
+  /* Functional aliases used in components */
+  --vx-bubble-mine:    #ffffff;
+  --vx-bubble-theirs:  #1c1c1e;
+  --vx-bubble-text-mine:    #111;
+  --vx-bubble-text-theirs:  #fff;
+  --vx-post-bg:        transparent;
+  --vx-header-bg:      rgba(13,15,20,0.95);
+  --vx-nav-circle:     rgba(18,18,26,0.96);
+  --vx-nav-text:       rgba(255,255,255,0.8);
 }
 
-/* Light theme overrides */
+/* ── Instagram-style light theme ──────────────────────────────────────── */
 [data-theme="light"] {
-  --vx-bg:          #f4f5f7;
-  --vx-sidebar:     #ffffff;
-  --vx-dark:        #ffffff;
-  --vx-darker:      #f0f1f3;
-  --vx-input:       rgba(0,0,0,0.05);
-  --vx-input-border:rgba(0,0,0,0.1);
-  --vx-text:        #1a1d23;
-  --vx-muted:       #6b7280;
-  --vx-hover:       #e8eaed;
-  --vx-card:        #ffffff;
-  --vx-border:      rgba(0,0,0,0.08);
-  --vx-surface:     rgba(0,0,0,0.04);
-  --vx-body-grad1:  rgba(139,92,246,0.06);
-  --vx-body-grad2:  rgba(16,185,129,0.04);
+  --vx-bg:           #fafafa;   /* IG exact bg */
+  --vx-sidebar:      #ffffff;
+  --vx-dark:         #f0f0f0;
+  --vx-darker:       #e8e8e8;
+  --vx-input:        #efefef;
+  --vx-input-border: rgba(0,0,0,0.15);
+  --vx-text:         #262626;   /* IG exact text */
+  --vx-muted:        #8e8e8e;   /* IG exact muted */
+  --vx-hover:        #f0f0f0;
+  --vx-card:         #ffffff;
+  --vx-border:       #dbdbdb;   /* IG exact border */
+  --vx-surface:      rgba(0,0,0,0.04);
+  --vx-body-grad1:   rgba(139,92,246,0.03);
+  --vx-body-grad2:   transparent;
+  /* Chat bubbles — IG light style */
+  --vx-bubble-mine:          #3797f0;   /* IG DM blue */
+  --vx-bubble-theirs:        #efefef;
+  --vx-bubble-text-mine:     #ffffff;
+  --vx-bubble-text-theirs:   #262626;
+  --vx-post-bg:              #ffffff;
+  --vx-header-bg:            rgba(255,255,255,0.97);
+  --vx-nav-circle:           #ffffff;
+  --vx-nav-text:             #262626;
 }
 
+/* ── Apply light theme globally ─────────────────────────────────────── */
 [data-theme="light"] body {
-  background-color: #f4f5f7;
-  background-image:
-    radial-gradient(ellipse 80% 50% at 20% -10%, var(--vx-body-grad1) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 80% 100%, var(--vx-body-grad2) 0%, transparent 60%);
-  color: #1a1d23;
+  background-color: #fafafa;
+  background-image: none;
+  color: #262626;
 }
 
-/* Apply CSS vars to tailwind-named classes */
-[data-theme="light"] .bg-discord-bg    { background-color: var(--vx-bg) !important; }
-[data-theme="light"] .bg-discord-sidebar { background-color: var(--vx-card) !important; }
-[data-theme="light"] .bg-discord-dark  { background-color: var(--vx-darker) !important; }
-[data-theme="light"] .bg-discord-hover { background-color: var(--vx-hover) !important; }
-[data-theme="light"] .text-discord-text  { color: var(--vx-text) !important; }
-[data-theme="light"] .text-discord-muted { color: var(--vx-muted) !important; }
-[data-theme="light"] .border-discord-hover { border-color: var(--vx-border) !important; }
-[data-theme="light"] .discord-sidebar  { background: linear-gradient(180deg, #ffffff 0%, #f8f9fb 100%) !important; border-right-color: var(--vx-border) !important; }
-[data-theme="light"] .discord-input    { background: var(--vx-input) !important; border-color: var(--vx-input-border) !important; color: var(--vx-text) !important; }
-[data-theme="light"] .glass-card       { background: rgba(255,255,255,0.85) !important; border-color: rgba(0,0,0,0.08) !important; }
-[data-theme="light"] .app-shell        { background-color: #f4f5f7; }
+/* Backgrounds */
+[data-theme="light"] .bg-discord-bg,
+[data-theme="light"] .discord-bg    { background-color: #fafafa !important; }
+[data-theme="light"] .bg-discord-sidebar,
+[data-theme="light"] .discord-sidebar { background: #ffffff !important; border-right-color: #dbdbdb !important; }
+[data-theme="light"] .bg-discord-dark { background-color: #f0f0f0 !important; }
+[data-theme="light"] .bg-discord-hover { background-color: #f0f0f0 !important; }
+[data-theme="light"] .bg-discord-darker { background-color: #e8e8e8 !important; }
+[data-theme="light"] .app-shell { background-color: #fafafa !important; }
+[data-theme="light"] .discord-main { background-color: #fafafa !important; }
 
-/* Light theme text adjustments */
-[data-theme="light"] .text-white     { color: #1a1d23 !important; }
-[data-theme="light"] .text-white\/40 { color: rgba(26,29,35,0.4) !important; }
-[data-theme="light"] .text-white\/50 { color: rgba(26,29,35,0.5) !important; }
-[data-theme="light"] .text-white\/60 { color: rgba(26,29,35,0.6) !important; }
-[data-theme="light"] .text-white\/70 { color: rgba(26,29,35,0.7) !important; }
-[data-theme="light"] .text-white\/80 { color: rgba(26,29,35,0.8) !important; }
+/* Text */
+[data-theme="light"] .text-discord-text   { color: #262626 !important; }
+[data-theme="light"] .text-discord-muted  { color: #8e8e8e !important; }
+[data-theme="light"] .text-discord-channel { color: #555 !important; }
 
-/* Light mode nav */
-[data-theme="light"] .nav-btn,
+/* Borders */
+[data-theme="light"] .border-discord-hover,
+[data-theme="light"] .border-discord-darker { border-color: #dbdbdb !important; }
+[data-theme="light"] .border-white\/5,
+[data-theme="light"] .border-white\/8,
+[data-theme="light"] .border-white\/10 { border-color: #dbdbdb !important; }
+
+/* Inputs */
+[data-theme="light"] .discord-input {
+  background: #efefef !important;
+  border-color: rgba(0,0,0,0.1) !important;
+  color: #262626 !important;
+}
+[data-theme="light"] .discord-input::placeholder { color: #8e8e8e !important; }
+
+/* Cards / surfaces */
+[data-theme="light"] .glass-card { background: rgba(255,255,255,0.95) !important; border-color: #dbdbdb !important; }
+[data-theme="light"] .bg-white\/3,
+[data-theme="light"] .bg-white\/4,
+[data-theme="light"] .bg-white\/5,
+[data-theme="light"] .bg-white\/6,
+[data-theme="light"] .bg-white\/8,
+[data-theme="light"] .bg-white\/10 { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .bg-black { background-color: #fafafa !important; }
+[data-theme="light"] .bg-discord-bg\/95 { background-color: rgba(255,255,255,0.97) !important; }
+
+/* Feed post cards — white cards with border like IG */
+[data-theme="light"] article {
+  background-color: #ffffff !important;
+  border-bottom-color: #dbdbdb !important;
+}
+
+/* White text → dark text in light mode */
+[data-theme="light"] .text-white           { color: #262626 !important; }
+[data-theme="light"] .text-white\/20       { color: rgba(38,38,38,0.2) !important; }
+[data-theme="light"] .text-white\/25       { color: rgba(38,38,38,0.3) !important; }
+[data-theme="light"] .text-white\/30       { color: rgba(38,38,38,0.35) !important; }
+[data-theme="light"] .text-white\/40       { color: rgba(38,38,38,0.45) !important; }
+[data-theme="light"] .text-white\/50       { color: rgba(38,38,38,0.5) !important; }
+[data-theme="light"] .text-white\/60       { color: rgba(38,38,38,0.6) !important; }
+[data-theme="light"] .text-white\/70       { color: rgba(38,38,38,0.7) !important; }
+[data-theme="light"] .text-white\/80       { color: rgba(38,38,38,0.8) !important; }
+
+/* Sticky headers */
+[data-theme="light"] .sticky,
+[data-theme="light"] [class*="sticky"] {
+  background-color: rgba(255,255,255,0.97) !important;
+  backdrop-filter: blur(20px) !important;
+  border-bottom-color: #dbdbdb !important;
+}
+
+/* Nav bottom circles */
+[data-theme="light"] .nav-btn {
+  background: #ffffff !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1), 0 0 0 1px #dbdbdb !important;
+  color: #262626 !important;
+}
 [data-theme="light"] .nav-btn-pill {
-  background: rgba(0,0,0,0.08) !important;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.8) !important;
+  background: #ffffff !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1), 0 0 0 1px #dbdbdb !important;
+  color: #262626 !important;
+}
+[data-theme="light"] .nav-btn svg,
+[data-theme="light"] .nav-btn-pill svg { color: #262626 !important; }
+
+/* Bottom nav container override */
+[data-theme="light"] .mobile-pill-nav {
+  background: rgba(255,255,255,0.9) !important;
+  border: 1px solid #dbdbdb !important;
+  border-top: 1px solid rgba(219,219,219,0.8) !important;
+  box-shadow: 0 -2px 20px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.06) !important;
 }
 
-/* Smooth theme transition */
+/* Context menus, popups */
+[data-theme="light"] .bg-discord-dark\/90,
+[data-theme="light"] .bg-discord-dark\/95 { background-color: rgba(255,255,255,0.96) !important; }
+
+/* Settings sidebar sections */
+[data-theme="light"] .bg-discord-sidebar.border { background: #ffffff !important; border-color: #dbdbdb !important; }
+[data-theme="light"] [class*="rounded-2xl"].bg-discord-sidebar,
+[data-theme="light"] [class*="rounded-xl"].bg-discord-sidebar { background: #ffffff !important; border-color: #dbdbdb !important; }
+
+/* Smooth transition for all color props */
 *, *::before, *::after {
-  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.15s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease, box-shadow 0.2s ease;
 }
-/* But DON'T transition transforms/opacity (breaks animations) */
-button, a, [class*="active:scale"] {
-  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.15s ease, transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s ease, opacity 0.15s ease;
+button, a {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease,
+              transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease, opacity 0.15s ease;
 }
 
 @layer base {
