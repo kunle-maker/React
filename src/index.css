@@ -202,6 +202,9 @@
 /* App shell outer wrapper */
 [data-theme="light"] .app-shell { background-color: #fafafa !important; }
 [data-theme="light"] .discord-main { background-color: #fafafa !important; }
+
+/* Nav bottom circles */
+[data-theme="light"] .nav-btn {
   background: #ffffff !important;
   box-shadow: 0 2px 12px rgba(0,0,0,0.1), 0 0 0 1px #dbdbdb !important;
   color: #262626 !important;
