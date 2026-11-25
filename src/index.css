@@ -4,206 +4,136 @@
 @tailwind components;
 @tailwind utilities;
 
-/* THEME CSS VARIABLES */
+/* ===== THEME CSS VARIABLES =====
+   These map directly into tailwind.config.js discord.* colors.
+   Changing data-theme="light" on <html> flips ALL discord-* classes automatically.
+*/
 :root {
-  --vx-bg:           #0d0f14;
-  --vx-sidebar:      #111318;
-  --vx-dark:         #0a0b10;
-  --vx-darker:       #060708;
-  --vx-input:        rgba(255,255,255,0.04);
-  --vx-input-border: rgba(255,255,255,0.07);
-  --vx-text:         #e2e5ea;
-  --vx-muted:        #6b7280;
-  --vx-hover:        #1e2028;
-  --vx-card:         #111318;
-  --vx-border:       rgba(255,255,255,0.06);
-  --vx-surface:      rgba(255,255,255,0.04);
-  --vx-body-grad1:   rgba(139,92,246,0.15);
-  --vx-body-grad2:   rgba(16,185,129,0.1);
-  /* Functional aliases used in components */
-  --vx-bubble-mine:    #ffffff;
-  --vx-bubble-theirs:  #1c1c1e;
-  --vx-bubble-text-mine:    #111;
-  --vx-bubble-text-theirs:  #fff;
-  --vx-post-bg:        transparent;
-  --vx-header-bg:      rgba(13,15,20,0.95);
-  --vx-nav-circle:     rgba(18,18,26,0.96);
-  --vx-nav-text:       rgba(255,255,255,0.8);
+  --vx-bg:      #0d0f14;
+  --vx-sidebar: #111318;
+  --vx-dark:    #0a0b10;
+  --vx-darker:  #060708;
+  --vx-input:   rgba(255,255,255,0.04);
+  --vx-text:    #e2e5ea;
+  --vx-muted:   #6b7280;
+  --vx-channel: #8e9297;
+  --vx-hover:   #1e2028;
+}
+
+[data-theme="light"] {
+  --vx-bg:      #fafafa;
+  --vx-sidebar: #ffffff;
+  --vx-dark:    #f3f3f3;
+  --vx-darker:  #e8e8e8;
+  --vx-input:   #efefef;
+  --vx-text:    #262626;
+  --vx-muted:   #8e8e8e;
+  --vx-channel: #555555;
+  --vx-hover:   #f0f0f0;
 }
 
 /* ── Instagram-style light theme */
 [data-theme="light"] {
-  --vx-bg:           #fafafa;   /* IG exact bg */
-  --vx-sidebar:      #ffffff;
-  --vx-dark:         #f0f0f0;
-  --vx-darker:       #e8e8e8;
-  --vx-input:        #efefef;
-  --vx-input-border: rgba(0,0,0,0.15);
-  --vx-text:         #262626;   /* IG exact text */
-  --vx-muted:        #8e8e8e;   /* IG exact muted */
-  --vx-hover:        #f0f0f0;
-  --vx-card:         #ffffff;
-  --vx-border:       #dbdbdb;   /* IG exact border */
-  --vx-surface:      rgba(0,0,0,0.04);
-  --vx-body-grad1:   rgba(139,92,246,0.03);
-  --vx-body-grad2:   transparent;
-  /* Chat bubbles — IG light style */
-  --vx-bubble-mine:          #3797f0;   /* IG DM blue */
-  --vx-bubble-theirs:        #efefef;
-  --vx-bubble-text-mine:     #ffffff;
-  --vx-bubble-text-theirs:   #262626;
-  --vx-post-bg:              #ffffff;
-  --vx-header-bg:            rgba(255,255,255,0.97);
-  --vx-nav-circle:           #ffffff;
-  --vx-nav-text:             #262626;
+  --vx-bg:      #fafafa;
+  --vx-sidebar: #ffffff;
+  --vx-dark:    #f3f3f3;
+  --vx-darker:  #e8e8e8;
+  --vx-input:   #efefef;
+  --vx-text:    #262626;
+  --vx-muted:   #8e8e8e;
+  --vx-channel: #555555;
+  --vx-hover:   #f0f0f0;
 }
 
-/* ── Apply light theme globally ─────────────────────────────────────── */
+/* ── Light mode body ─────────────────────────────────────────────────── */
 [data-theme="light"] body {
   background-color: #fafafa;
   background-image: none;
   color: #262626;
 }
 
-/* Backgrounds */
-[data-theme="light"] .bg-discord-bg,
-[data-theme="light"] .discord-bg    { background-color: #fafafa !important; }
-[data-theme="light"] .bg-discord-sidebar,
-[data-theme="light"] .discord-sidebar { background: #ffffff !important; border-right-color: #dbdbdb !important; }
-[data-theme="light"] .bg-discord-dark { background-color: #f0f0f0 !important; }
-[data-theme="light"] .bg-discord-hover { background-color: #f0f0f0 !important; }
-[data-theme="light"] .bg-discord-darker { background-color: #e8e8e8 !important; }
-[data-theme="light"] .app-shell { background-color: #fafafa !important; }
-[data-theme="light"] .discord-main { background-color: #fafafa !important; }
+/* ── Things that CANNOT use CSS vars (opacity modifiers, inline styles) ── */
 
-/* Text */
-[data-theme="light"] .text-discord-text   { color: #262626 !important; }
-[data-theme="light"] .text-discord-muted  { color: #8e8e8e !important; }
-[data-theme="light"] .text-discord-channel { color: #555 !important; }
-
-/* Borders */
-[data-theme="light"] .border-discord-hover,
-[data-theme="light"] .border-discord-darker { border-color: #dbdbdb !important; }
-[data-theme="light"] .border-white\/5,
-[data-theme="light"] .border-white\/8,
-[data-theme="light"] .border-white\/10 { border-color: #dbdbdb !important; }
-
-/* Inputs */
-[data-theme="light"] .discord-input {
-  background: #efefef !important;
-  border-color: rgba(0,0,0,0.1) !important;
-  color: #262626 !important;
-}
-[data-theme="light"] .discord-input::placeholder { color: #8e8e8e !important; }
-
-/* Cards / surfaces */
-[data-theme="light"] .glass-card { background: rgba(255,255,255,0.95) !important; border-color: #dbdbdb !important; }
-[data-theme="light"] .bg-white\/3,
-[data-theme="light"] .bg-white\/4,
-[data-theme="light"] .bg-white\/5,
-[data-theme="light"] .bg-white\/6,
-[data-theme="light"] .bg-white\/8,
-[data-theme="light"] .bg-white\/10 { background-color: rgba(0,0,0,0.04) !important; }
+/* bg-black → white in light mode */
 [data-theme="light"] .bg-black { background-color: #fafafa !important; }
+
+/* White/opacity backgrounds → light equivalents */
+[data-theme="light"] .bg-white\/3   { background-color: rgba(0,0,0,0.02) !important; }
+[data-theme="light"] .bg-white\/4   { background-color: rgba(0,0,0,0.03) !important; }
+[data-theme="light"] .bg-white\/5   { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .bg-white\/6   { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .bg-white\/8   { background-color: rgba(0,0,0,0.05) !important; }
+[data-theme="light"] .bg-white\/10  { background-color: rgba(0,0,0,0.06) !important; }
+
+/* White opacity borders */
+[data-theme="light"] .border-white\/5  { border-color: #dbdbdb !important; }
+[data-theme="light"] .border-white\/8  { border-color: #dbdbdb !important; }
+[data-theme="light"] .border-white\/10 { border-color: #dbdbdb !important; }
+[data-theme="light"] .border-white\/20 { border-color: #dbdbdb !important; }
+
+/* discord-hover opacity variants (not in tailwind config) */
+[data-theme="light"] .bg-discord-hover\/10 { background-color: rgba(0,0,0,0.03) !important; }
+[data-theme="light"] .bg-discord-hover\/20 { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .bg-discord-hover\/30 { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .bg-discord-hover\/50 { background-color: rgba(0,0,0,0.05) !important; }
+[data-theme="light"] .border-discord-hover\/20 { border-color: #dbdbdb !important; }
+[data-theme="light"] .border-discord-hover\/30 { border-color: #dbdbdb !important; }
+[data-theme="light"] .border-discord-hover\/50 { border-color: #dbdbdb !important; }
+[data-theme="light"] .divide-discord-hover\/20 > * + * { border-color: #efefef !important; }
+
+/* discord-bg opacity variants */
+[data-theme="light"] .bg-discord-bg\/20 { background-color: rgba(0,0,0,0.02) !important; }
+[data-theme="light"] .bg-discord-bg\/30 { background-color: rgba(0,0,0,0.02) !important; }
 [data-theme="light"] .bg-discord-bg\/95 { background-color: rgba(255,255,255,0.97) !important; }
 
-/* Feed post cards — white cards with border like IG */
+/* White text → dark text */
+[data-theme="light"] .text-white      { color: #262626 !important; }
+[data-theme="light"] .text-white\/10  { color: rgba(38,38,38,0.1) !important; }
+[data-theme="light"] .text-white\/20  { color: rgba(38,38,38,0.2) !important; }
+[data-theme="light"] .text-white\/25  { color: rgba(38,38,38,0.25) !important; }
+[data-theme="light"] .text-white\/30  { color: rgba(38,38,38,0.3) !important; }
+[data-theme="light"] .text-white\/40  { color: rgba(38,38,38,0.4) !important; }
+[data-theme="light"] .text-white\/50  { color: rgba(38,38,38,0.5) !important; }
+[data-theme="light"] .text-white\/60  { color: rgba(38,38,38,0.6) !important; }
+[data-theme="light"] .text-white\/70  { color: rgba(38,38,38,0.7) !important; }
+[data-theme="light"] .text-white\/80  { color: rgba(38,38,38,0.8) !important; }
+[data-theme="light"] .text-white\/90  { color: rgba(38,38,38,0.9) !important; }
+
+/* Post cards */
 [data-theme="light"] article {
   background-color: #ffffff !important;
   border-bottom-color: #dbdbdb !important;
 }
 
-/* White text → dark text in light mode */
-[data-theme="light"] .text-white           { color: #262626 !important; }
-[data-theme="light"] .text-white\/20       { color: rgba(38,38,38,0.2) !important; }
-[data-theme="light"] .text-white\/25       { color: rgba(38,38,38,0.3) !important; }
-[data-theme="light"] .text-white\/30       { color: rgba(38,38,38,0.35) !important; }
-[data-theme="light"] .text-white\/40       { color: rgba(38,38,38,0.45) !important; }
-[data-theme="light"] .text-white\/50       { color: rgba(38,38,38,0.5) !important; }
-[data-theme="light"] .text-white\/60       { color: rgba(38,38,38,0.6) !important; }
-[data-theme="light"] .text-white\/70       { color: rgba(38,38,38,0.7) !important; }
-[data-theme="light"] .text-white\/80       { color: rgba(38,38,38,0.8) !important; }
-
 /* Sticky headers */
-[data-theme="light"] .sticky,
-[data-theme="light"] [class*="sticky"] {
+[data-theme="light"] .sticky {
   background-color: rgba(255,255,255,0.97) !important;
   backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
   border-bottom-color: #dbdbdb !important;
 }
 
-/* Feed header "Home" title */
-[data-theme="light"] h1 { color: #262626 !important; }
+/* Desktop sidebar */
+[data-theme="light"] .discord-sidebar {
+  background: #ffffff !important;
+  border-right-color: #dbdbdb !important;
+}
 
-/* Stories bar bg */
-[data-theme="light"] .bg-discord-bg\/30 { background-color: rgba(255,255,255,0.9) !important; }
+/* Glass cards */
+[data-theme="light"] .glass-card {
+  background: rgba(255,255,255,0.95) !important;
+  border-color: #dbdbdb !important;
+}
 
-/* Profile page — stats cards, level cards */
-[data-theme="light"] .bg-discord-hover\/30,
-[data-theme="light"] .bg-discord-hover\/50 { background-color: rgba(0,0,0,0.04) !important; }
-[data-theme="light"] .bg-discord-hover\/10 { background-color: rgba(0,0,0,0.03) !important; }
-
-/* Profile cover gradient fallback */
-[data-theme="light"] .bg-gradient-to-r.from-discord-brand { background: linear-gradient(to right, #8b5cf6, #6d28d9) !important; }
-
-/* Supa premium banner in light mode */
-[data-theme="light"] .supa-profile-banner { background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(88,101,242,0.1)) !important; }
-
-/* XP / level bars */
-[data-theme="light"] .bg-discord-hover { background-color: #ebebeb !important; }
-
-/* Page-level layout wrappers that have inline bg styles we can't override */
-/* Feed content area */
-[data-theme="light"] .page-enter { background-color: #fafafa !important; }
-[data-theme="light"] .bg-discord-bg.page-enter { background-color: #fafafa !important; }
+/* App shell */
+[data-theme="light"] .app-shell       { background-color: #fafafa !important; }
+[data-theme="light"] .discord-main    { background-color: #fafafa !important; }
+[data-theme="light"] .page-enter      { background-color: #fafafa !important; }
 
 /* Dividers */
-[data-theme="light"] .divide-discord-hover\/20 > * + * { border-color: #efefef !important; }
-[data-theme="light"] hr, [data-theme="light"] .h-px.bg-discord-hover { background-color: #dbdbdb !important; }
+[data-theme="light"] .h-px            { background-color: #dbdbdb !important; }
 
-/* Badges, pills */
-[data-theme="light"] .bg-discord-brand\/10 { background-color: rgba(139,92,246,0.08) !important; }
-[data-theme="light"] .bg-discord-brand\/15 { background-color: rgba(139,92,246,0.1) !important; }
-[data-theme="light"] .bg-discord-brand\/20 { background-color: rgba(139,92,246,0.12) !important; }
-
-/* Reaction buttons etc */
-[data-theme="light"] .bg-white\/5.border-white\/10 { background-color: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.08) !important; }
-
-/* overflow-hidden sections that still show dark */
-[data-theme="light"] .discord-main > div { background-color: #fafafa; }
-
-/* ── Desktop sidebar light mode ─────────────────────────────────────── */
-[data-theme="light"] .discord-sidebar {
-  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%) !important;
-  border-right: 1px solid #dbdbdb !important;
-}
-/* Sidebar nav items */
-[data-theme="light"] .desktop-sidebar { background: #ffffff !important; border-right-color: #dbdbdb !important; }
-[data-theme="light"] .desktop-sidebar a,
-[data-theme="light"] .desktop-sidebar button { color: #555 !important; }
-[data-theme="light"] .desktop-sidebar a.bg-brand-primary,
-[data-theme="light"] .desktop-sidebar .bg-brand-primary { background: #8b5cf6 !important; color: #fff !important; }
-[data-theme="light"] .desktop-sidebar .text-discord-channel { color: #6b7280 !important; }
-[data-theme="light"] .desktop-sidebar .hover\:text-white:hover { color: #262626 !important; }
-/* Active sidebar item indicator line */
-[data-theme="light"] .desktop-sidebar .bg-brand-primary.text-white { color: #ffffff !important; }
-
-/* CreatePost box in light mode */
-[data-theme="light"] .bg-discord-bg\/20 { background-color: rgba(0,0,0,0.02) !important; }
-[data-theme="light"] .border-discord-hover\/30 { border-color: rgba(0,0,0,0.08) !important; }
-[data-theme="light"] .border-discord-hover\/50 { border-color: rgba(0,0,0,0.12) !important; }
-
-/* Post action buttons */
-[data-theme="light"] .text-brand-primary { color: #8b5cf6 !important; }
-
-/* Textarea placeholder */
-[data-theme="light"] textarea { color: #262626 !important; }
-
-/* App shell outer wrapper */
-[data-theme="light"] .app-shell { background-color: #fafafa !important; }
-[data-theme="light"] .discord-main { background-color: #fafafa !important; }
-
-/* Nav bottom circles */
+/* Nav circles */
 [data-theme="light"] .nav-btn {
   background: #ffffff !important;
   box-shadow: 0 2px 12px rgba(0,0,0,0.1), 0 0 0 1px #dbdbdb !important;
@@ -216,27 +146,19 @@
 }
 [data-theme="light"] .nav-btn svg,
 [data-theme="light"] .nav-btn-pill svg { color: #262626 !important; }
-
-/* Bottom nav container override */
 [data-theme="light"] .mobile-pill-nav {
   background: rgba(255,255,255,0.9) !important;
   border: 1px solid #dbdbdb !important;
-  border-top: 1px solid rgba(219,219,219,0.8) !important;
   box-shadow: 0 -2px 20px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.06) !important;
 }
 
-/* Context menus, popups */
-[data-theme="light"] .bg-discord-dark\/90,
-[data-theme="light"] .bg-discord-dark\/95 { background-color: rgba(255,255,255,0.96) !important; }
-
-/* Settings sidebar sections */
-[data-theme="light"] .bg-discord-sidebar.border { background: #ffffff !important; border-color: #dbdbdb !important; }
-[data-theme="light"] [class*="rounded-2xl"].bg-discord-sidebar,
-[data-theme="light"] [class*="rounded-xl"].bg-discord-sidebar { background: #ffffff !important; border-color: #dbdbdb !important; }
-
-/* Smooth transition for all color props */
+/* Smooth theme transition */
 *, *::before, *::after {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease, box-shadow 0.2s ease;
+}
+button, a {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease,
+              transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease, opacity 0.15s ease;
 }
 button, a {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease,
