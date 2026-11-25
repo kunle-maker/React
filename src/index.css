@@ -172,8 +172,36 @@
 /* overflow-hidden sections that still show dark */
 [data-theme="light"] .discord-main > div { background-color: #fafafa; }
 
-/* Nav bottom circles */
-[data-theme="light"] .nav-btn {
+/* ── Desktop sidebar light mode ─────────────────────────────────────── */
+[data-theme="light"] .discord-sidebar {
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%) !important;
+  border-right: 1px solid #dbdbdb !important;
+}
+/* Sidebar nav items */
+[data-theme="light"] .desktop-sidebar { background: #ffffff !important; border-right-color: #dbdbdb !important; }
+[data-theme="light"] .desktop-sidebar a,
+[data-theme="light"] .desktop-sidebar button { color: #555 !important; }
+[data-theme="light"] .desktop-sidebar a.bg-brand-primary,
+[data-theme="light"] .desktop-sidebar .bg-brand-primary { background: #8b5cf6 !important; color: #fff !important; }
+[data-theme="light"] .desktop-sidebar .text-discord-channel { color: #6b7280 !important; }
+[data-theme="light"] .desktop-sidebar .hover\:text-white:hover { color: #262626 !important; }
+/* Active sidebar item indicator line */
+[data-theme="light"] .desktop-sidebar .bg-brand-primary.text-white { color: #ffffff !important; }
+
+/* CreatePost box in light mode */
+[data-theme="light"] .bg-discord-bg\/20 { background-color: rgba(0,0,0,0.02) !important; }
+[data-theme="light"] .border-discord-hover\/30 { border-color: rgba(0,0,0,0.08) !important; }
+[data-theme="light"] .border-discord-hover\/50 { border-color: rgba(0,0,0,0.12) !important; }
+
+/* Post action buttons */
+[data-theme="light"] .text-brand-primary { color: #8b5cf6 !important; }
+
+/* Textarea placeholder */
+[data-theme="light"] textarea { color: #262626 !important; }
+
+/* App shell outer wrapper */
+[data-theme="light"] .app-shell { background-color: #fafafa !important; }
+[data-theme="light"] .discord-main { background-color: #fafafa !important; }
   background: #ffffff !important;
   box-shadow: 0 2px 12px rgba(0,0,0,0.1), 0 0 0 1px #dbdbdb !important;
   color: #262626 !important;
