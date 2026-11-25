@@ -31,8 +31,6 @@ export default function Feed({ currentUser, unreadCounts }) {
     muted:    isLight ? '#8e8e8e'                : 'rgba(255,255,255,0.3)',
     btnBg:    isLight ? 'rgba(0,0,0,0.04)'       : 'rgba(255,255,255,0.05)',
   };
-  const { theme } = useTheme();
-  const isLight = theme === 'light';
   const [tab, setTab] = useState('foryou');
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
