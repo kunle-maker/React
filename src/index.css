@@ -1896,13 +1896,8 @@ select.discord-input {
   border-color: #d1d5db !important;
 }
 
-/* ── Context / dropdown menus (bg-[#1e2030]) ─── */
-/* Used in VideoFullscreenModal, ImageFullscreenModal,
-   VideoMessage context menus */
-[data-theme="light"] .bg-\[#1e2030\] {
-  background-color: #ffffff !important;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06) !important;
-}
+/* ── Context / dropdown menus — now use inline style={{ background: '#1e2030' }}
+   so they always stay dark regardless of theme (used inside black fullscreen modals) ── */
 
 /* ── Waveform bars inside received voice notes ─── */
 /* bg-white/80 (filled bar) is fine in dark; in light it needs to be dark */
