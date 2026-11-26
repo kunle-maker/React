@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FiRefreshCw, FiCheck } from 'react-icons/fi';
+import { useNavigate, Link } from 'react-router-dom';
+import { FiRefreshCw, FiCheck, FiX, FiSearch, FiBell, FiUsers, FiZap, FiSettings, FiLogOut, FiCode, FiBookmark, FiUser } from 'react-icons/fi';
+import { MdGames } from 'react-icons/md';
 import { useTheme } from '../contexts/ThemeContext';
 import Layout from '../components/Layout';
 import PostCard from '../components/PostCard';
@@ -8,6 +9,7 @@ import CreatePost from '../components/CreatePost';
 import StoriesBar from '../components/StoriesBar';
 import StoryViewer from '../components/StoryViewer';
 import VideoFeed from '../components/VideoFeed';
+import Avatar from '../components/Avatar';
 import API from '../utils/api';
 
 function TwemojiImg({ emoji, size = 40 }) {
@@ -37,6 +39,7 @@ export default function Feed({ currentUser, unreadCounts }) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
   const loader = useRef(null);
 
   const [storyGroups, setStoryGroups] = useState([]);
@@ -136,9 +139,9 @@ export default function Feed({ currentUser, unreadCounts }) {
       {/* Orbix-style Header */}
       <div className="sticky top-0 z-20 backdrop-blur-xl" style={{ background: T.headerBg, borderBottom: `1px solid ${T.border}` }}>
         <div className="flex items-center justify-between px-4 h-14 max-w-2xl mx-auto">
-          {/* Left: hamburger / menu */}
+          {/* Left: hamburger — opens mobile sidebar */}
           <button
-            onClick={() => navigate('/settings')}
+            onClick={() => setShowSidebar(true)}
             className="w-9 h-9 flex items-center justify-center rounded-full transition-colors"
             style={{ color: T.text }}
           >
@@ -293,6 +296,94 @@ export default function Feed({ currentUser, unreadCounts }) {
         )}
         <div className="h-24" />
       </div>
+
+      {/* ── Mobile Sidebar Drawer ──────────────────────────────── */}
+      {showSidebar && (
+        <div className="fixed inset-0 z-[200] flex md:hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+            onClick={() => setShowSidebar(false)}
+          />
+
+          {/* Drawer panel */}
+          <div
+            className="relative w-72 max-w-[80vw] h-full flex flex-col animate-slide-in-left pb-safe"
+            style={{
+              background: isLight ? '#ffffff' : '#111318',
+              borderRight: isLight ? '1px solid #dbdbdb' : '1px solid rgba(255,255,255,0.07)',
+            }}
+          >
+            {/* User profile card */}
+            {currentUser && (
+              <div
+                className="flex items-center gap-3 px-5 pt-12 pb-5"
+                style={{ borderBottom: isLight ? '1px solid #efefef' : '1px solid rgba(255,255,255,0.06)' }}
+              >
+                <Avatar user={currentUser} size={48} />
+                <div className="min-w-0">
+                  <p className="font-bold text-discord-text text-sm truncate">{currentUser.name}</p>
+                  <p className="text-discord-muted text-xs truncate">@{currentUser.username}</p>
+                </div>
+                <button
+                  onClick={() => setShowSidebar(false)}
+                  className="ml-auto p-1.5 rounded-full text-discord-muted hover:text-discord-text transition-colors"
+                >
+                  <FiX size={18} />
+                </button>
+              </div>
+            )}
+
+            {/* Nav items */}
+            <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-1">
+              {[
+                { path: `/profile/${currentUser?.username}`, icon: FiUser,     label: 'My Profile' },
+                { path: '/search',        icon: FiSearch,   label: 'Search' },
+                { path: '/notifications', icon: FiBell,     label: 'Notifications', badge: unreadCounts.notifications },
+                { path: '/groups',        icon: FiUsers,    label: 'Groups',         badge: unreadCounts.groups },
+                { path: '/ai',            icon: FiZap,      label: 'AI Assistant' },
+                { path: '/game',          icon: MdGames,    label: 'Games' },
+                { path: '/developer',     icon: FiCode,     label: 'Developer' },
+                { path: '/settings',      icon: FiSettings, label: 'Settings' },
+              ].map(item => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setShowSidebar(false)}
+                  className="flex items-center gap-3.5 px-3.5 py-3 rounded-xl transition-colors text-discord-text hover:bg-discord-hover"
+                >
+                  <item.icon size={20} className="text-discord-muted flex-shrink-0" />
+                  <span className="font-semibold text-sm">{item.label}</span>
+                  {item.badge > 0 && (
+                    <span className="ml-auto bg-discord-brand text-white text-[10px] font-black min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </nav>
+
+            {/* Log out */}
+            <div
+              className="px-3 py-4"
+              style={{ borderTop: isLight ? '1px solid #efefef' : '1px solid rgba(255,255,255,0.06)' }}
+            >
+              <button
+                onClick={() => {
+                  localStorage.removeItem('token');
+                  localStorage.removeItem('user');
+                  window.dispatchEvent(new Event('authChange'));
+                  navigate('/login');
+                }}
+                className="flex items-center gap-3.5 px-3.5 py-3 rounded-xl transition-colors text-discord-red hover:bg-discord-red/10 w-full"
+              >
+                <FiLogOut size={20} className="flex-shrink-0" />
+                <span className="font-semibold text-sm">Log Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

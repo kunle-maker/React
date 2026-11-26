@@ -2024,3 +2024,12 @@ html[data-theme="light"][data-theme="light"] .app-shell,
 html[data-theme="light"][data-theme="light"] .page-enter {
   background-color: #fafafa !important;
 }
+
+/* Mobile sidebar slide-in from left */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+.animate-slide-in-left {
+  animation: slideInLeft 0.26s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
