@@ -118,6 +118,21 @@
   border-bottom-color: #dbdbdb !important;
 }
 
+/* ALL discord-* bg/text/border classes need !important fallbacks
+   because Tailwind may have cached the old build with hardcoded hex values */
+[data-theme="light"] .bg-discord-bg       { background-color: #fafafa !important; }
+[data-theme="light"] .bg-discord-sidebar  { background-color: #ffffff !important; }
+[data-theme="light"] .bg-discord-dark     { background-color: #f3f3f3 !important; }
+[data-theme="light"] .bg-discord-darker   { background-color: #e8e8e8 !important; }
+[data-theme="light"] .bg-discord-hover    { background-color: #f0f0f0 !important; }
+[data-theme="light"] .bg-discord-input    { background-color: #efefef !important; }
+[data-theme="light"] .text-discord-text   { color: #262626 !important; }
+[data-theme="light"] .text-discord-muted  { color: #8e8e8e !important; }
+[data-theme="light"] .text-discord-channel{ color: #555555 !important; }
+[data-theme="light"] .border-discord-hover{ border-color: #dbdbdb !important; }
+[data-theme="light"] .border-discord-darker{ border-color: #dbdbdb !important; }
+[data-theme="light"] .discord-input       { background: #efefef !important; color: #262626 !important; border-color: rgba(0,0,0,0.1) !important; }
+
 /* Sticky headers */
 [data-theme="light"] .sticky {
   background-color: rgba(255,255,255,0.97) !important;
