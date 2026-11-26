@@ -116,7 +116,7 @@ export default function LinkPreview({ text }) {
       className="block mt-2 group"
       onClick={e => e.stopPropagation()}
     >
-      <div className="flex rounded-xl overflow-hidden bg-[#1a1c23] border border-white/[0.06] hover:border-white/[0.12] transition-colors max-w-sm">
+      <div className="flex rounded-xl overflow-hidden bg-discord-dark border border-discord-hover hover:border-discord-hover/80 transition-colors max-w-sm">
         <div className="w-1 flex-shrink-0 bg-discord-brand rounded-l-xl" />
         <div className="flex flex-1 min-w-0 gap-3 p-3">
           <div className="flex-1 min-w-0">

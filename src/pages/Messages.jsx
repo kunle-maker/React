@@ -1729,7 +1729,9 @@ export default function Messages({ currentUser, unreadCounts }) {
                 {/* Bubble */}
                 <div
                   className={`relative px-3.5 py-2 text-[15px] leading-relaxed break-words
-                    ${mine ? 'bg-white text-[#111]' : 'bg-[#1c1c1e] text-white'}
+                    ${mine
+                      ? (isLight ? 'bg-white text-[#111] shadow-sm ring-1 ring-black/8' : 'bg-white text-[#111]')
+                      : (isLight ? 'bg-discord-dark text-discord-text' : 'bg-[#1c1c1e] text-white')}
                   `}
                   style={{ borderRadius }}
                 >
@@ -1760,7 +1762,7 @@ export default function Messages({ currentUser, unreadCounts }) {
                   {/* Reaction trigger on hover */}
                   {!msg.unsent && (
                     <button
-                      className={`absolute ${mine ? '-left-8' : '-right-8'} top-1 opacity-0 group-hover:opacity-100 transition-opacity bg-[#1c1c1e] border border-white/10 rounded-full p-1.5 text-white/50 hover:text-white z-10`}
+                      className={`absolute ${mine ? '-left-8' : '-right-8'} top-1 opacity-0 group-hover:opacity-100 transition-opacity bg-discord-dark border border-discord-hover rounded-full p-1.5 text-discord-muted hover:text-discord-text z-10`}
                       onClick={(e) => { e.stopPropagation(); setActiveReactionPicker(activeReactionPicker === msg._id ? null : msg._id); }}
                     >
                       <FiSmile size={13} />
@@ -1788,7 +1790,7 @@ export default function Messages({ currentUser, unreadCounts }) {
 
                 {/* Reaction picker popup */}
                 {activeReactionPicker === msg._id && (
-                  <div className="flex items-center gap-1 bg-[#1c1c1e] border border-white/10 rounded-full px-2 py-1.5 shadow-2xl mt-1 w-fit animate-fade-in" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-1 bg-discord-dark border border-discord-hover rounded-full px-2 py-1.5 shadow-2xl mt-1 w-fit animate-fade-in" onClick={e => e.stopPropagation()}>
                     {MSG_REACTIONS.map(emoji => (
                       <button key={emoji} onClick={() => handleReact(msg, emoji)} className="hover:scale-125 transition-transform active:scale-110 p-0.5 flex items-center justify-center"><TwemojiEmoji emoji={emoji} size={20} /></button>
                     ))}
@@ -1820,10 +1822,10 @@ export default function Messages({ currentUser, unreadCounts }) {
         })}
         {isTyping && (
           <div className="flex items-center gap-2 justify-start mt-3 pl-1">
-            <div className="bg-[#1c1c1e] rounded-[18px] px-4 py-3 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className="bg-discord-dark rounded-[18px] px-4 py-3 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-discord-muted animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-discord-muted animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-discord-muted animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
           </div>
         )}
@@ -1863,13 +1865,13 @@ export default function Messages({ currentUser, unreadCounts }) {
           <form onSubmit={handleSend} className="px-3 py-2">
             {/* Reply Preview */}
             {replyingTo && (
-              <div className="mb-2 px-3 py-2 bg-[#1c1c1e] rounded-xl flex items-center gap-3 animate-fade-in">
+              <div className="mb-2 px-3 py-2 bg-discord-dark border border-discord-hover rounded-xl flex items-center gap-3 animate-fade-in">
                 <div className="w-1 h-7 bg-discord-brand rounded-full flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-discord-brand mb-0.5 flex items-center gap-1">
                     <FiCornerUpLeft size={11} /> Replying to @{isSentByMe(replyingTo) ? currentUser.username : activeConv.username}
                   </p>
-                  <p className="text-xs text-white/40 truncate">
+                  <p className="text-xs text-discord-muted truncate">
                     {(replyingTo.text || '').replace(/^\[vx:[^\]]+\]\n?/, '').trim() || '📷 Photo'}
                   </p>
                 </div>
@@ -1881,44 +1883,44 @@ export default function Messages({ currentUser, unreadCounts }) {
 
             {/* Media Attachment Preview */}
             {mediaAttachment && (
-              <div className="mb-2 px-3 py-2 bg-[#1c1c1e] rounded-xl flex items-center gap-3 animate-fade-in">
+              <div className="mb-2 px-3 py-2 bg-discord-dark border border-discord-hover rounded-xl flex items-center gap-3 animate-fade-in">
                 {mediaAttachment.type === 'image' && (
                   <img src={mediaAttachment.dataUrl} className="w-14 h-14 rounded-lg object-cover cursor-pointer flex-shrink-0" onClick={() => { setPendingImageSrc(mediaAttachment.dataUrl); setShowCropModal(true); }} />
                 )}
                 {mediaAttachment.type === 'video' && (
-                  <div className="w-14 h-14 rounded-lg bg-black/60 flex items-center justify-center flex-shrink-0">
-                    <FiPlay size={18} className="text-white/70" />
+                  <div className="w-14 h-14 rounded-lg bg-discord-hover flex items-center justify-center flex-shrink-0">
+                    <FiPlay size={18} className="text-discord-muted" />
                   </div>
                 )}
                 {mediaAttachment.type === 'audio' && (
-                  <div className="w-14 h-14 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                    <FiMic size={18} className="text-white/70" />
+                  <div className="w-14 h-14 rounded-lg bg-discord-hover flex items-center justify-center flex-shrink-0">
+                    <FiMic size={18} className="text-discord-muted" />
                   </div>
                 )}
                 {mediaAttachment.type === 'file' && (
-                  <div className="w-14 h-14 rounded-lg bg-white/6 flex items-center justify-center flex-shrink-0">
-                    <FiFile size={18} className="text-white/50" />
+                  <div className="w-14 h-14 rounded-lg bg-discord-hover flex items-center justify-center flex-shrink-0">
+                    <FiFile size={18} className="text-discord-muted" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-white truncate">{mediaAttachment.filename}</p>
-                  <p className="text-xs text-white/40 capitalize">{mediaAttachment.type} · {(mediaAttachment.size / 1024).toFixed(1)} KB</p>
+                  <p className="text-sm font-bold text-discord-text truncate">{mediaAttachment.filename}</p>
+                  <p className="text-xs text-discord-muted capitalize">{mediaAttachment.type} · {(mediaAttachment.size / 1024).toFixed(1)} KB</p>
                 </div>
-                <button type="button" onClick={() => setMediaAttachment(null)} className="p-2 text-white/40 hover:text-white flex-shrink-0"><FiX size={18} /></button>
+                <button type="button" onClick={() => setMediaAttachment(null)} className="p-2 text-discord-muted hover:text-discord-text flex-shrink-0"><FiX size={18} /></button>
               </div>
             )}
 
             {/* Recording overlay */}
             {isRecording ? (
-              <div className="flex items-center gap-3 bg-[#1c1c1e] rounded-2xl px-4 py-3 min-h-[48px]">
+              <div className="flex items-center gap-3 bg-discord-dark border border-discord-hover rounded-2xl px-4 py-3 min-h-[48px]">
                 {/* Red pulsing dot */}
                 <span className={`w-2.5 h-2.5 rounded-full bg-red-500 flex-shrink-0 ${recordingState === 'recording' ? 'animate-pulse' : 'opacity-40'}`} />
-                <span className={`text-sm font-medium flex-shrink-0 ${recordingState === 'cancelling' ? 'text-red-400' : 'text-white'}`}>
+                <span className={`text-sm font-medium flex-shrink-0 ${recordingState === 'cancelling' ? 'text-red-400' : 'text-discord-text'}`}>
                   {recordingState === 'cancelling' ? 'Release to cancel' : 'Recording...'}
                 </span>
-                <span className="text-white/40 font-mono text-sm flex-shrink-0">{recordDuration}s</span>
+                <span className="text-discord-muted font-mono text-sm flex-shrink-0">{recordDuration}s</span>
                 {recordingState === 'recording' && (
-                  <span className="text-white/25 text-xs ml-auto">← Slide to cancel</span>
+                  <span className="text-discord-muted text-xs ml-auto opacity-60">← Slide to cancel</span>
                 )}
                 <button
                   type="button"
@@ -1926,7 +1928,7 @@ export default function Messages({ currentUser, unreadCounts }) {
                   onTouchMove={handleMicTouchMove}
                   onTouchEnd={handleMicTouchEnd}
                   onClick={() => stopRecording(false)}
-                  className={`ml-auto w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${recordingState === 'cancelling' ? 'bg-red-500/20 text-red-400' : 'bg-white/10 text-white'}`}
+                  className={`ml-auto w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${recordingState === 'cancelling' ? 'bg-red-500/20 text-red-400' : 'bg-discord-hover text-discord-text'}`}
                 >
                   <FiMic size={18} />
                 </button>

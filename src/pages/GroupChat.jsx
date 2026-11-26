@@ -8,6 +8,7 @@ import { format, isToday, isYesterday } from 'date-fns';
 import Layout from '../components/Layout';
 import Avatar from '../components/Avatar';
 import FormattedText from '../components/FormattedText';
+import { useTheme } from '../contexts/ThemeContext';
 import LinkPreview from '../components/LinkPreview';
 import EmojiStickerPicker from '../components/EmojiStickerPicker';
 import { parseEmojisToHtml } from '../utils/emoji';
@@ -178,6 +179,18 @@ function CopiedToast({ show }) {
 export default function GroupChat({ currentUser, unreadCounts }) {
   const { groupId } = useParams();
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+
+  // Theme-aware tokens for GroupChat (mirrors Messages.jsx T object)
+  const pageBg    = isLight ? '#fafafa'                : '#0a0b10';
+  const headerBg  = isLight ? 'rgba(255,255,255,0.97)' : 'rgba(0,0,0,0.9)';
+  const inputBg   = isLight ? 'rgba(255,255,255,0.97)' : 'rgba(0,0,0,0.9)';
+  const bubbleRx  = isLight ? 'bg-discord-dark text-discord-text' : 'bg-[#1c1c1e] text-white';
+  const inputField= isLight ? '#efefef'                : 'rgba(255,255,255,0.06)';
+  const inputBorder= isLight ? 'rgba(0,0,0,0.1)'      : 'rgba(255,255,255,0.08)';
+  const reactBg   = isLight ? 'bg-discord-hover'       : 'bg-[#1c1c1e]';
+  const typingBg  = isLight ? 'bg-discord-dark'        : 'bg-[#1c1c1e]';
   const [group, setGroup] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMsg, setNewMsg] = useState('');
@@ -746,9 +759,9 @@ export default function GroupChat({ currentUser, unreadCounts }) {
 
   return (
     <Layout currentUser={currentUser} unreadCounts={unreadCounts} contentClass="overflow-hidden">
-      <div className="flex flex-col h-full relative bg-black overflow-hidden">
+      <div className="flex flex-col h-full relative overflow-hidden" style={{ background: pageBg }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-3 h-14 bg-black z-20 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="flex items-center justify-between px-3 h-14 z-20 flex-shrink-0" style={{ background: headerBg, borderBottom: isLight ? '1px solid #dbdbdb' : '1px solid rgba(255,255,255,0.07)' }}>
           <div className="flex items-center gap-3 min-w-0">
             <button className="text-discord-muted hover:text-discord-text transition-colors -ml-1 p-1" onClick={() => navigate('/groups')}>
               <FiArrowLeft size={22} />
@@ -836,7 +849,8 @@ export default function GroupChat({ currentUser, unreadCounts }) {
         {/* Messages */}
         <div
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto px-3 py-2 scroll-smooth no-scrollbar bg-black"
+          className="flex-1 overflow-y-auto px-3 py-2 scroll-smooth no-scrollbar"
+          style={{ background: pageBg }}
           onScroll={handleScroll}
           onClick={() => { if (showEmojiPicker) setShowEmojiPicker(false); }}
         >
@@ -916,7 +930,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                     </span>
                   )}
                   <div
-                    className={`relative px-3.5 py-2 text-[15px] leading-relaxed break-words ${mine ? 'bg-white text-[#111]' : 'bg-[#1c1c1e] text-white'}`}
+                    className={`relative px-3.5 py-2 text-[15px] leading-relaxed break-words ${mine ? 'bg-white text-[#111]' : bubbleRx}`}
                     style={{ borderRadius }}
                   >
                     {isEditing ? (
@@ -943,7 +957,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                           return <FormattedText text={text} />;
                         })()}
                         {msg.edited && <span className={`text-[10px] ml-1 select-none ${mine ? 'text-[#666]' : 'text-white/40'}`}>(edited)</span>}
-                        {!msg.unsent && (<button className={`absolute ${mine ? '-left-8' : '-right-8'} top-0 opacity-0 group-hover:opacity-100 transition-opacity bg-[#1c1c1e] border border-white/10 rounded-full p-1.5 text-white/50 hover:text-white z-10`} onClick={(e) => { e.stopPropagation(); setActiveReactionPicker(activeReactionPicker === msg._id ? null : msg._id); }}><FiSmile size={13} /></button>)}
+                        {!msg.unsent && (<button className={`absolute ${mine ? '-left-8' : '-right-8'} top-0 opacity-0 group-hover:opacity-100 transition-opacity ${reactBg} border border-discord-hover rounded-full p-1.5 text-discord-muted hover:text-discord-text z-10`} onClick={(e) => { e.stopPropagation(); setActiveReactionPicker(activeReactionPicker === msg._id ? null : msg._id); }}><FiSmile size={13} /></button>)}
                       </div>
                     )}
                   </div>
@@ -956,7 +970,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                       })}
                     </div>
                   )}
-                  {activeReactionPicker === msg._id && (<div className="flex items-center gap-1 bg-[#1c1c1e] border border-white/10 rounded-full px-2 py-1.5 shadow-2xl mt-1 w-fit animate-fade-in" onClick={e => e.stopPropagation()}>{MSG_REACTIONS.map(emoji => (<button key={emoji} onClick={() => handleReactGroup(msg, emoji)} className="hover:scale-125 transition-transform p-0.5"><TwemojiEmoji emoji={emoji} size={20} /></button>))}</div>)}
+                  {activeReactionPicker === msg._id && (<div className={`flex items-center gap-1 ${reactBg} border border-discord-hover rounded-full px-2 py-1.5 shadow-2xl mt-1 w-fit animate-fade-in`} onClick={e => e.stopPropagation()}>{MSG_REACTIONS.map(emoji => (<button key={emoji} onClick={() => handleReactGroup(msg, emoji)} className="hover:scale-125 transition-transform p-0.5"><TwemojiEmoji emoji={emoji} size={20} /></button>))}</div>)}
                   {!hasNextSameSender && (<div className={`flex items-center gap-1 mt-0.5 px-1 ${mine ? 'justify-end' : 'justify-start'}`}><span className="text-[10px] text-white/30">{msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}</span></div>)}
                   {!msg.unsent && msg.text && !msg.text.startsWith('[vx:') && <LinkPreview text={msg.text} />}
                 </div>
@@ -964,10 +978,10 @@ export default function GroupChat({ currentUser, unreadCounts }) {
             );
           })}          {typingUsers.length > 0 && (
             <div className="flex items-center gap-2 justify-start mt-3 pl-1">
-              <div className="bg-[#1c1c1e] rounded-[18px] px-4 py-3 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className={`${typingBg} rounded-[18px] px-4 py-3 flex items-center gap-1`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-discord-muted animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-discord-muted animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-discord-muted animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             </div>
           )}
@@ -994,7 +1008,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
 
         {/* Input */}
         {canPost && (
-          <div className={`flex flex-col flex-shrink-0 bg-black transition-all duration-300 ${showEmojiPicker ? 'pb-0' : 'pb-safe'}`}>
+          <div className="flex flex-col flex-shrink-0 transition-all duration-300" style={{ background: inputBg, borderTop: isLight ? '1px solid #dbdbdb' : '1px solid rgba(255,255,255,0.07)' }}>
             <form onSubmit={handleSend} className="px-4 py-3">
               {/* Reply Preview */}
               {replyingTo && (
@@ -1061,7 +1075,8 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                 </div>
               )}
 
-              <div className="flex items-end gap-2 bg-[#1c1c1e] rounded-2xl px-3 py-2 min-h-[48px]">
+              <div className="flex items-end gap-2 rounded-2xl px-3 py-2 min-h-[48px]"
+                style={{ background: inputField, border: `1px solid ${inputBorder}` }}>
                 {!group?.textOnly && (
                   <button
                     type="button"
