@@ -121,6 +121,20 @@
   border-right-color: #dbdbdb !important;
 }
 
+/* Sidebar nav item hover — theme-aware */
+.sidebar-nav-inactive {
+  color: var(--vx-channel);
+}
+.sidebar-nav-inactive:hover {
+  background-color: rgba(139,92,246,0.12);
+  color: #8b5cf6;
+  border-radius: 0.75rem;
+}
+[data-theme="light"] .sidebar-nav-inactive:hover {
+  background-color: rgba(139,92,246,0.1);
+  color: #7c3aed;
+}
+
 /* Glass cards */
 [data-theme="light"] .glass-card {
   background: rgba(255,255,255,0.95) !important;

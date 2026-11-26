@@ -113,7 +113,7 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
               <Link
                 to={item.path}
                 aria-label={item.label}
-                className={`relative w-full h-12 flex items-center ${isSidebarExpanded ? 'justify-start px-3 gap-3' : 'justify-center'} rounded-2xl hover:rounded-xl transition-all duration-200 ${active ? 'bg-brand-primary text-white rounded-xl shadow-lg' : 'text-discord-channel hover:text-white hover:bg-brand-primary/10'}`}
+                className={`relative w-full h-12 flex items-center ${isSidebarExpanded ? 'justify-start px-3 gap-3' : 'justify-center'} rounded-2xl hover:rounded-xl transition-all duration-200 ${active ? 'bg-brand-primary text-white rounded-xl shadow-lg' : 'text-discord-channel sidebar-nav-inactive'}`}
               >
                 <Icon size={22} className="flex-shrink-0" />
                 {isSidebarExpanded && (
