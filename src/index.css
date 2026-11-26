@@ -77,17 +77,10 @@
 /* discord-bg opacity variants */
 /* (now handled by the high-specificity block above) */
 
-/* Also fix dark mode opacity modifiers that break with var() — dark mode only */
-html:not([data-theme="light"]) .bg-discord-bg\/95 { background-color: rgba(13,15,20,0.95); }
-html:not([data-theme="light"]) .bg-discord-bg\/20 { background-color: rgba(13,15,20,0.2); }
-html:not([data-theme="light"]) .bg-discord-hover\/10 { background-color: rgba(30,32,40,0.1); }
-html:not([data-theme="light"]) .bg-discord-hover\/20 { background-color: rgba(30,32,40,0.2); }
-html:not([data-theme="light"]) .bg-discord-hover\/30 { background-color: rgba(30,32,40,0.3); }
-html:not([data-theme="light"]) .bg-discord-hover\/50 { background-color: rgba(30,32,40,0.5); }
-html:not([data-theme="light"]) .border-discord-hover\/20 { border-color: rgba(30,32,40,0.2); }
-html:not([data-theme="light"]) .border-discord-hover\/30 { border-color: rgba(30,32,40,0.3); }
-html:not([data-theme="light"]) .border-discord-hover\/50 { border-color: rgba(30,32,40,0.5); }
-html:not([data-theme="light"]) .divide-discord-hover\/20 > * + * { border-color: rgba(30,32,40,0.2); }
+/* Dark mode opacity modifiers — these are handled by CSS variables automatically.
+   The explicit overrides below are only needed for Tailwind opacity-modifier classes
+   that Tailwind cannot generate from var() colors (e.g. bg-discord-hover/30).
+   We only need the LIGHT mode overrides; dark mode works via CSS vars. */
 
 /* White text → dark text */
 [data-theme="light"] .text-white      { color: #262626 !important; }
@@ -1343,20 +1336,9 @@ button, a {
 
 /* GLOBAL ENHANCEMENTS */
 
-/* Card depth for modals and sheets — dark mode only */
-html:not([data-theme="light"]) .bg-discord-sidebar {
-  background: linear-gradient(145deg, #111318, #0d0f14);
-  border: 1px solid rgba(255,255,255,0.06);
-}
+/* Card depth for modals and sheets — handled by CSS variable --vx-sidebar */
 
-/* bg-discord-bg dark mode only (light mode uses CSS var #fafafa via html[data-theme="light"] rule) */
-html:not([data-theme="light"]) .bg-discord-bg {
-  background-color: #0d0f14;
-}
-
-html:not([data-theme="light"]) .bg-discord-bg\/95 {
-  background: rgba(13, 15, 20, 0.95);
-}
+/* bg-discord-bg, border-discord-hover, bg-discord-input — handled by CSS variables */
 
 /* Sticky header glass effect */
 .sticky {
@@ -1364,10 +1346,7 @@ html:not([data-theme="light"]) .bg-discord-bg\/95 {
   -webkit-backdrop-filter: blur(16px) saturate(180%);
 }
 
-/* Better border colors — dark mode only */
-html:not([data-theme="light"]) .border-discord-hover {
-  border-color: rgba(255,255,255,0.06);
-}
+/* border-discord-hover, bg-discord-input, hover:bg-discord-hover — handled by CSS variables */
 
 /* Tabs active indicator enhancement */
 .border-discord-brand {
@@ -1381,21 +1360,12 @@ html:not([data-theme="light"]) .border-discord-hover {
   box-shadow: 0 2px 12px rgba(88,101,242,0.3);
 }
 
-/* bg-discord-input dark mode only */
-html:not([data-theme="light"]) .bg-discord-input {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.07);
-}
+/* bg-discord-input, hover:bg-discord-hover — handled by CSS variables */
 
 /* Active conversation highlight */
 .bg-discord-active {
   background: linear-gradient(135deg, rgba(88,101,242,0.15), rgba(88,101,242,0.08)) !important;
   border-left: 2px solid #5865f2;
-}
-
-/* Hover states — dark mode only */
-html:not([data-theme="light"]) .hover\:bg-discord-hover:hover {
-  background: rgba(255,255,255,0.05);
 }
 
 /* Profile cover gradient enhancement */
