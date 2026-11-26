@@ -14,6 +14,7 @@ import API from '../utils/api';
 import { showToast } from '../utils/toast';
 import ImageCropModal from '../components/ImageCropModal';
 import { parseEmojisToHtml } from '../utils/emoji';
+import { useTheme } from '../contexts/ThemeContext';
 
 function twemojiUrl(emoji) {
   const cps = [...emoji].map(c => c.codePointAt(0).toString(16)).filter(cp => parseInt(cp, 16) !== 0xfe0f);
@@ -54,6 +55,8 @@ const BOT_PROFILES = {
 export default function Profile({ currentUser, unreadCounts }) {
   const { username } = useParams();
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -821,7 +824,7 @@ export default function Profile({ currentUser, unreadCounts }) {
                 <div
                   key={post._id}
                   onClick={() => navigate(`/post/${post._id}`)}
-                  style={{ position: 'relative', aspectRatio: '1 / 1', overflow: 'hidden', cursor: 'pointer', background: '#111318' }}
+                  style={{ position: 'relative', aspectRatio: '1 / 1', overflow: 'hidden', cursor: 'pointer', background: isLight ? '#f0f0f0' : '#111318' }}
                 >
                   {hasMedia ? (
                     isVideo ? (
@@ -840,8 +843,8 @@ export default function Profile({ currentUser, unreadCounts }) {
                       />
                     )
                   ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#16181f' }}>
-                      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: '1.4', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: isLight ? '#e8e8e8' : '#16181f' }}>
+                      <p style={{ fontSize: '11px', color: isLight ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: '1.4', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
                         {post.content}
                       </p>
                     </div>
@@ -1024,7 +1027,7 @@ export default function Profile({ currentUser, unreadCounts }) {
                     <div
                       key={post._id}
                       onClick={() => navigate(`/post/${post._id}`)}
-                      style={{ position: 'relative', aspectRatio: '1 / 1', overflow: 'hidden', cursor: 'pointer', background: '#111318' }}
+                      style={{ position: 'relative', aspectRatio: '1 / 1', overflow: 'hidden', cursor: 'pointer', background: isLight ? '#f0f0f0' : '#111318' }}
                     >
                       {hasMedia ? (
                         isVideo ? (
@@ -1043,8 +1046,8 @@ export default function Profile({ currentUser, unreadCounts }) {
                           />
                         )
                       ) : (
-                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#16181f' }}>
-                          <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: '1.4', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: isLight ? '#e8e8e8' : '#16181f' }}>
+                          <p style={{ fontSize: '11px', color: isLight ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: '1.4', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
                             {post.content}
                           </p>
                         </div>

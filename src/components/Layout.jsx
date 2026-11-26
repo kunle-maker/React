@@ -5,6 +5,7 @@ import { HiHome, HiChatAlt2, HiUsers, HiBell } from 'react-icons/hi';
 import { MdGames } from 'react-icons/md';
 import Avatar from './Avatar';
 import { useI18n } from '../contexts/I18nContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 function VLogo({ size = 32 }) {
   return (
@@ -35,6 +36,20 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useI18n();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+
+  // Theme-aware pill/circle nav button backgrounds
+  const navCircleBg   = isLight ? 'rgba(255,255,255,0.95)' : 'rgba(18,18,26,0.96)';
+  const navCircleShadow = isLight
+    ? '0 2px 12px rgba(0,0,0,0.1), 0 0 0 1px #dbdbdb'
+    : '0 4px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)';
+  const navPillBg     = isLight ? 'rgba(255,255,255,0.95)' : 'rgba(18,18,26,0.96)';
+  const navPillShadow = isLight
+    ? '0 2px 12px rgba(0,0,0,0.1), 0 0 0 1px #dbdbdb'
+    : '0 4px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)';
+  const navIconColor  = isLight ? 'text-gray-600' : 'text-white/75';
+  const navTextColor  = isLight ? '#262626' : '#ffffff';
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
@@ -234,11 +249,11 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
             className="nav-btn relative flex items-center justify-center flex-shrink-0"
             style={{
               width: 48, height: 48, borderRadius: '50%',
-              background: 'rgba(18,18,26,0.96)',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)',
+              background: navCircleBg,
+              boxShadow: navCircleShadow,
             }}
           >
-            <FiMessageSquare size={19} className="text-white/75" />
+            <FiMessageSquare size={19} className={navIconColor} />
             {(unreadCounts.messages || 0) > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-0.5 rounded-full bg-blue-500 text-white text-[8px] font-black flex items-center justify-center leading-none">
                 {unreadCounts.messages > 9 ? '9+' : unreadCounts.messages}
@@ -258,16 +273,16 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
                 paddingLeft: 16,
                 paddingRight: 18,
                 borderRadius: 28,
-                background: 'rgba(18,18,26,0.96)',
-                boxShadow: '0 4px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)',
+                background: navPillBg,
+                boxShadow: navPillShadow,
               }}
             >
               {location.pathname === '/' ? (
-                <HiHome size={20} className="text-white" />
+                <HiHome size={20} style={{ color: navTextColor }} />
               ) : (
-                <FiHome size={18} className="text-white/65" />
+                <FiHome size={18} style={{ color: isLight ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.65)' }} />
               )}
-              <span className="text-[13.5px] font-bold text-white">Home</span>
+              <span className="text-[13.5px] font-bold" style={{ color: navTextColor }}>Home</span>
             </Link>
 
             {/* Blue + FAB button */}
@@ -296,10 +311,10 @@ export default function Layout({ children, currentUser, unreadCounts = {}, conte
               className="nav-btn relative flex items-center justify-center flex-shrink-0 overflow-hidden"
               style={{
                 width: 48, height: 48, borderRadius: '50%',
-                background: 'rgba(18,18,26,0.96)',
+                background: navCircleBg,
                 boxShadow: isActive(`/profile/${currentUser.username}`)
-                  ? '0 4px 24px rgba(0,0,0,0.6), 0 0 0 2px rgba(255,255,255,0.25)'
-                  : '0 4px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)',
+                  ? (isLight ? '0 2px 12px rgba(0,0,0,0.1), 0 0 0 2px rgba(139,92,246,0.5)' : '0 4px 24px rgba(0,0,0,0.6), 0 0 0 2px rgba(255,255,255,0.25)')
+                  : navCircleShadow,
               }}
             >
               <Avatar user={currentUser} size={48} />

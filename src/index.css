@@ -72,32 +72,22 @@
 [data-theme="light"] .border-white\/10 { border-color: #dbdbdb !important; }
 [data-theme="light"] .border-white\/20 { border-color: #dbdbdb !important; }
 
-/* discord-hover opacity variants (not in tailwind config) */
-[data-theme="light"] .bg-discord-hover\/10 { background-color: rgba(0,0,0,0.03) !important; }
-[data-theme="light"] .bg-discord-hover\/20 { background-color: rgba(0,0,0,0.04) !important; }
-[data-theme="light"] .bg-discord-hover\/30 { background-color: rgba(0,0,0,0.04) !important; }
-[data-theme="light"] .bg-discord-hover\/50 { background-color: rgba(0,0,0,0.05) !important; }
-[data-theme="light"] .border-discord-hover\/20 { border-color: #dbdbdb !important; }
-[data-theme="light"] .border-discord-hover\/30 { border-color: #dbdbdb !important; }
-[data-theme="light"] .border-discord-hover\/50 { border-color: #dbdbdb !important; }
-[data-theme="light"] .divide-discord-hover\/20 > * + * { border-color: #efefef !important; }
+/* discord-hover opacity variants (now handled by the high-specificity block above) */
 
 /* discord-bg opacity variants */
-[data-theme="light"] .bg-discord-bg\/20 { background-color: rgba(0,0,0,0.02) !important; }
-[data-theme="light"] .bg-discord-bg\/30 { background-color: rgba(0,0,0,0.02) !important; }
-[data-theme="light"] .bg-discord-bg\/95 { background-color: rgba(255,255,255,0.97) !important; }
+/* (now handled by the high-specificity block above) */
 
-/* Also fix dark mode opacity modifiers that break with var() */
-.bg-discord-bg\/95 { background-color: rgba(13,15,20,0.95); }
-.bg-discord-bg\/20 { background-color: rgba(13,15,20,0.2); }
-.bg-discord-hover\/10 { background-color: rgba(30,32,40,0.1); }
-.bg-discord-hover\/20 { background-color: rgba(30,32,40,0.2); }
-.bg-discord-hover\/30 { background-color: rgba(30,32,40,0.3); }
-.bg-discord-hover\/50 { background-color: rgba(30,32,40,0.5); }
-.border-discord-hover\/20 { border-color: rgba(30,32,40,0.2); }
-.border-discord-hover\/30 { border-color: rgba(30,32,40,0.3); }
-.border-discord-hover\/50 { border-color: rgba(30,32,40,0.5); }
-.divide-discord-hover\/20 > * + * { border-color: rgba(30,32,40,0.2); }
+/* Also fix dark mode opacity modifiers that break with var() — dark mode only */
+html:not([data-theme="light"]) .bg-discord-bg\/95 { background-color: rgba(13,15,20,0.95); }
+html:not([data-theme="light"]) .bg-discord-bg\/20 { background-color: rgba(13,15,20,0.2); }
+html:not([data-theme="light"]) .bg-discord-hover\/10 { background-color: rgba(30,32,40,0.1); }
+html:not([data-theme="light"]) .bg-discord-hover\/20 { background-color: rgba(30,32,40,0.2); }
+html:not([data-theme="light"]) .bg-discord-hover\/30 { background-color: rgba(30,32,40,0.3); }
+html:not([data-theme="light"]) .bg-discord-hover\/50 { background-color: rgba(30,32,40,0.5); }
+html:not([data-theme="light"]) .border-discord-hover\/20 { border-color: rgba(30,32,40,0.2); }
+html:not([data-theme="light"]) .border-discord-hover\/30 { border-color: rgba(30,32,40,0.3); }
+html:not([data-theme="light"]) .border-discord-hover\/50 { border-color: rgba(30,32,40,0.5); }
+html:not([data-theme="light"]) .divide-discord-hover\/20 > * + * { border-color: rgba(30,32,40,0.2); }
 
 /* White text → dark text */
 [data-theme="light"] .text-white      { color: #262626 !important; }
@@ -119,40 +109,54 @@
 }
 
 /* Comment sheet bottom panel */
-[data-theme="light"] .sheet-slide-up,
-[data-theme="light"] [class*="rounded-t-3xl"].bg-discord-sidebar,
-[data-theme="light"] [class*="rounded-t-3xl"].bg-discord-dark {
+html[data-theme="light"][data-theme="light"] .sheet-slide-up,
+html[data-theme="light"][data-theme="light"] [class*="rounded-t-3xl"].bg-discord-sidebar,
+html[data-theme="light"][data-theme="light"] [class*="rounded-t-3xl"].bg-discord-dark {
   background-color: #ffffff !important;
 }
 /* Comment input area */
-[data-theme="light"] [class*="bg-discord-hover\/30"],
-[data-theme="light"] [class*="bg-discord-hover\/20"] {
+html[data-theme="light"][data-theme="light"] [class*="bg-discord-hover\/30"],
+html[data-theme="light"][data-theme="light"] [class*="bg-discord-hover\/20"] {
   background-color: rgba(0,0,0,0.04) !important;
 }
 
 /* Bio link pills on profile */
-[data-theme="light"] a.bg-discord-sidebar,
-[data-theme="light"] [class*="bg-discord-sidebar"][class*="border-discord-hover"] {
+html[data-theme="light"][data-theme="light"] a.bg-discord-sidebar,
+html[data-theme="light"][data-theme="light"] [class*="bg-discord-sidebar"][class*="border-discord-hover"] {
   background-color: #f3f3f3 !important;
   border-color: #dbdbdb !important;
   color: #262626 !important;
 }
 
-/* ALL discord-* bg/text/border classes — maximum specificity override */
-html[data-theme="light"] .bg-discord-bg       { background-color: #fafafa !important; }
-html[data-theme="light"] .bg-discord-sidebar  { background-color: #ffffff !important; }
-html[data-theme="light"] .bg-discord-dark     { background-color: #f3f3f3 !important; }
-html[data-theme="light"] .bg-discord-darker   { background-color: #e8e8e8 !important; }
-html[data-theme="light"] .bg-discord-hover    { background-color: #f0f0f0 !important; }
-html[data-theme="light"] .bg-discord-input    { background-color: #efefef !important; }
-html[data-theme="light"] .text-discord-text   { color: #262626 !important; }
-html[data-theme="light"] .text-discord-muted  { color: #8e8e8e !important; }
-html[data-theme="light"] .text-discord-channel{ color: #555555 !important; }
-html[data-theme="light"] .border-discord-hover { border-color: #dbdbdb !important; }
-html[data-theme="light"] .border-discord-darker{ border-color: #dbdbdb !important; }
-html[data-theme="light"] .discord-input       { background: #efefef !important; color: #262626 !important; border-color: rgba(0,0,0,0.1) !important; }
+/* ALL discord-* bg/text/border classes — high-specificity light mode override
+   Double attribute selector gives (0,2,1) vs :not()'s (0,1,1) — always wins */
+html[data-theme="light"][data-theme="light"] .bg-discord-bg       { background-color: #fafafa !important; }
+html[data-theme="light"][data-theme="light"] .bg-discord-sidebar  { background-color: #ffffff !important; }
+html[data-theme="light"][data-theme="light"] .bg-discord-dark     { background-color: #f3f3f3 !important; }
+html[data-theme="light"][data-theme="light"] .bg-discord-darker   { background-color: #e8e8e8 !important; }
+html[data-theme="light"][data-theme="light"] .bg-discord-hover    { background-color: #f0f0f0 !important; }
+html[data-theme="light"][data-theme="light"] .bg-discord-input    { background-color: #efefef !important; }
+html[data-theme="light"][data-theme="light"] .text-discord-text   { color: #262626 !important; }
+html[data-theme="light"][data-theme="light"] .text-discord-muted  { color: #8e8e8e !important; }
+html[data-theme="light"][data-theme="light"] .text-discord-channel{ color: #555555 !important; }
+html[data-theme="light"][data-theme="light"] .border-discord-hover { border-color: #dbdbdb !important; }
+html[data-theme="light"][data-theme="light"] .border-discord-darker{ border-color: #dbdbdb !important; }
+html[data-theme="light"][data-theme="light"] .discord-input       { background: #efefef !important; color: #262626 !important; border-color: rgba(0,0,0,0.1) !important; }
+html[data-theme="light"][data-theme="light"] .bg-discord-bg\/20   { background-color: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"][data-theme="light"] .bg-discord-bg\/30   { background-color: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"][data-theme="light"] .bg-discord-bg\/95   { background-color: rgba(255,255,255,0.97) !important; }
+html[data-theme="light"][data-theme="light"] .bg-discord-dark\/50 { background-color: rgba(0,0,0,0.04) !important; }
+html[data-theme="light"][data-theme="light"] .bg-discord-hover\/10 { background-color: rgba(0,0,0,0.03) !important; }
+html[data-theme="light"][data-theme="light"] .bg-discord-hover\/20 { background-color: rgba(0,0,0,0.04) !important; }
+html[data-theme="light"][data-theme="light"] .bg-discord-hover\/30 { background-color: rgba(0,0,0,0.04) !important; }
+html[data-theme="light"][data-theme="light"] .bg-discord-hover\/40 { background-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"][data-theme="light"] .bg-discord-hover\/50 { background-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"][data-theme="light"] .border-discord-hover\/20 { border-color: #dbdbdb !important; }
+html[data-theme="light"][data-theme="light"] .border-discord-hover\/30 { border-color: #dbdbdb !important; }
+html[data-theme="light"][data-theme="light"] .border-discord-hover\/40 { border-color: #e0e0e0 !important; }
+html[data-theme="light"][data-theme="light"] .border-discord-hover\/50 { border-color: #dbdbdb !important; }
 /* Sticky headers */
-[data-theme="light"] .sticky {
+html[data-theme="light"][data-theme="light"] .sticky {
   background-color: rgba(255,255,255,0.97) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
@@ -160,7 +164,7 @@ html[data-theme="light"] .discord-input       { background: #efefef !important; 
 }
 
 /* Desktop sidebar */
-[data-theme="light"] .discord-sidebar {
+html[data-theme="light"][data-theme="light"] .discord-sidebar {
   background: #ffffff !important;
   border-right-color: #dbdbdb !important;
 }
@@ -1339,18 +1343,19 @@ button, a {
 
 /* GLOBAL ENHANCEMENTS */
 
-/* Card depth for modals and sheets */
-.bg-discord-sidebar {
-  background: linear-gradient(145deg, #111318, #0d0f14) !important;
-  border: 1px solid rgba(255,255,255,0.06) !important;
+/* Card depth for modals and sheets — dark mode only */
+html:not([data-theme="light"]) .bg-discord-sidebar {
+  background: linear-gradient(145deg, #111318, #0d0f14);
+  border: 1px solid rgba(255,255,255,0.06);
 }
 
-.bg-discord-bg {
-  background-color: #0d0f14 !important;
+/* bg-discord-bg dark mode only (light mode uses CSS var #fafafa via html[data-theme="light"] rule) */
+html:not([data-theme="light"]) .bg-discord-bg {
+  background-color: #0d0f14;
 }
 
-.bg-discord-bg\/95 {
-  background: rgba(13, 15, 20, 0.95) !important;
+html:not([data-theme="light"]) .bg-discord-bg\/95 {
+  background: rgba(13, 15, 20, 0.95);
 }
 
 /* Sticky header glass effect */
@@ -1359,9 +1364,9 @@ button, a {
   -webkit-backdrop-filter: blur(16px) saturate(180%);
 }
 
-/* Better border colors */
-.border-discord-hover {
-  border-color: rgba(255,255,255,0.06) !important;
+/* Better border colors — dark mode only */
+html:not([data-theme="light"]) .border-discord-hover {
+  border-color: rgba(255,255,255,0.06);
 }
 
 /* Tabs active indicator enhancement */
@@ -1376,8 +1381,9 @@ button, a {
   box-shadow: 0 2px 12px rgba(88,101,242,0.3);
 }
 
-.bg-discord-input {
-  background: rgba(255,255,255,0.05) !important;
+/* bg-discord-input dark mode only */
+html:not([data-theme="light"]) .bg-discord-input {
+  background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.07);
 }
 
@@ -1387,9 +1393,9 @@ button, a {
   border-left: 2px solid #5865f2;
 }
 
-/* Hover states */
-.hover\:bg-discord-hover:hover {
-  background: rgba(255,255,255,0.05) !important;
+/* Hover states — dark mode only */
+html:not([data-theme="light"]) .hover\:bg-discord-hover:hover {
+  background: rgba(255,255,255,0.05);
 }
 
 /* Profile cover gradient enhancement */
@@ -1432,8 +1438,8 @@ button:focus-visible, a:focus-visible {
   border-radius: 4px;
 }
 
-/* Group chat / channel message input area */
-.border-t.border-discord-hover {
+/* Group chat / channel message input area — dark mode only */
+html:not([data-theme="light"]) .border-t.border-discord-hover {
   background: rgba(13,15,20,0.8);
   backdrop-filter: blur(12px);
 }
@@ -1897,3 +1903,159 @@ select.discord-input {
   50% { filter: brightness(1.4); }
 }
 
+
+
+/* ══════════════════════════════════════════════════════
+   LIGHT MODE — hardcoded dark class overrides
+   These classes bypass the CSS-variable system and
+   need explicit [data-theme="light"] rules.
+   ══════════════════════════════════════════════════════ */
+
+/* ── Message bubbles: received bg (bg-[#1c1c1e]) ─── */
+/* Used in Messages.jsx and GroupChat.jsx for received bubbles,
+   typing indicator, reaction picker, reply/media preview bars,
+   recording overlay, input bar */
+[data-theme="light"] .bg-\[#1c1c1e\] {
+  background-color: #f0f0f0 !important;
+}
+/* Text/icon colors tied to the same dark value */
+[data-theme="light"] .text-\[#1c1c1e\] {
+  color: #262626 !important;
+}
+[data-theme="light"] .border-\[#1c1c1e\] {
+  border-color: #d1d5db !important;
+}
+
+/* ── Context / dropdown menus (bg-[#1e2030]) ─── */
+/* Used in VideoFullscreenModal, ImageFullscreenModal,
+   VideoMessage context menus */
+[data-theme="light"] .bg-\[#1e2030\] {
+  background-color: #ffffff !important;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06) !important;
+}
+
+/* ── Waveform bars inside received voice notes ─── */
+/* bg-white/80 (filled bar) is fine in dark; in light it needs to be dark */
+/* bg-white/20 (empty bar) is too light on a #f0f0f0 bubble */
+[data-theme="light"] .bg-white\/80 { background-color: rgba(38,38,38,0.75) !important; }
+[data-theme="light"] .bg-white\/20 { background-color: rgba(38,38,38,0.18) !important; }
+
+/* ── Spinner borders in loading states ─── */
+[data-theme="light"] .border-t-white\/70 { border-top-color: rgba(38,38,38,0.65) !important; }
+[data-theme="light"] .border-white\/30   { border-color: rgba(38,38,38,0.2) !important; }
+
+/* ── Date separator pill in Messages (bg-white/[0.06]) ─── */
+[data-theme="light"] .bg-white\/\[0\.06\] { background-color: rgba(0,0,0,0.05) !important; }
+/* Text inside the pill */
+[data-theme="light"] .text-white\/35      { color: rgba(38,38,38,0.45) !important; }
+
+/* ── bg-gray-900 (MediaEditor sticker/text/color panels) ─── */
+[data-theme="light"] .bg-gray-900 { background-color: #f3f4f6 !important; }
+
+/* ── Additional white-opacity backgrounds not yet covered ─── */
+[data-theme="light"] .bg-white\/6  { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .bg-white\/8  { background-color: rgba(0,0,0,0.05) !important; }
+[data-theme="light"] .bg-white\/\[0\.08\] { background-color: rgba(0,0,0,0.05) !important; }
+
+/* ── Additional border-white fractions ─── */
+[data-theme="light"] .border-white\/20 { border-color: rgba(0,0,0,0.12) !important; }
+[data-theme="light"] .border-white\/10 { border-color: rgba(0,0,0,0.08) !important; }
+[data-theme="light"] .border-white\/15 { border-color: rgba(0,0,0,0.10) !important; }
+
+/* ── Link preview cards in messages ─── */
+[data-theme="light"] .link-preview-card {
+  background: rgba(0,0,0,0.03) !important;
+  border-color: rgba(0,0,0,0.08) !important;
+}
+[data-theme="light"] .link-preview-card:hover {
+  background: rgba(0,0,0,0.05) !important;
+}
+[data-theme="light"] .link-preview-domain { color: rgba(38,38,38,0.45) !important; }
+[data-theme="light"] .link-preview-url    { color: #3b82f6 !important; }
+[data-theme="light"] .link-preview-arrow  { color: rgba(38,38,38,0.3) !important; }
+
+/* ── glass-modal (bottom sheets, modals) ─── */
+[data-theme="light"] .glass-modal {
+  background: rgba(255,255,255,0.97) !important;
+  border-color: #dbdbdb !important;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.12), 0 8px 24px rgba(0,0,0,0.06) !important;
+}
+
+/* ── reaction-btn ─── */
+[data-theme="light"] .reaction-btn {
+  background: rgba(0,0,0,0.04) !important;
+  border-color: rgba(0,0,0,0.08) !important;
+  color: #262626 !important;
+}
+[data-theme="light"] .reaction-btn:hover {
+  background: rgba(139,92,246,0.08) !important;
+  border-color: rgba(139,92,246,0.3) !important;
+  color: #262626 !important;
+}
+
+/* ── Mobile nav popup ─── */
+[data-theme="light"] .mobile-nav-popup {
+  background: rgba(255,255,255,0.95) !important;
+  border-color: #dbdbdb !important;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.08), 0 8px 40px rgba(0,0,0,0.1) !important;
+}
+[data-theme="light"] .mobile-popup-item { color: rgba(38,38,38,0.5) !important; }
+[data-theme="light"] .mobile-popup-item.active { color: #5865f2 !important; }
+[data-theme="light"] .mobile-popup-icon { background: rgba(0,0,0,0.04) !important; }
+
+/* ── Skeleton shimmer for light mode ─── */
+[data-theme="light"] .skeleton {
+  background: linear-gradient(90deg,
+    rgba(0,0,0,0.04) 25%,
+    rgba(0,0,0,0.08) 50%,
+    rgba(0,0,0,0.04) 75%
+  ) !important;
+  background-size: 200% 100% !important;
+}
+
+/* ── BadgePicker / VerificationBadgePicker sheet panels ─── */
+[data-theme="light"] .bg-\[#111318\] {
+  background-color: #ffffff !important;
+}
+[data-theme="light"] .bg-\[#0d0f14\] {
+  background-color: #f3f4f6 !important;
+}
+
+/* ── border-white/6 and border-white/8 (used in badge pickers) ─── */
+[data-theme="light"] .border-white\/6  { border-color: rgba(0,0,0,0.07) !important; }
+[data-theme="light"] .border-white\/8  { border-color: rgba(0,0,0,0.08) !important; }
+
+/* ══════════════════════════════════════════════════════
+   LIGHT MODE — additional component fixes
+   ══════════════════════════════════════════════════════ */
+
+/* glass-modal and glass-card in light mode */
+html[data-theme="light"][data-theme="light"] .glass-modal,
+html[data-theme="light"][data-theme="light"] .glass-card {
+  background: rgba(255,255,255,0.97) !important;
+  border-color: #dbdbdb !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+
+/* mobile nav popup in light mode */
+html[data-theme="light"][data-theme="light"] .mobile-nav-popup {
+  background: rgba(255,255,255,0.97) !important;
+  border-color: #dbdbdb !important;
+}
+
+/* User menu dropdown in layout */
+html[data-theme="light"][data-theme="light"] .bg-discord-bg.rounded-xl,
+html[data-theme="light"][data-theme="light"] [class*="bg-discord-bg"][class*="rounded"] {
+  background-color: #ffffff !important;
+}
+
+/* Explicit main content area background */
+html[data-theme="light"][data-theme="light"] .discord-main {
+  background-color: #fafafa !important;
+}
+
+/* app-shell and page-enter */
+html[data-theme="light"][data-theme="light"] .app-shell,
+html[data-theme="light"][data-theme="light"] .page-enter {
+  background-color: #fafafa !important;
+}

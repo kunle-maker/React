@@ -28,6 +28,8 @@ function VoiceNotePlayer({ src, duration: initDuration, isMine = false }) {
   const [duration, setDuration] = useState(initDuration || 0);
   const [speed, setSpeed] = useState(1);
   const rafRef = useRef(null);
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
 
   const fmt = (s) => {
     if (!s || !isFinite(s)) return '0:00';
@@ -56,14 +58,16 @@ function VoiceNotePlayer({ src, duration: initDuration, isMine = false }) {
   };
 
   const pct = duration > 0 ? Math.min(current / duration, 1) : 0;
-  // Pill styling: sent = white bg w/ dark elements, received = dark charcoal bg w/ light elements
-  const pillBg = isMine ? 'bg-white' : 'bg-[#1c1c1e]';
-  const barFilled = isMine ? 'bg-[#1c1c1e]' : 'bg-white/80';
-  const barEmpty = isMine ? 'bg-[#1c1c1e]/30' : 'bg-white/20';
-  const btnBg = isMine ? 'bg-[#1c1c1e]/10 hover:bg-[#1c1c1e]/20' : 'bg-white/10 hover:bg-white/20';
-  const btnIcon = isMine ? 'text-[#1c1c1e]' : 'text-white';
-  const timeColor = isMine ? 'text-[#1c1c1e]/60' : 'text-white/50';
-  const speedColor = isMine ? 'text-[#1c1c1e]/70 hover:bg-[#1c1c1e]/10' : 'text-white/60 hover:bg-white/10';
+  // Pill styling — theme-aware
+  // sent (isMine): white pill with dark elements in both modes
+  // received (!isMine): dark charcoal in dark mode, light gray in light mode
+  const pillBg = isMine ? 'bg-white' : (isLight ? 'bg-[#efefef]' : 'bg-[#1c1c1e]');
+  const barFilled = isMine ? 'bg-[#1c1c1e]' : (isLight ? 'bg-[#262626]/70' : 'bg-white/80');
+  const barEmpty  = isMine ? 'bg-[#1c1c1e]/30' : (isLight ? 'bg-[#262626]/20' : 'bg-white/20');
+  const btnBg     = isMine ? 'bg-[#1c1c1e]/10 hover:bg-[#1c1c1e]/20' : (isLight ? 'bg-[#262626]/8 hover:bg-[#262626]/15' : 'bg-white/10 hover:bg-white/20');
+  const btnIcon   = isMine ? 'text-[#1c1c1e]' : (isLight ? 'text-[#262626]' : 'text-white');
+  const timeColor = isMine ? 'text-[#1c1c1e]/60' : (isLight ? 'text-[#262626]/50' : 'text-white/50');
+  const speedColor = isMine ? 'text-[#1c1c1e]/70 hover:bg-[#1c1c1e]/10' : (isLight ? 'text-[#262626]/60 hover:bg-[#262626]/8' : 'text-white/60 hover:bg-white/10');
 
   const bars = [3,5,8,6,9,4,7,5,10,6,4,8,5,7,3,6,9,5,8,4,6,10,7,5,3,8,6,9,4,7];
 
