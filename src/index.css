@@ -118,6 +118,26 @@
   border-bottom-color: #dbdbdb !important;
 }
 
+/* Comment sheet bottom panel */
+[data-theme="light"] .sheet-slide-up,
+[data-theme="light"] [class*="rounded-t-3xl"].bg-discord-sidebar,
+[data-theme="light"] [class*="rounded-t-3xl"].bg-discord-dark {
+  background-color: #ffffff !important;
+}
+/* Comment input area */
+[data-theme="light"] [class*="bg-discord-hover\/30"],
+[data-theme="light"] [class*="bg-discord-hover\/20"] {
+  background-color: rgba(0,0,0,0.04) !important;
+}
+
+/* Bio link pills on profile */
+[data-theme="light"] a.bg-discord-sidebar,
+[data-theme="light"] [class*="bg-discord-sidebar"][class*="border-discord-hover"] {
+  background-color: #f3f3f3 !important;
+  border-color: #dbdbdb !important;
+  color: #262626 !important;
+}
+
 /* ALL discord-* bg/text/border classes need !important fallbacks
    because Tailwind may have cached the old build with hardcoded hex values */
 [data-theme="light"] .bg-discord-bg       { background-color: #fafafa !important; }
@@ -132,7 +152,6 @@
 [data-theme="light"] .border-discord-hover{ border-color: #dbdbdb !important; }
 [data-theme="light"] .border-discord-darker{ border-color: #dbdbdb !important; }
 [data-theme="light"] .discord-input       { background: #efefef !important; color: #262626 !important; border-color: rgba(0,0,0,0.1) !important; }
-
 /* Sticky headers */
 [data-theme="light"] .sticky {
   background-color: rgba(255,255,255,0.97) !important;
