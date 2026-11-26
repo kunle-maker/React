@@ -6,43 +6,45 @@
 
 /* ===== THEME CSS VARIABLES =====
    These map directly into tailwind.config.js discord.* colors.
-   Changing data-theme="light" on <html> flips ALL discord-* classes automatically.
+   RGB channel format supports opacity modifiers like bg-discord-bg/95.
 */
 :root {
-  --vx-bg:      #0d0f14;
-  --vx-sidebar: #111318;
-  --vx-dark:    #0a0b10;
-  --vx-darker:  #060708;
+  /* RGB channels (no rgb() wrapper — Tailwind adds it) */
+  --vx-bg-rgb:      13 15 20;
+  --vx-sidebar-rgb: 17 19 24;
+  --vx-dark-rgb:    10 11 16;
+  --vx-darker-rgb:  6 7 8;
+  --vx-hover-rgb:   30 32 40;
+  /* Solid values for text/input (don't need opacity modifiers) */
   --vx-input:   rgba(255,255,255,0.04);
   --vx-text:    #e2e5ea;
   --vx-muted:   #6b7280;
   --vx-channel: #8e9297;
-  --vx-hover:   #1e2028;
 }
 
 [data-theme="light"] {
-  --vx-bg:      #fafafa;
-  --vx-sidebar: #ffffff;
-  --vx-dark:    #f3f3f3;
-  --vx-darker:  #e8e8e8;
+  --vx-bg-rgb:      250 250 250;
+  --vx-sidebar-rgb: 255 255 255;
+  --vx-dark-rgb:    243 243 243;
+  --vx-darker-rgb:  232 232 232;
+  --vx-hover-rgb:   240 240 240;
   --vx-input:   #efefef;
   --vx-text:    #262626;
   --vx-muted:   #8e8e8e;
   --vx-channel: #555555;
-  --vx-hover:   #f0f0f0;
 }
 
 /* ── Instagram-style light theme */
 [data-theme="light"] {
-  --vx-bg:      #fafafa;
-  --vx-sidebar: #ffffff;
-  --vx-dark:    #f3f3f3;
-  --vx-darker:  #e8e8e8;
+  --vx-bg-rgb:      250 250 250;
+  --vx-sidebar-rgb: 255 255 255;
+  --vx-dark-rgb:    243 243 243;
+  --vx-darker-rgb:  232 232 232;
+  --vx-hover-rgb:   240 240 240;
   --vx-input:   #efefef;
   --vx-text:    #262626;
   --vx-muted:   #8e8e8e;
   --vx-channel: #555555;
-  --vx-hover:   #f0f0f0;
 }
 
 /* ── Light mode body ─────────────────────────────────────────────────── */
