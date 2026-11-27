@@ -661,6 +661,8 @@ export default function Messages({ currentUser, unreadCounts }) {
   const [editText, setEditText] = useState('');
   const [blockedByMe, setBlockedByMe] = useState(false);
   const [showChatMenu, setShowChatMenu] = useState(false);
+  const [msgSearchActive, setMsgSearchActive] = useState(false);
+  const [msgSearchQ, setMsgSearchQ] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
   const [swipingMsgId, setSwipingMsgId] = useState(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -1646,6 +1648,12 @@ export default function Messages({ currentUser, unreadCounts }) {
                   <FiUser size={15} /> View Profile
                 </button>
                 <button
+                  onClick={() => { setMsgSearchActive(true); setShowChatMenu(false); }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-discord-text hover:bg-discord-hover transition-colors"
+                >
+                  <FiSearch size={15} /> Search Messages
+                </button>
+                <button
                   onClick={() => { navigate(`/messages`); setShowChatMenu(false); }}
                   className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-discord-text hover:bg-discord-hover transition-colors"
                 >
@@ -1704,6 +1712,34 @@ export default function Messages({ currentUser, unreadCounts }) {
           </div>
         </div>
       </div>
+
+      {/* Inline message search bar */}
+      {msgSearchActive && (
+        <div
+          className="flex items-center gap-2 px-3 py-2 flex-shrink-0 animate-fade-in"
+          style={{ background: T.headerBg, borderBottom: `1px solid ${T.headerBorder}` }}
+        >
+          <FiSearch size={15} className="text-discord-muted flex-shrink-0" />
+          <input
+            autoFocus
+            value={msgSearchQ}
+            onChange={e => setMsgSearchQ(e.target.value)}
+            placeholder="Search in conversation..."
+            className="flex-1 bg-transparent text-discord-text text-sm outline-none placeholder-discord-muted"
+          />
+          {msgSearchQ && (
+            <span className="text-discord-muted text-xs flex-shrink-0">
+              {messages.filter(m => (m.text || '').toLowerCase().includes(msgSearchQ.toLowerCase())).length} found
+            </span>
+          )}
+          <button
+            onClick={() => { setMsgSearchActive(false); setMsgSearchQ(''); }}
+            className="text-discord-muted hover:text-discord-text transition-colors p-1 flex-shrink-0"
+          >
+            <FiX size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Messages */}
       <div
@@ -1803,6 +1839,7 @@ export default function Messages({ currentUser, unreadCounts }) {
                     ${mine
                       ? (isLight ? 'bg-white text-[#111] shadow-sm ring-1 ring-black/8' : 'bg-white text-[#111]')
                       : (isLight ? 'bg-discord-dark text-discord-text' : 'bg-[#1c1c1e] text-white')}
+                    ${msgSearchQ && (msg.text || '').toLowerCase().includes(msgSearchQ.toLowerCase()) ? 'ring-2 ring-discord-brand' : ''}
                   `}
                   style={{ borderRadius }}
                 >
