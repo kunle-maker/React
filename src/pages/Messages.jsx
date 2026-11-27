@@ -676,6 +676,7 @@ export default function Messages({ currentUser, unreadCounts }) {
   const recordChunksRef = useRef([]);
   const recordIntervalRef = useRef(null);
   const swipeTouchRef = useRef({ x: 0, y: 0, msgId: null, direction: null });
+  const longPressRef = useRef(null);
   const micBtnRef = useRef(null);
   const recordCancelledRef = useRef(false);
   const isMobile = window.innerWidth < 768;
@@ -1257,8 +1258,16 @@ export default function Messages({ currentUser, unreadCounts }) {
     finally { setSending(false); }
   };
 
-  const handleMsgTouchStart = (e, msgId) => {
+  const handleMsgTouchStart = (e, msgId, msg) => {
     swipeTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, msgId, direction: null };
+    if (longPressRef.current) clearTimeout(longPressRef.current);
+    longPressRef.current = setTimeout(() => {
+      if (swipeTouchRef.current.direction === null || swipeTouchRef.current.direction === 'v') {
+        const senderUserId = msg.senderId || msg.sender?._id;
+        setContextMenu({ x: 0, y: 0, msg, sheet: true });
+        if (navigator.vibrate) navigator.vibrate(10);
+      }
+    }, 480);
   };
 
   const handleMsgTouchMove = (e, msgId) => {
@@ -1267,6 +1276,7 @@ export default function Messages({ currentUser, unreadCounts }) {
     if (swipeTouchRef.current.direction === null) {
       if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
         swipeTouchRef.current.direction = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+        if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; }
       }
     }
     if (swipeTouchRef.current.direction === 'h' && dx > 0) {
@@ -1277,6 +1287,7 @@ export default function Messages({ currentUser, unreadCounts }) {
   };
 
   const handleMsgTouchEnd = (msg) => {
+    if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; }
     if (swipeOffset > 50) {
       setReplyingTo(msg);
       setTimeout(() => textareaRef.current?.focus(), 100);
@@ -1826,7 +1837,7 @@ export default function Messages({ currentUser, unreadCounts }) {
               key={item.key}
               className={`group flex ${mine ? 'justify-end' : 'justify-start'} ${grouped ? 'mt-0.5' : 'mt-3'}`}
               onContextMenu={e => handleMessageContextMenu(e, msg)}
-              onTouchStart={e => handleMsgTouchStart(e, item.key)}
+              onTouchStart={e => handleMsgTouchStart(e, item.key, msg)}
               onTouchMove={e => handleMsgTouchMove(e, item.key)}
               onTouchEnd={() => handleMsgTouchEnd(msg)}
               style={swipingMsgId === item.key
@@ -2165,75 +2176,72 @@ export default function Messages({ currentUser, unreadCounts }) {
         )}
       </div>
 
-      {/* Message Context Menu */}
+      {/* Message Context Bottom Sheet */}
       {contextMenu && (
-        <div
-          className="fixed z-50 bg-discord-dark border border-white/10 rounded-xl shadow-2xl py-1 min-w-36 backdrop-blur-xl animate-fade-in"
-          style={{
-            top: Math.min(contextMenu.y, window.innerHeight - 200),
-            left: Math.min(contextMenu.x, window.innerWidth - 180)
-          }}
-          onClick={e => e.stopPropagation()}
-        >
-          {!contextMenu.msg.unsent && (
-            <button
-              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
-              onClick={() => {
-                setReplyingTo(contextMenu.msg);
-                setContextMenu(null);
-                setTimeout(() => textareaRef.current?.focus(), 80);
-              }}
-            >
-              <FiCornerUpLeft size={13} /> Reply
-            </button>
-          )}
-          {!contextMenu.msg.unsent && (
-            <button
-              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
-              onClick={() => copyMessage(contextMenu.msg.text)}
-            >
-              <FiCopy size={13} /> Copy Text
-            </button>
-          )}
-          {!contextMenu.msg.unsent && (
-            <button
-              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-brand hover:bg-discord-brand/10 transition-colors"
-              onClick={() => { setTranslateMsg(contextMenu.msg.text); setContextMenu(null); }}
-            >
-              <FiGlobe size={13} /> Translate
-            </button>
-          )}
-          {!contextMenu.msg.unsent && isSentByMe(contextMenu.msg) && !contextMenu.msg.text?.startsWith('[vx:') && (
-            <button
-              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-text hover:bg-white/5 transition-colors"
-              onClick={() => {
-                setEditingMsgId(contextMenu.msg._id);
-                setEditText(contextMenu.msg.text || '');
-                setContextMenu(null);
-              }}
-            >
-              <FiEdit2 size={13} /> Edit Message
-            </button>
-          )}
-          {!contextMenu.msg.unsent && isSentByMe(contextMenu.msg) && (
-            <button
-              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-discord-red hover:bg-discord-red/10 transition-colors"
-              onClick={() => handleUnsend(contextMenu.msg._id)}
-            >
-              <FiTrash2 size={13} /> Unsend
-            </button>
-          )}
-          {activeConv && !isSentByMe(contextMenu.msg) && (
-            <button
-              className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-orange-400 hover:bg-orange-400/10 transition-colors"
-              onClick={() => {
-                setReportTarget({ type: 'user', id: activeConv.userId || contextMenu.msg.senderId, name: activeConv.name });
-                setContextMenu(null);
-              }}
-            >
-              <FiFlag size={13} /> Report User
-            </button>
-          )}
+        <div className="fixed inset-0 z-[100] flex items-end" onClick={() => setContextMenu(null)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div
+            className="relative w-full rounded-t-3xl sheet-slide-up pb-safe overflow-hidden"
+            style={{ background: isLight ? '#ffffff' : '#1a1d24' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Quick reactions */}
+            {!contextMenu.msg.unsent && (
+              <div className="flex items-center justify-around px-6 py-4 border-b border-discord-hover">
+                {['❤️','😂','👍','😮','😢','😡','🔥','💯'].map(emoji => (
+                  <button key={emoji} onClick={() => { handleReact(contextMenu.msg, emoji); setContextMenu(null); }}
+                    className="text-2xl hover:scale-130 active:scale-90 transition-transform p-1">
+                    <TwemojiEmoji emoji={emoji} size={28} />
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="py-2">
+              {!contextMenu.msg.unsent && (
+                <button className="flex items-center gap-4 w-full px-5 py-3.5 text-discord-text hover:bg-discord-hover transition-colors"
+                  onClick={() => { setReplyingTo(contextMenu.msg); setContextMenu(null); setTimeout(() => textareaRef.current?.focus(), 80); }}>
+                  <div className="w-9 h-9 rounded-full bg-discord-hover flex items-center justify-center flex-shrink-0"><FiCornerUpLeft size={17} className="text-discord-muted" /></div>
+                  <span className="font-semibold text-[15px]">Reply</span>
+                </button>
+              )}
+              {!contextMenu.msg.unsent && contextMenu.msg.text && !contextMenu.msg.text.startsWith('[vx:') && (
+                <button className="flex items-center gap-4 w-full px-5 py-3.5 text-discord-text hover:bg-discord-hover transition-colors"
+                  onClick={() => copyMessage(contextMenu.msg.text)}>
+                  <div className="w-9 h-9 rounded-full bg-discord-hover flex items-center justify-center flex-shrink-0"><FiCopy size={17} className="text-discord-muted" /></div>
+                  <span className="font-semibold text-[15px]">Copy Text</span>
+                </button>
+              )}
+              {!contextMenu.msg.unsent && isSentByMe(contextMenu.msg) && !contextMenu.msg.text?.startsWith('[vx:') && (
+                <button className="flex items-center gap-4 w-full px-5 py-3.5 text-discord-text hover:bg-discord-hover transition-colors"
+                  onClick={() => { setEditingMsgId(contextMenu.msg._id); setEditText(contextMenu.msg.text || ''); setContextMenu(null); }}>
+                  <div className="w-9 h-9 rounded-full bg-discord-hover flex items-center justify-center flex-shrink-0"><FiEdit2 size={17} className="text-discord-muted" /></div>
+                  <span className="font-semibold text-[15px]">Edit Message</span>
+                </button>
+              )}
+              {!contextMenu.msg.unsent && contextMenu.msg.text && (
+                <button className="flex items-center gap-4 w-full px-5 py-3.5 text-discord-text hover:bg-discord-hover transition-colors"
+                  onClick={() => { setTranslateMsg(contextMenu.msg.text); setContextMenu(null); }}>
+                  <div className="w-9 h-9 rounded-full bg-discord-hover flex items-center justify-center flex-shrink-0"><FiGlobe size={17} className="text-discord-muted" /></div>
+                  <span className="font-semibold text-[15px]">Translate</span>
+                </button>
+              )}
+              {activeConv && !isSentByMe(contextMenu.msg) && (
+                <button className="flex items-center gap-4 w-full px-5 py-3.5 text-orange-400 hover:bg-orange-400/10 transition-colors"
+                  onClick={() => { setReportTarget({ type: 'user', id: activeConv.userId || contextMenu.msg.senderId, name: activeConv.name }); setContextMenu(null); }}>
+                  <div className="w-9 h-9 rounded-full bg-orange-400/10 flex items-center justify-center flex-shrink-0"><FiFlag size={17} className="text-orange-400" /></div>
+                  <span className="font-semibold text-[15px]">Report User</span>
+                </button>
+              )}
+              {isSentByMe(contextMenu.msg) && (
+                <button className="flex items-center gap-4 w-full px-5 py-3.5 text-discord-red hover:bg-discord-red/10 transition-colors"
+                  onClick={() => handleUnsend(contextMenu.msg._id)}>
+                  <div className="w-9 h-9 rounded-full bg-discord-red/10 flex items-center justify-center flex-shrink-0"><FiTrash2 size={17} className="text-discord-red" /></div>
+                  <span className="font-semibold text-[15px]">Unsend Message</span>
+                </button>
+              )}
+            </div>
+            <div className="pb-2" />
+          </div>
         </div>
       )}
 
