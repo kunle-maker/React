@@ -1807,15 +1807,16 @@ export default function Messages({ currentUser, unreadCounts }) {
             );
           }
 
-          // Bubble corner logic:
-          // sent (mine): bottom-right flat if followed by same sender within 3 min
-          // received (!mine): bottom-left flat if followed by same sender within 3 min
-          const baseRadius = 18;
+          // Bubble corner logic - iMessage style asymmetric radius
+          const baseRadius = 20;
+          const tightRadius = 5;
           let borderRadius;
           if (mine) {
-            borderRadius = `${baseRadius}px ${baseRadius}px ${hasNextSameSender ? 4 : baseRadius}px ${baseRadius}px`;
+            // sent: top-left, top-right, bottom-right(tight if continuing), bottom-left
+            borderRadius = `${baseRadius}px ${grouped ? baseRadius : baseRadius}px ${hasNextSameSender ? tightRadius : baseRadius}px ${baseRadius}px`;
           } else {
-            borderRadius = `${baseRadius}px ${baseRadius}px ${baseRadius}px ${hasNextSameSender ? 4 : baseRadius}px`;
+            // received: top-left, top-right, bottom-right, bottom-left(tight if continuing)
+            borderRadius = `${grouped ? baseRadius : baseRadius}px ${baseRadius}px ${baseRadius}px ${hasNextSameSender ? tightRadius : baseRadius}px`;
           }
 
           const isEditing = editingMsgId === msg._id;
@@ -1835,18 +1836,26 @@ export default function Messages({ currentUser, unreadCounts }) {
               <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[78%]`}>
                 {/* Bubble */}
                 <div
-                  className={`relative px-3.5 py-2 text-[15px] leading-relaxed break-words
+                  className={`relative px-3.5 py-2.5 text-[15px] leading-relaxed break-words
                     ${mine
-                      ? (isLight ? 'bg-white text-[#111] shadow-sm ring-1 ring-black/8' : 'bg-white text-[#111]')
-                      : (isLight ? 'bg-discord-dark text-discord-text' : 'bg-[#1c1c1e] text-white')}
-                    ${msgSearchQ && (msg.text || '').toLowerCase().includes(msgSearchQ.toLowerCase()) ? 'ring-2 ring-discord-brand' : ''}
+                      ? 'text-white'
+                      : (isLight ? 'text-[#1a1a2e]' : 'text-[#e8eaf0]')}
+                    ${msgSearchQ && (msg.text || '').toLowerCase().includes(msgSearchQ.toLowerCase()) ? 'ring-2 ring-yellow-400' : ''}
                   `}
-                  style={{ borderRadius }}
+                  style={{
+                    borderRadius,
+                    background: mine
+                      ? 'linear-gradient(135deg, #5865f2 0%, #7c3aed 100%)'
+                      : (isLight ? '#ebebf0' : '#2a2d38'),
+                    boxShadow: mine
+                      ? '0 2px 8px rgba(88,101,242,0.35)'
+                      : (isLight ? '0 1px 3px rgba(0,0,0,0.08)' : '0 1px 3px rgba(0,0,0,0.3)'),
+                  }}
                 >
                   {isEditing ? (
                     <div className="min-w-[180px]">
                       <textarea
-                        className={`w-full bg-transparent text-sm resize-none outline-none ${mine ? 'text-[#111]' : 'text-white'}`}
+                        className={`w-full bg-transparent text-sm resize-none outline-none ${mine ? 'text-white' : (isLight ? 'text-[#1a1a2e]' : 'text-[#e8eaf0]')}`}
                         rows={2}
                         value={editText}
                         onChange={e => setEditText(e.target.value)}
@@ -1865,7 +1874,7 @@ export default function Messages({ currentUser, unreadCounts }) {
                     <MessageContent msg={msg} onOpenImage={setFullscreenImg} isMine={mine} />
                   )}
                   {msg.edited && !msg.unsent && (
-                    <span className={`text-[10px] ml-1 select-none ${mine ? 'text-[#666]' : 'text-white/40'}`}>(edited)</span>
+                    <span className={`text-[10px] ml-1 select-none ${mine ? 'text-white/50' : (isLight ? 'text-[#1a1a2e]/50' : 'text-[#e8eaf0]/50')}`}>(edited)</span>
                   )}
                   {/* Reaction trigger on hover */}
                   {!msg.unsent && (

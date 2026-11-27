@@ -1017,10 +1017,11 @@ export default function GroupChat({ currentUser, unreadCounts }) {
             const sender = msg.senderId || { username: msg.senderUsername, name: msg.senderUsername };
             const msgKey = msg._id;
             const isSwiping = swipingMsgId === msgKey;
-            const baseRadius = 18;
+            const baseRadius = 20;
+            const tightRadius = 5;
             const borderRadius = mine
-              ? `${baseRadius}px ${baseRadius}px ${hasNextSameSender ? 4 : baseRadius}px ${baseRadius}px`
-              : `${baseRadius}px ${baseRadius}px ${baseRadius}px ${hasNextSameSender ? 4 : baseRadius}px`;
+              ? `${baseRadius}px ${baseRadius}px ${hasNextSameSender ? tightRadius : baseRadius}px ${baseRadius}px`
+              : `${baseRadius}px ${baseRadius}px ${baseRadius}px ${hasNextSameSender ? tightRadius : baseRadius}px`;
             const isEditing = editingMsgId === msg._id;
 
             return (
@@ -1044,15 +1045,24 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                     </span>
                   )}
                   <div
-                    className={`relative px-3.5 py-2 text-[15px] leading-relaxed break-words ${mine ? 'bg-white text-[#111]' : bubbleRx}${msgSearchQ && (msg.text || '').toLowerCase().includes(msgSearchQ.toLowerCase()) ? ' ring-2 ring-discord-brand' : ''}`}
-                    style={{ borderRadius }}
+                    className={`relative px-3.5 py-2.5 text-[15px] leading-relaxed break-words${msgSearchQ && (msg.text || '').toLowerCase().includes(msgSearchQ.toLowerCase()) ? ' ring-2 ring-yellow-400' : ''}`}
+                    style={{
+                      borderRadius,
+                      background: mine
+                        ? 'linear-gradient(135deg, #5865f2 0%, #7c3aed 100%)'
+                        : (isLight ? '#ebebf0' : '#2a2d38'),
+                      color: mine ? '#ffffff' : (isLight ? '#1a1a2e' : '#e8eaf0'),
+                      boxShadow: mine
+                        ? '0 2px 8px rgba(88,101,242,0.35)'
+                        : (isLight ? '0 1px 3px rgba(0,0,0,0.08)' : '0 1px 3px rgba(0,0,0,0.3)'),
+                    }}
                   >
                     {isEditing ? (
                       <div className="min-w-[180px]">
-                        <textarea className={`w-full bg-transparent text-sm resize-none outline-none ${mine ? 'text-[#111]' : 'text-white'}`} rows={2} value={editText} onChange={e => setEditText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches) { e.preventDefault(); handleEditSave(msg._id); } if (e.key === 'Escape') { setEditingMsgId(null); setEditText(''); } }} autoFocus />
+                        <textarea className="w-full bg-transparent text-sm resize-none outline-none" style={{ color: mine ? '#fff' : (isLight ? '#1a1a2e' : '#e8eaf0') }} rows={2} value={editText} onChange={e => setEditText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches) { e.preventDefault(); handleEditSave(msg._id); } if (e.key === 'Escape') { setEditingMsgId(null); setEditText(''); } }} autoFocus />
                         <div className="flex gap-2 justify-end mt-1">
-                          <button onClick={() => { setEditingMsgId(null); setEditText(''); }} className={`text-xs hover:underline ${mine ? 'text-[#333]' : 'text-white/60'}`}>Cancel</button>
-                          <button onClick={() => handleEditSave(msg._id)} className="text-xs bg-discord-brand text-white px-2 py-0.5 rounded-md font-medium">Save</button>
+                          <button onClick={() => { setEditingMsgId(null); setEditText(''); }} className="text-xs opacity-60 hover:opacity-100">Cancel</button>
+                          <button onClick={() => handleEditSave(msg._id)} className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-md font-medium">Save</button>
                         </div>
                       </div>
                     ) : (
@@ -1060,7 +1070,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                         {(() => {
                           const text = msg.text || '';
                           const replyMatch = text.match(/^↩ (@[^\n]+)\n([\s\S]*)$/);
-                          if (replyMatch) return (<div><div className={`flex items-center gap-1.5 text-xs mb-1 opacity-80 ${mine ? 'text-[#444]' : 'text-white/60'}`}><FiArrowLeft size={9} className="rotate-180 flex-shrink-0" /><span className="font-bold truncate">{replyMatch[1]}</span></div><FormattedText text={replyMatch[2].trim()} /></div>);
+                          if (replyMatch) return (<div><div className="flex items-center gap-1.5 text-xs mb-1 opacity-70"><FiArrowLeft size={9} className="rotate-180 flex-shrink-0" /><span className="font-bold truncate">{replyMatch[1]}</span></div><FormattedText text={replyMatch[2].trim()} /></div>);
                           const imgMatch = text.match(/^\[vx:img:([^\]]+)\](.*)$/s);
                           const audioMatch = text.match(/^\[vx:audio:([^\]]+)\](.*)$/s);
                           const callMatch = text.match(/^\[vx:call:([^\]]+)\](.*)$/s);
@@ -1070,7 +1080,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                           if (callMatch) return (<div className="flex flex-col gap-2 min-w-[180px]"><div className="flex items-center gap-2"><FiVideo size={14} className="text-discord-green" /><span className="text-xs font-semibold text-discord-green">Video Call</span></div><a href={callMatch[1]} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 bg-discord-brand text-white px-3 py-1.5 rounded-xl text-xs font-bold">Join Call</a></div>);
                           return <FormattedText text={text} />;
                         })()}
-                        {msg.edited && <span className={`text-[10px] ml-1 select-none ${mine ? 'text-[#666]' : 'text-white/40'}`}>(edited)</span>}
+                        {msg.edited && <span className="text-[10px] ml-1 select-none opacity-50">(edited)</span>}
                         {!msg.unsent && (<button className={`absolute ${mine ? '-left-8' : '-right-8'} top-0 opacity-0 group-hover:opacity-100 transition-opacity ${reactBg} border border-discord-hover rounded-full p-1.5 text-discord-muted hover:text-discord-text z-10`} onClick={(e) => { e.stopPropagation(); setActiveReactionPicker(activeReactionPicker === msg._id ? null : msg._id); }}><FiSmile size={13} /></button>)}
                       </div>
                     )}
