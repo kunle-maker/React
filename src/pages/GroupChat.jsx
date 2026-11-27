@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiSend, FiArrowLeft, FiUsers, FiInfo, FiTrash2, FiCopy, FiMoreVertical, FiLogOut, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiX, FiMoreHorizontal, FiSave, FiGlobe, FiEdit2, FiPlusSquare } from 'react-icons/fi';
+import { FiSend, FiArrowLeft, FiUsers, FiInfo, FiTrash2, FiCopy, FiMoreVertical, FiLogOut, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiX, FiMoreHorizontal, FiSave, FiGlobe, FiEdit2, FiPlusSquare, FiSearch, FiLink, FiShield, FiUserMinus } from 'react-icons/fi';
 import ImageCropModal from '../components/ImageCropModal';
 import ReportModal from '../components/ReportModal';
 import TranslateModal from '../components/TranslateModal';
@@ -218,6 +218,12 @@ export default function GroupChat({ currentUser, unreadCounts }) {
   const [editText, setEditText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recordDuration, setRecordDuration] = useState(0);
+  const [showMembersPanel, setShowMembersPanel] = useState(false);
+  const [members, setMembers] = useState([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [msgSearchActive, setMsgSearchActive] = useState(false);
+  const [msgSearchQ, setMsgSearchQ] = useState('');
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const textareaRef = useRef(null);
@@ -709,6 +715,55 @@ export default function GroupChat({ currentUser, unreadCounts }) {
     } catch (err) { showToast(err.message || 'Failed to leave group', { type: 'error' }); }
   };
 
+  const loadMembers = async () => {
+    setMembersLoading(true);
+    try {
+      const data = await API.getGroupMembers(groupId);
+      setMembers(Array.isArray(data) ? data : data?.members || []);
+    } catch {}
+    finally { setMembersLoading(false); }
+  };
+
+  const openMembersPanel = () => {
+    setShowMembersPanel(true);
+    if (members.length === 0) loadMembers();
+  };
+
+  const handleKickMember = async (memberId, memberName) => {
+    if (!confirm(`Remove ${memberName} from the group?`)) return;
+    try {
+      await API.removeGroupMember(groupId, memberId);
+      setMembers(prev => prev.filter(m => (m._id || m.userId?._id) !== memberId));
+      showToast(`${memberName} removed`, { type: 'success' });
+    } catch (err) { showToast(err.message || 'Failed to remove member', { type: 'error' }); }
+  };
+
+  const handleTransferAdmin = async (memberId, memberName) => {
+    if (!confirm(`Transfer admin to ${memberName}? You will lose admin privileges.`)) return;
+    try {
+      await API.transferGroupAdmin(groupId, memberId);
+      showToast(`Admin transferred to ${memberName}`, { type: 'success' });
+      // Refresh group to update admin
+      const data = await API.getGroup(groupId);
+      setGroup(data.group || data);
+      setShowMembersPanel(false);
+    } catch (err) { showToast(err.message || 'Failed to transfer admin', { type: 'error' }); }
+  };
+
+  const handleCopyInviteLink = async () => {
+    try {
+      let code = inviteCode;
+      if (!code) {
+        const data = await API.generateInviteCode(groupId);
+        code = data.inviteCode || data.code || data;
+        setInviteCode(code);
+      }
+      const link = `${window.location.origin}/#/join/${code}`;
+      navigator.clipboard?.writeText(link);
+      showToast('Invite link copied!', { type: 'success' });
+    } catch (err) { showToast(err.message || 'Failed to generate invite link', { type: 'error' }); }
+  };
+
   const handleMessageContextMenu = (e, msg) => {
     e.preventDefault();
     e.stopPropagation();
@@ -808,7 +863,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
             </button>
             <button
               className="w-9 h-9 flex items-center justify-center rounded-full text-discord-muted hover:text-discord-text hover:bg-white/5 transition-all"
-              onClick={() => navigate(`/groups/${groupId}/members`)}
+              onClick={openMembersPanel}
               title="Members"
             >
               <FiUsers size={19} />
@@ -823,16 +878,47 @@ export default function GroupChat({ currentUser, unreadCounts }) {
               </button>
               {showMenu && (
                 <div
-                  className="absolute right-0 top-full mt-1 bg-discord-dark border border-white/10 rounded-xl shadow-2xl py-1 min-w-40 z-50 backdrop-blur-xl animate-fade-in"
+                  className="absolute right-0 top-full mt-1 rounded-xl shadow-2xl py-1 min-w-[185px] z-50 animate-fade-in"
+                  style={{ background: isLight ? '#ffffff' : '#1e2030', border: isLight ? '1px solid #dbdbdb' : '1px solid rgba(255,255,255,0.1)' }}
                   onClick={e => e.stopPropagation()}
                 >
                   <button
-                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-discord-muted hover:bg-white/5 transition-colors"
+                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-discord-text hover:bg-discord-hover transition-colors"
                     onClick={() => { setShowMenu(false); navigate(`/groups/${groupId}/info`); }}
                   >
                     <FiInfo size={14} /> {isAdmin ? 'Group Settings' : 'Group Info'}
                   </button>
-                  {!isAdmin && (
+                  <button
+                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-discord-text hover:bg-discord-hover transition-colors"
+                    onClick={() => { setShowMenu(false); openMembersPanel(); }}
+                  >
+                    <FiUsers size={14} /> Members ({group?.members?.length || 0})
+                  </button>
+                  <button
+                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-discord-text hover:bg-discord-hover transition-colors"
+                    onClick={() => { setMsgSearchActive(true); setShowMenu(false); }}
+                  >
+                    <FiSearch size={14} /> Search Messages
+                  </button>
+                  <button
+                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-discord-text hover:bg-discord-hover transition-colors"
+                    onClick={() => { handleCopyInviteLink(); setShowMenu(false); }}
+                  >
+                    <FiLink size={14} /> Copy Invite Link
+                  </button>
+                  <div style={{ height: 1, background: isLight ? '#efefef' : 'rgba(255,255,255,0.06)', margin: '2px 0' }} />
+                  {isAdmin ? (
+                    <button
+                      className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-discord-red hover:bg-discord-red/10 transition-colors"
+                      onClick={() => {
+                        if (!confirm('Delete this group permanently?')) return;
+                        API.deleteGroup(groupId).then(() => navigate('/groups')).catch(err => showToast(err.message || 'Failed', { type: 'error' }));
+                        setShowMenu(false);
+                      }}
+                    >
+                      <FiTrash2 size={14} /> Delete Group
+                    </button>
+                  ) : (
                     <button
                       className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-discord-red hover:bg-discord-red/10 transition-colors"
                       onClick={() => { setShowMenu(false); handleLeave(); }}
@@ -845,6 +931,34 @@ export default function GroupChat({ currentUser, unreadCounts }) {
             </div>
           </div>
         </div>
+
+        {/* Inline message search bar */}
+        {msgSearchActive && (
+          <div
+            className="flex items-center gap-2 px-3 py-2 flex-shrink-0 animate-fade-in"
+            style={{ background: headerBg, borderBottom: isLight ? '1px solid #dbdbdb' : '1px solid rgba(255,255,255,0.07)' }}
+          >
+            <FiSearch size={15} className="text-discord-muted flex-shrink-0" />
+            <input
+              autoFocus
+              value={msgSearchQ}
+              onChange={e => setMsgSearchQ(e.target.value)}
+              placeholder="Search in conversation..."
+              className="flex-1 bg-transparent text-discord-text text-sm outline-none placeholder-discord-muted"
+            />
+            {msgSearchQ && (
+              <span className="text-discord-muted text-xs flex-shrink-0">
+                {messages.filter(m => (m.text || '').toLowerCase().includes(msgSearchQ.toLowerCase())).length} found
+              </span>
+            )}
+            <button
+              onClick={() => { setMsgSearchActive(false); setMsgSearchQ(''); }}
+              className="text-discord-muted hover:text-discord-text transition-colors p-1 flex-shrink-0"
+            >
+              <FiX size={16} />
+            </button>
+          </div>
+        )}
 
         {/* Messages */}
         <div
@@ -930,7 +1044,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                     </span>
                   )}
                   <div
-                    className={`relative px-3.5 py-2 text-[15px] leading-relaxed break-words ${mine ? 'bg-white text-[#111]' : bubbleRx}`}
+                    className={`relative px-3.5 py-2 text-[15px] leading-relaxed break-words ${mine ? 'bg-white text-[#111]' : bubbleRx}${msgSearchQ && (msg.text || '').toLowerCase().includes(msgSearchQ.toLowerCase()) ? ' ring-2 ring-discord-brand' : ''}`}
                     style={{ borderRadius }}
                   >
                     {isEditing ? (
@@ -1400,6 +1514,100 @@ export default function GroupChat({ currentUser, unreadCounts }) {
               className="max-w-full max-h-full object-contain"
               style={{ maxHeight: 'calc(100vh - 100px)' }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* ── Members Panel (bottom sheet) ─────────────────── */}
+      {showMembersPanel && (
+        <div className="fixed inset-0 z-[100] flex items-end" onClick={() => setShowMembersPanel(false)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div
+            className="relative w-full max-h-[75dvh] flex flex-col rounded-t-3xl sheet-slide-up pb-safe"
+            style={{ background: isLight ? '#ffffff' : '#111318', border: 'none' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Handle + Title */}
+            <div className="flex items-center justify-between px-4 pt-3 pb-3 border-b border-discord-hover flex-shrink-0">
+              <div className="w-10 h-1 bg-discord-hover rounded-full absolute left-1/2 -translate-x-1/2 top-2" />
+              <h3 className="font-bold text-discord-text text-base mt-2">
+                {isChannel ? 'Subscribers' : 'Members'} ({group?.members?.length || members.length || 0})
+              </h3>
+              <div className="flex items-center gap-2 mt-2">
+                {isAdmin && (
+                  <button
+                    onClick={handleCopyInviteLink}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-discord-brand bg-discord-brand/10 border border-discord-brand/20 px-3 py-1.5 rounded-full hover:bg-discord-brand/20 transition-all"
+                  >
+                    <FiLink size={12} /> Invite
+                  </button>
+                )}
+                <button onClick={() => setShowMembersPanel(false)} className="text-discord-muted hover:text-discord-text p-1 rounded-full">
+                  <FiX size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Members list */}
+            <div className="flex-1 overflow-y-auto py-2">
+              {membersLoading ? (
+                <div className="flex justify-center py-10">
+                  <div className="w-6 h-6 border-2 border-discord-brand border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : members.length === 0 ? (
+                <div className="text-center py-10 text-discord-muted text-sm">No members found</div>
+              ) : members.map((m, i) => {
+                const user = m.user || m;
+                const memberId = m._id || user._id;
+                const uname = user.username || m.username;
+                const name = user.name || m.name || uname;
+                const adminId = group?.admin?._id || group?.admin;
+                const isMemberAdmin = memberId === adminId || user._id === adminId;
+                const isMe = memberId === myId || user._id === myId;
+                return (
+                  <div key={memberId || i} className="flex items-center gap-3 px-4 py-3 hover:bg-discord-hover/30 transition-colors">
+                    <div className="relative flex-shrink-0 cursor-pointer" onClick={() => navigate(`/profile/${uname}`)}>
+                      <Avatar user={user} size={40} />
+                      {isMemberAdmin && (
+                        <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-discord-brand rounded-full flex items-center justify-center">
+                          <FiShield size={9} className="text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/profile/${uname}`)}>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-discord-text text-sm truncate">{name}</span>
+                        {isMemberAdmin && (
+                          <span className="text-[9px] font-bold text-discord-brand bg-discord-brand/10 px-1.5 py-0.5 rounded-full border border-discord-brand/20 flex-shrink-0">
+                            ADMIN
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-discord-muted text-xs">@{uname}</p>
+                    </div>
+                    {/* Admin actions on other members */}
+                    {isAdmin && !isMe && !isMemberAdmin && (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => handleTransferAdmin(memberId || user._id, name)}
+                          className="p-1.5 rounded-lg text-discord-muted hover:text-discord-brand hover:bg-discord-brand/10 transition-all"
+                          title="Make Admin"
+                        >
+                          <FiShield size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleKickMember(memberId || user._id, name)}
+                          className="p-1.5 rounded-lg text-discord-muted hover:text-discord-red hover:bg-discord-red/10 transition-all"
+                          title="Remove Member"
+                        >
+                          <FiUserMinus size={15} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
