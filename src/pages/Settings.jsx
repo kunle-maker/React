@@ -1064,7 +1064,7 @@ export default function Settings({ currentUser, unreadCounts }) {
         </div>
 
         {/* Section Tabs — horizontal scrollable */}
-        <div className="sticky top-0 z-20 bg-discord-bg/95 backdrop-blur border-b border-discord-hover px-2">
+        <div className="sticky top-0 z-20 bg-discord-sidebar backdrop-blur border-b border-discord-hover px-2">
           <div className="flex overflow-x-auto no-scrollbar gap-1 py-2">
             {SECTIONS.map(s => {
               const active = section === s.id;
