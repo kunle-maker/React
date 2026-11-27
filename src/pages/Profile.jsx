@@ -400,7 +400,7 @@ export default function Profile({ currentUser, unreadCounts }) {
           onClose={() => setStoryViewerOpen(false)}
         />
       )}
-      <div className="max-w-2xl mx-auto bg-discord-sidebar">
+      <div className="max-w-2xl mx-auto">
         {/* Cover */}
         <div className="relative" style={{ overflow: 'visible' }}>
           <div
