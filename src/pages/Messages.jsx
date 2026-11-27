@@ -1654,7 +1654,7 @@ export default function Messages({ currentUser, unreadCounts }) {
                   <FiSearch size={15} /> Search Messages
                 </button>
                 <button
-                  onClick={() => { navigate(`/messages`); setShowChatMenu(false); }}
+                  onClick={() => { setActiveConv(null); navigate(`/messages`); setShowChatMenu(false); }}
                   className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-discord-text hover:bg-discord-hover transition-colors"
                 >
                   <FiArrowLeft size={15} /> All Messages
