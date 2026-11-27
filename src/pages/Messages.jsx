@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiSend, FiArrowLeft, FiMessageSquare, FiSearch, FiCheck, FiCheckCircle, FiTrash2, FiCopy, FiX, FiMoreHorizontal, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiPlay, FiShare2, FiSave, FiGlobe, FiEdit2, FiMic, FiFile, FiPlusSquare, FiCornerUpLeft } from 'react-icons/fi';
+import { FiSend, FiArrowLeft, FiMessageSquare, FiSearch, FiCheck, FiCheckCircle, FiTrash2, FiCopy, FiX, FiMoreHorizontal, FiFlag, FiSmile, FiPaperclip, FiPhone, FiVideo, FiPlay, FiShare2, FiSave, FiGlobe, FiEdit2, FiMic, FiFile, FiPlusSquare, FiCornerUpLeft, FiUser } from 'react-icons/fi';
 import { useTheme } from '../contexts/ThemeContext';
 import ImageCropModal from '../components/ImageCropModal';
 import ReportModal from '../components/ReportModal';
@@ -660,6 +660,7 @@ export default function Messages({ currentUser, unreadCounts }) {
   const [editingMsgId, setEditingMsgId] = useState(null);
   const [editText, setEditText] = useState('');
   const [blockedByMe, setBlockedByMe] = useState(false);
+  const [showChatMenu, setShowChatMenu] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [swipingMsgId, setSwipingMsgId] = useState(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -795,7 +796,7 @@ export default function Messages({ currentUser, unreadCounts }) {
   }, []);
 
   useEffect(() => {
-    const handleClickOutside = () => { setContextMenu(null); setConvMenu(null); setActiveReactionPicker(null); };
+    const handleClickOutside = () => { setContextMenu(null); setConvMenu(null); setActiveReactionPicker(null); setShowChatMenu(false); };
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
@@ -1624,13 +1625,83 @@ export default function Messages({ currentUser, unreadCounts }) {
               </button>
             </>
           )}
-          <button
-            className="flex items-center justify-center active:scale-90 transition-transform"
-            style={{ width: 36, height: 36, borderRadius: '50%', background: T.circleBtn, border: isLight ? `1px solid ${T.circleBtnBorder}` : 'none' }}
-            onClick={e => { e.stopPropagation(); navigate(`/profile/${activeConv.username}`); }}
-          >
-            <FiMoreHorizontal size={18} style={{ color: T.nameTxt, opacity: 0.7 }} />
-          </button>
+          <div className="relative">
+            <button
+              className="flex items-center justify-center active:scale-90 transition-transform"
+              style={{ width: 36, height: 36, borderRadius: '50%', background: T.circleBtn, border: isLight ? `1px solid ${T.circleBtnBorder}` : 'none' }}
+              onClick={e => { e.stopPropagation(); setShowChatMenu(v => !v); }}
+            >
+              <FiMoreHorizontal size={18} style={{ color: T.nameTxt, opacity: 0.7 }} />
+            </button>
+            {showChatMenu && (
+              <div
+                className="absolute right-0 top-full mt-1 rounded-xl shadow-2xl py-1 min-w-[180px] z-50 animate-fade-in"
+                style={{ background: isLight ? '#ffffff' : '#1e2030', border: isLight ? '1px solid #dbdbdb' : '1px solid rgba(255,255,255,0.1)' }}
+                onClick={e => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => { navigate(`/profile/${activeConv.username}`); setShowChatMenu(false); }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-discord-text hover:bg-discord-hover transition-colors"
+                >
+                  <FiUser size={15} /> View Profile
+                </button>
+                <button
+                  onClick={() => { navigate(`/messages`); setShowChatMenu(false); }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-discord-text hover:bg-discord-hover transition-colors"
+                >
+                  <FiArrowLeft size={15} /> All Messages
+                </button>
+                <div style={{ height: 1, background: isLight ? '#efefef' : 'rgba(255,255,255,0.06)', margin: '2px 0' }} />
+                {blockedByMe ? (
+                  <button
+                    onClick={async () => {
+                      try { await API.unblockUser(activeConv.username); setBlockedByMe(false); }
+                      catch {}
+                      setShowChatMenu(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-green-500 hover:bg-green-500/10 transition-colors"
+                  >
+                    <FiCheck size={15} /> Unblock User
+                  </button>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      try { await API.blockUser(activeConv.username); setBlockedByMe(true); }
+                      catch {}
+                      setShowChatMenu(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-orange-400 hover:bg-orange-400/10 transition-colors"
+                  >
+                    <FiFlag size={15} /> Block User
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setReportTarget({ type: 'user', id: activeConv.userId || activeConv._id, name: activeConv.name || activeConv.username });
+                    setShowChatMenu(false);
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-orange-400 hover:bg-orange-400/10 transition-colors"
+                >
+                  <FiFlag size={15} /> Report
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm('Delete this conversation? This cannot be undone.')) return;
+                    try {
+                      await API.deleteConversation(activeConv.username);
+                      setConversations(prev => prev.filter(c => c.username !== activeConv.username));
+                      setActiveConv(null);
+                      navigate('/messages');
+                    } catch {}
+                    setShowChatMenu(false);
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-discord-red hover:bg-discord-red/10 transition-colors"
+                >
+                  <FiTrash2 size={15} /> Delete Chat
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
