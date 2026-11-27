@@ -234,7 +234,7 @@ function ImageFullscreenModal({ src, onClose }) {
             <FiMoreHorizontal size={24} />
           </button>
           {showMenu && (
-            <div className="absolute right-0 top-full mt-1 border border-white/10 rounded-xl shadow-2xl py-1 min-w-[160px] z-10" style={{ background: '#1e2030' }}>
+            <div className="absolute right-0 top-full mt-1 bg-[#1e2030] border border-white/10 rounded-xl shadow-2xl py-1 min-w-[160px] z-10">
               <button
                 onClick={handleSave}
                 className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-white hover:bg-white/8 transition-colors"
@@ -324,7 +324,7 @@ function VideoMessage({ src }) {
             <FiMoreHorizontal size={16} />
           </button>
           {showMenu && (
-            <div className="absolute right-0 top-full mt-1 border border-white/10 rounded-xl shadow-2xl py-1 min-w-[150px] z-10" style={{ background: '#1e2030' }}>
+            <div className="absolute right-0 top-full mt-1 bg-[#1e2030] border border-white/10 rounded-xl shadow-2xl py-1 min-w-[150px] z-10">
               <button
                 onClick={e => { e.stopPropagation(); handleShare(); }}
                 className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-white hover:bg-white/8 transition-colors"
