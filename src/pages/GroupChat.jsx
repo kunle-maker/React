@@ -977,7 +977,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
         {/* Messages */}
         <div
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto px-3 py-2 scroll-smooth no-scrollbar"
+          className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 scroll-smooth no-scrollbar"
           style={{ background: pageBg }}
           onScroll={handleScroll}
           onClick={() => { if (showEmojiPicker) setShowEmojiPicker(false); }}
@@ -1048,7 +1048,7 @@ export default function GroupChat({ currentUser, unreadCounts }) {
                 onTouchEnd={() => handleMsgTouchEnd(msg)}
                 style={isSwiping ? { transform: `translateX(${swipeOffset}px)`, transition: 'none' } : { transition: 'transform 0.2s ease' }}
               >
-                <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[78%]`}>
+                <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[78%] min-w-0`}>
                   {!mine && isFirstInGroup && (
                     <span
                       className={`text-xs font-bold mb-0.5 px-1 cursor-pointer hover:underline ${sender.isSupa ? 'supa-chat-name' : ''}`}
