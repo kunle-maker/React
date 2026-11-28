@@ -1,59 +1,103 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUsers, FiPlus, FiSearch, FiLink, FiLock, FiGlobe, FiX, FiHash, FiMic } from 'react-icons/fi';
+import { FiUsers, FiPlus, FiSearch, FiLink, FiLock, FiGlobe, FiX, FiHash } from 'react-icons/fi';
 import { HiUsers } from 'react-icons/hi';
 import Layout from '../components/Layout';
-import Avatar from '../components/Avatar';
 import API from '../utils/api';
 import { showToast } from '../utils/toast';
 import { useTheme } from '../contexts/ThemeContext';
+import { formatDistanceToNow } from 'date-fns';
+
+const GROUP_GRADIENTS = [
+  'linear-gradient(135deg,#5865f2,#7c3aed)',
+  'linear-gradient(135deg,#10b981,#0ea5e9)',
+  'linear-gradient(135deg,#f59e0b,#ef4444)',
+  'linear-gradient(135deg,#ec4899,#8b5cf6)',
+  'linear-gradient(135deg,#14b8a6,#6366f1)',
+  'linear-gradient(135deg,#f97316,#db2777)',
+  'linear-gradient(135deg,#22c55e,#3b82f6)',
+  'linear-gradient(135deg,#a855f7,#06b6d4)',
+];
+function groupGradient(name) {
+  let h = 0;
+  for (let i = 0; i < (name || '').length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return GROUP_GRADIENTS[Math.abs(h) % GROUP_GRADIENTS.length];
+}
+
+function formatTime(dateStr) {
+  if (!dateStr) return '';
+  try {
+    return formatDistanceToNow(new Date(dateStr), { addSuffix: false })
+      .replace('about ', '')
+      .replace(' minutes', 'm')
+      .replace(' minute', 'm')
+      .replace(' hours', 'h')
+      .replace(' hour', 'h')
+      .replace(' days', 'd')
+      .replace(' day', 'd')
+      .replace('less than a m', '<1m');
+  } catch { return ''; }
+}
 
 function GroupCard({ g, onClick }) {
   const memberCount = g.members?.length || g.memberCount || 0;
+  const gradient = groupGradient(g.name);
+  const hasUnread = g.unreadCount > 0;
+  const timeStr = formatTime(g.lastActivity || g.updatedAt || g.createdAt);
+
   return (
     <div
-      className="flex items-center gap-3.5 px-4 py-3.5 cursor-pointer hover:bg-discord-hover/40 transition-colors active:scale-[0.98] border-b border-discord-hover/40"
+      className="flex items-center gap-4 px-4 py-3 cursor-pointer active:scale-[0.98] transition-all"
+      style={{ borderBottom: '1px solid var(--vx-hover)' }}
       onClick={onClick}
     >
       {/* Avatar */}
       <div className="relative flex-shrink-0">
         {g.profilePicture ? (
-          <img src={API.getAvatarUrl(g.profilePicture, 80)} alt={g.name} className="w-13 h-13 rounded-2xl object-cover" style={{ width: 52, height: 52, borderRadius: 14 }} />
+          <img
+            src={API.getAvatarUrl(g.profilePicture, 120)}
+            alt={g.name}
+            className="object-cover"
+            style={{ width: 58, height: 58, borderRadius: 18 }}
+          />
         ) : (
-          <div className="flex items-center justify-center rounded-2xl" style={{ width: 52, height: 52, borderRadius: 14, background: 'linear-gradient(135deg, #5865f2, #8b5cf6)' }}>
-            {g.isChannel ? <FiHash size={22} className="text-white" /> : <HiUsers size={22} className="text-white" />}
+          <div
+            className="flex items-center justify-center select-none"
+            style={{ width: 58, height: 58, borderRadius: 18, background: gradient }}
+          >
+            {g.isChannel
+              ? <FiHash size={24} className="text-white" />
+              : <span className="text-white font-black text-2xl">{(g.name?.[0] || '?').toUpperCase()}</span>
+            }
           </div>
         )}
-        {/* Privacy badge */}
-        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-discord-sidebar flex items-center justify-center border border-discord-hover">
-          {g.privacy === 'private'
-            ? <FiLock size={9} className="text-discord-muted" />
-            : <FiGlobe size={9} className="text-green-500" />
-          }
-        </div>
+        {hasUnread && (
+          <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-discord-brand text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 shadow-lg">
+            {g.unreadCount > 99 ? '99+' : g.unreadCount}
+          </div>
+        )}
       </div>
 
-      {/* Info */}
+      {/* Content */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="font-bold text-discord-text text-[15px] truncate">{g.name}</span>
-          {g.isChannel && (
-            <span className="text-[9px] font-black text-discord-brand bg-discord-brand/10 px-1.5 py-0.5 rounded-full border border-discord-brand/20 flex-shrink-0 uppercase tracking-wide">Channel</span>
+        <div className="flex items-center justify-between gap-2 mb-0.5">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-bold text-discord-text text-[15px] truncate">{g.name}</span>
+            {g.isChannel && (
+              <span className="text-[9px] font-black text-discord-brand bg-discord-brand/10 px-1.5 py-0.5 rounded-full border border-discord-brand/20 flex-shrink-0 uppercase">CH</span>
+            )}
+            {g.privacy === 'private' && <FiLock size={10} className="text-discord-muted flex-shrink-0 opacity-60" />}
+          </div>
+          <span className="text-[11px] text-discord-muted flex-shrink-0 font-medium">{timeStr}</span>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <p className={`text-[13px] truncate leading-snug ${hasUnread ? 'text-discord-text font-semibold' : 'text-discord-muted'}`}>
+            {g.description || `${memberCount} ${g.isChannel ? 'subscribers' : 'members'}`}
+          </p>
+          {!hasUnread && (
+            <span className="text-[11px] text-discord-muted flex-shrink-0">{memberCount} {g.isChannel ? 'subs' : 'mbrs'}</span>
           )}
         </div>
-        <p className="text-discord-muted text-xs truncate leading-snug">
-          {g.description || `${memberCount} ${g.isChannel ? 'subscribers' : 'members'}`}
-        </p>
-      </div>
-
-      {/* Right side */}
-      <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-        {g.unreadCount > 0 && (
-          <span className="badge text-[10px] min-w-[18px] h-[18px] flex items-center justify-center px-1">
-            {g.unreadCount > 99 ? '99+' : g.unreadCount}
-          </span>
-        )}
-        <span className="text-discord-muted text-[11px] font-semibold">{memberCount} {g.isChannel ? 'subs' : 'members'}</span>
       </div>
     </div>
   );
@@ -145,56 +189,69 @@ export default function Groups({ currentUser, unreadCounts }) {
       <div className="max-w-2xl mx-auto bg-discord-bg min-h-full">
 
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-discord-sidebar backdrop-blur border-b border-discord-hover">
-          <div className="flex items-center justify-between px-4 pt-3 pb-2">
-            <h1 className="text-xl font-bold text-discord-text">Groups</h1>
+        <div className="sticky top-0 z-10 bg-discord-sidebar" style={{ borderBottom: '1px solid var(--vx-hover)' }}>
+          {/* Title row */}
+          <div className="flex items-center justify-between px-4 pt-4 pb-2">
+            <div>
+              <h1 className="text-[22px] font-black text-discord-text tracking-tight">Groups</h1>
+              {!searchQ && myGroups.length > 0 && (
+                <p className="text-discord-muted text-xs">{myGroups.length} group{myGroups.length !== 1 ? 's' : ''}</p>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowJoinSheet(true)}
-                className="flex items-center gap-1.5 text-sm font-semibold text-discord-text bg-discord-hover px-3 py-1.5 rounded-xl border border-discord-hover hover:bg-discord-darker transition-colors"
+                className="flex items-center gap-1.5 text-sm font-semibold text-discord-muted border border-discord-hover bg-discord-hover px-3 py-2 rounded-xl transition-colors hover:text-discord-text"
               >
                 <FiLink size={13} /> Join
               </button>
               <button
                 onClick={() => setShowCreate(true)}
-                className="discord-btn flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-xl"
+                className="discord-btn flex items-center gap-1.5 text-sm px-3 py-2 rounded-xl"
               >
-                <FiPlus size={14} /> New
+                <FiPlus size={15} />
               </button>
             </div>
           </div>
 
-          {/* Search bar */}
+          {/* Search */}
           <div className="px-4 pb-2">
             <div className="relative">
-              <FiSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-discord-muted pointer-events-none" />
+              <FiSearch size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-discord-muted pointer-events-none" />
               <input
                 value={searchQ}
                 onChange={e => handleSearch(e.target.value)}
                 placeholder="Search groups..."
-                className="discord-input pl-9 py-2 text-sm w-full rounded-xl"
+                className="w-full py-2.5 pl-9 pr-9 rounded-2xl text-sm font-medium outline-none transition-all"
+                style={{
+                  background: 'var(--vx-hover)',
+                  color: 'var(--vx-text)',
+                  border: 'none',
+                }}
               />
               {searchQ && (
-                <button onClick={() => { setSearchQ(''); setSearchResults([]); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-discord-muted hover:text-discord-text">
+                <button onClick={() => { setSearchQ(''); setSearchResults([]); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-discord-muted hover:text-discord-text">
                   <FiX size={14} />
                 </button>
               )}
             </div>
           </div>
 
-          {/* Tabs — only show when not searching */}
+          {/* Tabs */}
           {!searchQ && (
-            <div className="flex px-4 pb-0 gap-1">
+            <div className="flex px-4 gap-0 pb-0">
               {[{ id: 'mine', label: 'My Groups' }, { id: 'discover', label: 'Discover' }].map(t => (
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={`px-4 py-2 text-sm font-semibold rounded-t-xl transition-all border-b-2 ${tab === t.id ? 'border-discord-brand text-discord-brand' : 'border-transparent text-discord-muted hover:text-discord-text'}`}
+                  className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-all ${
+                    tab === t.id
+                      ? 'border-discord-brand text-discord-brand'
+                      : 'border-transparent text-discord-muted hover:text-discord-text'
+                  }`}
                 >
                   {t.label}
-                  {t.id === 'mine' && myGroups.length > 0 && (
-                    <span className="ml-1.5 text-[10px] font-black bg-discord-hover text-discord-muted px-1.5 py-0.5 rounded-full">{myGroups.length}</span>
-                  )}
                 </button>
               ))}
             </div>
@@ -221,15 +278,23 @@ export default function Groups({ currentUser, unreadCounts }) {
           ))
         ) : tab === 'mine' ? (
           myGroups.length === 0 ? (
-            <div className="text-center py-16 px-4">
-              <div className="w-16 h-16 rounded-2xl bg-discord-brand/10 border border-discord-brand/20 flex items-center justify-center mx-auto mb-4">
-                <HiUsers size={28} className="text-discord-brand" />
+            <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+              <div className="w-20 h-20 rounded-3xl mb-5 flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg,#5865f2,#7c3aed)' }}>
+                <HiUsers size={36} className="text-white" />
               </div>
-              <p className="font-bold text-discord-text text-lg">No groups yet</p>
-              <p className="text-discord-muted text-sm mt-1 mb-5">Create a group to chat with multiple people</p>
-              <button className="discord-btn px-6 py-2.5 rounded-xl" onClick={() => setShowCreate(true)}>
-                <FiPlus size={16} className="inline mr-1.5" /> Create Group
-              </button>
+              <h3 className="font-black text-discord-text text-xl mb-2">No groups yet</h3>
+              <p className="text-discord-muted text-sm mb-6 max-w-xs">
+                Create a group to chat with multiple people, or join one with an invite code.
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowJoinSheet(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm border border-discord-hover text-discord-muted hover:text-discord-text hover:bg-discord-hover transition-colors">
+                  <FiLink size={15} /> Join
+                </button>
+                <button onClick={() => setShowCreate(true)} className="discord-btn flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold">
+                  <FiPlus size={15} /> Create Group
+                </button>
+              </div>
             </div>
           ) : myGroups.map(g => (
             <GroupCard key={g._id} g={g} onClick={() => navigate(`/groups/${g._id}`)} />
